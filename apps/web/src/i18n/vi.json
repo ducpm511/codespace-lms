@@ -103,7 +103,44 @@
   "teach": {
     "title": "Khu vực giảng dạy",
     "tab_courses": "Khóa học",
-    "tab_classes": "Lớp học"
+    "tab_classes": "Lớp học",
+    "tab_assignments": "Bài tập & Chấm điểm"
+  },
+  "assignments": {
+    "heading": "Bài tập",
+    "create": "Tạo bài tập mới",
+    "title": "Tên bài tập",
+    "description": "Mô tả / Đề bài",
+    "maxScore": "Điểm tối đa",
+    "dueAt": "Hạn nộp",
+    "submissionType": "Hình thức nộp",
+    "allowLate": "Cho phép nộp trễ",
+    "add": "Tạo bài tập",
+    "empty": "Chưa có bài tập nào.",
+    "selectHint": "Chọn bài tập để xem bài nộp và chấm điểm.",
+    "submissionsHeading": "Danh sách bài nộp",
+    "noSubmissions": "Chưa có bài nộp nào cho lớp này.",
+    "grade": "Chấm điểm",
+    "score": "Điểm số",
+    "feedback": "Nhận xét của giáo viên",
+    "submitGrade": "Lưu điểm & Nhận xét",
+    "gradedAt": "Đã chấm lúc",
+    "submittedAt": "Đã nộp lúc",
+    "selectCourse": "Chọn khóa học…",
+    "selectClass": "Chọn lớp học…"
+  },
+  "submissions": {
+    "status_draft": "Bản nháp",
+    "status_submitted": "Đã nộp",
+    "status_graded": "Đã chấm điểm",
+    "status_returned": "Đã trả lại",
+    "yourSubmission": "Bài nộp của bạn",
+    "contentPlaceholder": "Nhập câu trả lời / nội dung bài làm…",
+    "linkPlaceholder": "Link bài làm (Scratch, Drive, GitHub...)",
+    "saveDraft": "Lưu nháp",
+    "submit": "Nộp bài",
+    "submittedSuccess": "Đã nộp bài thành công!",
+    "scoreTitle": "Điểm"
   },
   "learn": {
     "title": "Khu vực học tập",

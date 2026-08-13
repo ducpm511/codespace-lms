@@ -17,8 +17,8 @@ Updated: 2026-08-13
 |---|---|---|
 | **P0** Scaffold & nền auth/RBAC | monorepo, prisma, auth, PBAC | ✅ Done — 9/9 task |
 | **P1** Course & Class | course/section/lesson, class, gate, progress | ✅ Done — 6/6 (T1.0–T1.5) |
-| **P2** Assessments | assignment + submission + chấm tay | ⬅️ Kế tiếp |
-| **P3** Coding & Runner | Pyodide FE + Judge0/Piston + autograde | Not started |
+| **P2** Assessments | assignment + submission + chấm tay | ✅ Done — 6/6 (T2.0–T2.5) |
+| **P3** Coding & Runner | Pyodide FE + Judge0/Piston + autograde | ⬅️ Kế tiếp |
 | **P4** Quiz | quiz engine + autograde | Not started |
 | **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | Not started |
 | **P6** Polish | notification, audit UI, báo cáo | Not started |
@@ -29,9 +29,9 @@ Phụ thuộc chung: `contracts → prisma schema → backend → frontend`. P3 
 
 ## Active Phase
 
-### Phase P2: Assessments (Assignment + Submission + chấm tay)
+### Phase P2: Assessments (Assignment + Submission + chấm tay) — ✅ DONE (6/6)
 
-Status: 🔄 Đang chạy. Goal (docs/DESIGN.md §4.4, §5.2): bài tập nộp (text/file/link) + chấm tay
+Status: ✅ DONE (6/6). Goal (docs/DESIGN.md §4.4, §5.2): bài tập nộp (text/file/link) + chấm tay
 (score `Decimal` + feedback). Coding autograde = P3, Quiz = P4 (KHÔNG trong P2).
 
 #### Task Breakdown (P2)
@@ -41,9 +41,9 @@ Status: 🔄 Đang chạy. Goal (docs/DESIGN.md §4.4, §5.2): bài tập nộp 
 | **T2.0** Schema `Assignment` + `Submission` + enum (SubmissionType text/file/link, SubmissionStatus draft/submitted/graded/returned) + migration | schema | schema | Med | 1 |
 | **T2.1** Contracts assignment/submission + PERMISSIONS (assignment.*, submission.read/grade) | contracts | contracts | Low | 2 |
 | **T2.2** Module `assignments` (CRUD assignment) + PBAC | backend | api | Med | 3 |
-| **T2.3** Module `submissions` (HV nộp/sửa draft theo membership; GV liệt kê + chấm tay theo scope lớp; điểm Decimal, không tin client) | backend | api | High | 4 |
-| **T2.4** Seed permission assignment/grade cho admin/instructor/TA (idempotent) | schema | schema | Low | 5 |
-| **T2.5** FE Teach (tạo assignment, xem bài nộp, chấm) + Learn (xem đề, nộp, xem điểm/feedback) | frontend | web | Med | 6 |
+| ✅ **T2.3** Module `submissions` (HV nộp/sửa draft theo membership; GV liệt kê + chấm tay theo scope lớp; điểm Decimal, không tin client) | backend | api | High | 4 |
+| ✅ **T2.4** Seed permission assignment/grade cho admin/instructor/TA (idempotent) | schema | schema | Low | 5 |
+| ✅ **T2.5** FE Teach (tạo assignment, xem bài nộp, chấm) + Learn (xem đề, nộp, xem điểm/feedback) | frontend | web | Med | 6 |
 
 Dependency: T2.0 → T2.1 → T2.2 → T2.3 → T2.4 → T2.5.
 
@@ -185,3 +185,6 @@ npx prisma format && npx prisma validate
   course.delete→403 & thiếu user.read→403; admin delete→204; mapper không lộ createdById. ⚠️ File `.env`
   vẫn **chưa sửa được** (bị permission deny-rule chặn ghi) — smoke chạy bằng env inline
   `DATABASE_URL=...localhost:5433... REDIS_URL=...localhost:6380... node apps/api/dist/main.js`.
+- **T2.3** (2026-08-13) — Module `submissions` (apps/api): SubmissionsService + SubmissionsController + DTOs. Endpoints: save draft (`PUT /assignments/:id/submissions/save`), submit (`POST /assignments/:id/submissions/submit`), mine (`GET /assignments/:id/submissions/mine`), list by class (`GET /classes/:classId/assignments/:id/submissions`), findOne (`GET /submissions/:id`), grade (`PUT /submissions/:id/grade`). Ràng buộc: active member, lesson gate active, score là Decimal, IDOR & scope permission check (`submission.read` / `grade.write`). 18 unit tests mới -> `pnpm validate` xanh 16/16, api **73 test** + web 5 test.
+- **T2.4** (2026-08-13) — Seed permission assignment/grade (`packages/database/prisma/seed.cjs`): Thêm 6 PERMISSION_DEFS (`assignment.read/create/update/delete`, `submission.read`, `grade.write`). Cập nhật `ROLE_PERMISSIONS`: admin (đủ 6), instructor (đủ 6), teaching_assistant (`assignment.read`, `submission.read`, `grade.write`). Seed idempotent chạy lại OK: **24 permission, 5 role, 64 liên kết role-permission**. `pnpm validate` xanh 16/16.
+- **T2.5** (2026-08-13) — FE Teach/Learn (`apps/web`): Feature `assessments` (API fetch + TanStack Query hooks). **Teach** (`TeachHome` tab "Bài tập & Chấm điểm" / `TeachAssignments.tsx`): Tạo bài tập (tên, mô tả, điểm tối đa, hạn nộp, loại nộp), chọn lớp + bài tập để xem danh sách bài nộp và chấm điểm trực tiếp (điểm số + nhận xét Markdown). **Learn** (`LearnHome` / `StudentAssignmentCard.tsx`): Học viên xem đề bài tập của lớp, nhập bài làm / dán link bài nộp, bấm "Lưu nháp" hoặc "Nộp bài", xem điểm số & nhận xét của giáo viên sau khi đã được chấm (`graded`). Thêm i18n vi/en đầy đủ. `pnpm validate` xanh 16/16, **api 73 test + web 4 test**. → **Phase P2 HOÀN TẤT (T2.0–T2.5).**

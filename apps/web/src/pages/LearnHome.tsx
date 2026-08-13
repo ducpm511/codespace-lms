@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMyClasses, useMyLessons, useUpdateProgress } from '../features/classes/hooks';
+import { useAssignments } from '../features/assessments/hooks';
+import { StudentAssignmentCard } from '../features/assessments/StudentAssignmentCard';
 
 export function LearnHome(): JSX.Element {
   const { t } = useTranslation();
@@ -38,7 +40,12 @@ export function LearnHome(): JSX.Element {
         </div>
       )}
 
-      {classId && <Lessons classId={classId} />}
+      {classId && (
+        <div className="space-y-6">
+          <Lessons classId={classId} />
+          <ClassAssignments classId={classId} />
+        </div>
+      )}
     </section>
   );
 }
@@ -94,6 +101,25 @@ function Lessons({ classId }: { classId: string }): JSX.Element {
         </li>
       ))}
     </ul>
+  );
+}
+
+function ClassAssignments({ classId }: { classId: string }): JSX.Element {
+  const { t } = useTranslation();
+  const assignments = useAssignments();
+
+  if (assignments.isLoading) return <p className="text-xs text-slate-400">{t('common.loading')}</p>;
+  if (!assignments.data || assignments.data.items.length === 0) return <></>;
+
+  return (
+    <div className="space-y-3 border-t border-slate-200 pt-4">
+      <h2 className="text-base font-semibold text-slate-800">{t('assignments.heading')}</h2>
+      <div className="space-y-3">
+        {assignments.data.items.map((a) => (
+          <StudentAssignmentCard key={a.id} classId={classId} assignment={a} />
+        ))}
+      </div>
+    </div>
   );
 }
 

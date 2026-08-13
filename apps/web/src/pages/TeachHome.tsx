@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TeachCourses } from './teach/TeachCourses';
 import { TeachClasses } from './teach/TeachClasses';
+import { TeachAssignments } from './teach/TeachAssignments';
 
-type Tab = 'courses' | 'classes';
+type Tab = 'courses' | 'classes' | 'assignments';
 
 export function TeachHome(): JSX.Element {
   const { t } = useTranslation();
@@ -14,7 +15,7 @@ export function TeachHome(): JSX.Element {
       <h1 className="text-xl font-semibold">{t('teach.title')}</h1>
 
       <div className="flex gap-1 border-b border-slate-200">
-        {(['courses', 'classes'] as const).map((k) => (
+        {(['courses', 'classes', 'assignments'] as const).map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -29,7 +30,9 @@ export function TeachHome(): JSX.Element {
         ))}
       </div>
 
-      {tab === 'courses' ? <TeachCourses /> : <TeachClasses />}
+      {tab === 'courses' && <TeachCourses />}
+      {tab === 'classes' && <TeachClasses />}
+      {tab === 'assignments' && <TeachAssignments />}
     </section>
   );
 }

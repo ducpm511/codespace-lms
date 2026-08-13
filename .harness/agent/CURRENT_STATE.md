@@ -6,13 +6,9 @@ Updated: 2026-08-13
 
 ## Project Stage
 
-**P0 ✅ + P1 ✅ DONE. Kế tiếp: Phase P2 (Assessments).** P1 đủ 6 task (T1.0–T1.5): schema + contracts +
-module `courses` + module `classes` (gate/progress + PBAC scope lớp) + seed permission + FE Teach/Learn.
-`pnpm validate` xanh 16/16, **api 55 test + web 5 test**; **verify live PASS**: smoke API courses 17/17,
-classes 26/26 (scope lớp + invariant #3), và **trình duyệt** Teach (tạo course→section→lesson→publish;
-tạo lớp→gán khóa→enroll→bật gate) + Learn (HV thấy bài đã mở→cập nhật progress). Postgres+Redis docker
-(5433/6380). Thiết kế: [`docs/DESIGN.md`](../../docs/DESIGN.md).
-**Bước kế: Phase P2** — assignment + submission + chấm tay (chưa breakdown; chạy session-startup + routing).
+**P0 ✅ + P1 ✅ + P2 ✅ DONE. Kế tiếp: Phase P3 (Coding & Runner).** P2 đủ 6 task (T2.0–T2.5): schema Assignment/Submission + contracts + module `assignments` + module `submissions` (scope permission & Decimal score) + seed permission (24 permission / 5 role / 64 liên kết) + FE Teach (tạo assignment, xem bài nộp & chấm điểm trực tiếp) + FE Learn (học viên làm bài, dán link/text, nộp bài & xem điểm/nhận xét).
+`pnpm validate` xanh 16/16, **api 73 test + web 4 test**. Postgres+Redis docker (5433/6380).
+**Bước kế: Phase P3** — Coding & Runner (Pyodide FE + Judge0/Piston backend autograde).
 
 ## Tech Stack
 

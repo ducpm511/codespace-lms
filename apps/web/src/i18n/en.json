@@ -103,7 +103,44 @@
   "teach": {
     "title": "Teaching area",
     "tab_courses": "Courses",
-    "tab_classes": "Classes"
+    "tab_classes": "Classes",
+    "tab_assignments": "Assignments & Grading"
+  },
+  "assignments": {
+    "heading": "Assignments",
+    "create": "Create assignment",
+    "title": "Assignment title",
+    "description": "Description / Instructions",
+    "maxScore": "Max score",
+    "dueAt": "Due date",
+    "submissionType": "Submission type",
+    "allowLate": "Allow late submissions",
+    "add": "Create assignment",
+    "empty": "No assignments yet.",
+    "selectHint": "Select an assignment to view submissions and grade.",
+    "submissionsHeading": "Submissions list",
+    "noSubmissions": "No submissions yet for this class.",
+    "grade": "Grade",
+    "score": "Score",
+    "feedback": "Teacher feedback",
+    "submitGrade": "Save score & feedback",
+    "gradedAt": "Graded at",
+    "submittedAt": "Submitted at",
+    "selectCourse": "Select course…",
+    "selectClass": "Select class…"
+  },
+  "submissions": {
+    "status_draft": "Draft",
+    "status_submitted": "Submitted",
+    "status_graded": "Graded",
+    "status_returned": "Returned",
+    "yourSubmission": "Your submission",
+    "contentPlaceholder": "Type your answer / content here…",
+    "linkPlaceholder": "Link to submission (Scratch, Drive, GitHub...)",
+    "saveDraft": "Save draft",
+    "submit": "Submit",
+    "submittedSuccess": "Submitted successfully!",
+    "scoreTitle": "Score"
   },
   "learn": {
     "title": "Learning area",

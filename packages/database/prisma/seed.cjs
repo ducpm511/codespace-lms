@@ -30,6 +30,13 @@ const PERMISSION_DEFS = [
   { key: PERMISSIONS.CLASS_UPDATE, description: 'Sửa thông tin lớp' },
   { key: PERMISSIONS.CLASS_MANAGE, description: 'Gán khóa, enroll thành viên, mở/tắt gate bài' },
   { key: PERMISSIONS.CLASS_DELETE, description: 'Xóa lớp học' },
+  // P2 — Assessments (Assignment & Submission)
+  { key: PERMISSIONS.ASSIGNMENT_READ, description: 'Xem bài tập' },
+  { key: PERMISSIONS.ASSIGNMENT_CREATE, description: 'Tạo bài tập' },
+  { key: PERMISSIONS.ASSIGNMENT_UPDATE, description: 'Sửa bài tập' },
+  { key: PERMISSIONS.ASSIGNMENT_DELETE, description: 'Xóa bài tập' },
+  { key: PERMISSIONS.SUBMISSION_READ, description: 'Xem bài nộp của học viên' },
+  { key: PERMISSIONS.GRADE_WRITE, description: 'Chấm điểm & nhận xét bài nộp' },
 ];
 
 // 5 role hệ thống (isSystem = true → không cho xóa).
@@ -41,9 +48,8 @@ const ROLE_DEFS = [
   { key: 'student', name: 'Học viên', description: 'Học bài, làm bài, xem điểm & chứng chỉ' },
 ];
 
-// Ma trận role → permission. P1 (T1.4): thêm course.*/class.* cho admin (quản lý toàn bộ) và
-// instructor (biên soạn khóa học + quản lý lớp phụ trách — chặn theo scope lớp ở guard). TA/student
-// nhận quyền học/chấm scope-lớp ở phase sau (T1.3 scope + P2 grade).
+// Ma trận role → permission. P2 (T2.4): thêm assignment.*/submission.read/grade.write cho admin,
+// instructor và teaching_assistant (chấm bài + xem bài nộp scope-lớp).
 const ALL = Object.values(PERMISSIONS);
 const ROLE_PERMISSIONS = {
   super_admin: ALL,
@@ -54,14 +60,19 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.COURSE_PUBLISH, PERMISSIONS.COURSE_DELETE,
     PERMISSIONS.CLASS_READ, PERMISSIONS.CLASS_CREATE, PERMISSIONS.CLASS_UPDATE,
     PERMISSIONS.CLASS_MANAGE, PERMISSIONS.CLASS_DELETE,
+    PERMISSIONS.ASSIGNMENT_READ, PERMISSIONS.ASSIGNMENT_CREATE, PERMISSIONS.ASSIGNMENT_UPDATE,
+    PERMISSIONS.ASSIGNMENT_DELETE, PERMISSIONS.SUBMISSION_READ, PERMISSIONS.GRADE_WRITE,
   ],
   instructor: [
     PERMISSIONS.COURSE_READ, PERMISSIONS.COURSE_CREATE, PERMISSIONS.COURSE_UPDATE,
     PERMISSIONS.COURSE_PUBLISH,
-    // class.create để GV tự lập lớp mình phụ trách (Teach UI); không có class.delete (admin thu hồi).
     PERMISSIONS.CLASS_READ, PERMISSIONS.CLASS_CREATE, PERMISSIONS.CLASS_UPDATE, PERMISSIONS.CLASS_MANAGE,
+    PERMISSIONS.ASSIGNMENT_READ, PERMISSIONS.ASSIGNMENT_CREATE, PERMISSIONS.ASSIGNMENT_UPDATE,
+    PERMISSIONS.ASSIGNMENT_DELETE, PERMISSIONS.SUBMISSION_READ, PERMISSIONS.GRADE_WRITE,
   ],
-  teaching_assistant: [],
+  teaching_assistant: [
+    PERMISSIONS.ASSIGNMENT_READ, PERMISSIONS.SUBMISSION_READ, PERMISSIONS.GRADE_WRITE,
+  ],
   student: [],
 };
 
