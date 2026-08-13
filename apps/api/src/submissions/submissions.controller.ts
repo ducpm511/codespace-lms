@@ -61,8 +61,10 @@ export class SubmissionsController {
     return this.submissionsService.findOne(id, user);
   }
 
+  // KHÔNG dùng @RequirePermission ở đây: route không có :classId nên PermissionsGuard chỉ chấm được
+  // GRADE_WRITE ở phạm vi GLOBAL → sẽ chặn nhầm TA/GV được cấp quyền SCOPED theo lớp. Scope được
+  // kiểm đúng trong service theo sub.classId (giống findOne).
   @Put('submissions/:id/grade')
-  @RequirePermission(PERMISSIONS.GRADE_WRITE)
   grade(
     @Param('id') id: string,
     @Body() dto: GradeSubmissionDto,
