@@ -1,0 +1,116 @@
+{
+  "app": {
+    "name": "CodeSpace LMS",
+    "tagline": "Nền tảng học lập trình Scratch & Python"
+  },
+  "nav": {
+    "admin": "Quản trị",
+    "teach": "Giảng dạy",
+    "learn": "Học tập",
+    "logout": "Đăng xuất"
+  },
+  "login": {
+    "title": "Đăng nhập",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "submit": "Đăng nhập",
+    "loading": "Đang đăng nhập...",
+    "failed": "Đăng nhập thất bại. Kiểm tra lại email/mật khẩu."
+  },
+  "roles": {
+    "super_admin": "Quản trị hệ thống",
+    "admin": "Quản trị đào tạo",
+    "instructor": "Giáo viên",
+    "teaching_assistant": "Trợ giảng",
+    "student": "Học viên"
+  },
+  "common": {
+    "loading": "Đang tải...",
+    "forbidden": "Bạn không có quyền truy cập trang này.",
+    "signedInAs": "Đăng nhập với",
+    "error": "Có lỗi xảy ra"
+  },
+  "courseStatus": {
+    "draft": "Bản nháp",
+    "published": "Đã xuất bản",
+    "archived": "Đã lưu trữ"
+  },
+  "lessonType": {
+    "video": "Video",
+    "article": "Bài đọc",
+    "interactive": "Tương tác",
+    "coding": "Lập trình",
+    "quiz": "Trắc nghiệm",
+    "assignment": "Bài tập"
+  },
+  "roleInClass": {
+    "student": "Học viên",
+    "ta": "Trợ giảng",
+    "instructor": "Giáo viên"
+  },
+  "progress": {
+    "not_started": "Chưa bắt đầu",
+    "in_progress": "Đang học",
+    "completed": "Hoàn thành"
+  },
+  "courses": {
+    "heading": "Khóa học",
+    "create": "Tạo khóa học",
+    "titleField": "Tên khóa học",
+    "slug": "Định danh (slug)",
+    "slugHint": "Chỉ chữ thường, số và dấu gạch ngang",
+    "add": "Tạo khóa học",
+    "empty": "Chưa có khóa học nào.",
+    "selectHint": "Chọn một khóa học để biên soạn.",
+    "publish": "Xuất bản",
+    "noSections": "Chưa có chương nào.",
+    "noLessons": "Chưa có bài học.",
+    "sectionTitle": "Tên chương mới",
+    "addSection": "Thêm chương",
+    "lessonTitle": "Tên bài học mới",
+    "addLesson": "Thêm bài"
+  },
+  "classes": {
+    "heading": "Lớp học",
+    "create": "Tạo lớp",
+    "name": "Tên lớp",
+    "code": "Mã lớp",
+    "add": "Tạo lớp",
+    "empty": "Chưa có lớp nào.",
+    "selectHint": "Chọn một lớp để quản lý.",
+    "courses": "Khóa học của lớp",
+    "noCourses": "Chưa gán khóa học.",
+    "selectCourse": "Chọn khóa học…",
+    "assignCourse": "Gán",
+    "members": "Thành viên",
+    "noMembers": "Chưa có thành viên.",
+    "userId": "ID người dùng",
+    "enroll": "Thêm",
+    "lessonGates": "Mở bài theo tiến độ",
+    "gatesNeedCourse": "Gán khóa học cho lớp trước để mở bài.",
+    "gateOpen": "Đang mở",
+    "gateClosed": "Đang khóa"
+  },
+  "admin": {
+    "title": "Bảng điều khiển quản trị",
+    "usersHeading": "Người dùng",
+    "email": "Email",
+    "name": "Họ tên",
+    "status": "Trạng thái",
+    "roles": "Vai trò",
+    "empty": "Chưa có người dùng nào."
+  },
+  "teach": {
+    "title": "Khu vực giảng dạy",
+    "tab_courses": "Khóa học",
+    "tab_classes": "Lớp học"
+  },
+  "learn": {
+    "title": "Khu vực học tập",
+    "noClasses": "Bạn chưa được thêm vào lớp nào.",
+    "selectClass": "Lớp:",
+    "noLessons": "Chưa có bài học nào được mở cho lớp này.",
+    "markInProgress": "Bắt đầu học",
+    "markCompleted": "Hoàn thành"
+  }
+}

@@ -1,0 +1,88 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type {
+  AssignCourseRequest,
+  CreateClassRequest,
+  EnrollMemberRequest,
+  ProgressStatusValue,
+  SetLessonGateRequest,
+} from '@lms/contracts';
+import * as api from './api';
+
+export const classesKey = ['classes'] as const;
+export const myClassesKey = ['classes', 'mine'] as const;
+export const classKey = (id: string) => ['classes', id] as const;
+export const gatesKey = (id: string) => ['classes', id, 'gates'] as const;
+export const myLessonsKey = (id: string) => ['classes', id, 'my-lessons'] as const;
+
+export function useClasses() {
+  return useQuery({ queryKey: classesKey, queryFn: api.listClasses });
+}
+
+export function useMyClasses() {
+  return useQuery({ queryKey: myClassesKey, queryFn: api.listMyClasses });
+}
+
+export function useClass(id: string | null) {
+  return useQuery({
+    queryKey: classKey(id ?? '_none'),
+    queryFn: () => api.getClass(id as string),
+    enabled: !!id,
+  });
+}
+
+export function useCreateClass() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateClassRequest) => api.createClass(body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: classesKey }),
+  });
+}
+
+export function useAssignCourse(classId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AssignCourseRequest) => api.assignCourse(classId, body),
+    onSuccess: (data) => qc.setQueryData(classKey(classId), data),
+  });
+}
+
+export function useEnrollMember(classId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: EnrollMemberRequest) => api.enrollMember(classId, body),
+    onSuccess: (data) => qc.setQueryData(classKey(classId), data),
+  });
+}
+
+export function useGates(classId: string | null) {
+  return useQuery({
+    queryKey: gatesKey(classId ?? '_none'),
+    queryFn: () => api.listGates(classId as string),
+    enabled: !!classId,
+  });
+}
+
+export function useSetGate(classId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: SetLessonGateRequest) => api.setGate(classId, body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: gatesKey(classId) }),
+  });
+}
+
+export function useMyLessons(classId: string | null) {
+  return useQuery({
+    queryKey: myLessonsKey(classId ?? '_none'),
+    queryFn: () => api.getMyLessons(classId as string),
+    enabled: !!classId,
+  });
+}
+
+export function useUpdateProgress(classId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { lessonId: string; status: ProgressStatusValue }) =>
+      api.updateProgress(classId, vars.lessonId, { status: vars.status }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: myLessonsKey(classId) }),
+  });
+}

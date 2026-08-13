@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+*.log
+
+# prisma generated client
+generated/
+
+# env
+.env
+.env.*
+!.env.example
+
+# claude local
+.claude/settings.local.json
+.claude/worktrees/

@@ -1,0 +1,330 @@
+// CodeSpace LMS — Prisma schema (nguồn sự thật data). Đồng bộ với docs/DESIGN.md §4.
+// Quy ước (sk-schema-conventions): id cuid, createdAt/updatedAt, UTC, Decimal cho điểm,
+// enum value snake_case. Model RBAC/domain thêm dần theo phase (T0.2: Identity & RBAC).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// === Identity & RBAC (T0.1 + T0.2) — docs/DESIGN.md §4.1, §5.1 ===
+// PBAC: guard kiểm permission.key (không kiểm role thô). Role→Permission là data.
+
+enum UserStatus {
+  invited
+  active
+  suspended
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  avatarUrl    String?
+  status       UserStatus @default(invited)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+
+  // P1 (Course & Class)
+  coursesCreated   Course[]         @relation("CourseCreatedBy")
+  classesCreated   Class[]          @relation("ClassCreatedBy")
+  classMemberships ClassMember[]
+  lessonProgress   LessonProgress[]
+  gatesActivated   LessonGate[]     @relation("GateActivatedBy")
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique // super_admin, admin, instructor, teaching_assistant, student, ...
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) // role hệ thống: không cho xóa
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  userRoles   UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique // "<resource>.<action>", vd course.publish, grade.write
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// Gán role cho user. classId != null => role có phạm vi trong 1 lớp (vd TA của lớp X).
+// classId hiện là soft-ref (Class model thêm ở P1) — sẽ gắn @relation khi có Class.
+// Lưu ý NULL: (userId, roleId, NULL) không bị @@unique chặn trùng ở Postgres → guard idempotent ở service.
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  classId   String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, classId])
+  @@index([roleId])
+  @@index([classId])
+  @@map("user_roles")
+}
+
+// Refresh token lưu server-side (hash), xoay vòng khi refresh. KHÔNG lộ token thô ra client.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ip        String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// === Course & Content (T1.0) — docs/DESIGN.md §4.2 ===
+
+enum CourseLanguage {
+  scratch
+  python
+  other
+}
+
+enum CourseLevel {
+  beginner
+  intermediate
+  advanced
+}
+
+enum CourseStatus {
+  draft
+  published
+  archived
+}
+
+enum LessonType {
+  video
+  article
+  interactive
+  coding
+  quiz
+  assignment
+}
+
+model Course {
+  id           String         @id @default(cuid())
+  slug         String         @unique
+  title        String
+  description  String?
+  thumbnailUrl String?
+  language     CourseLanguage @default(python)
+  level        CourseLevel    @default(beginner)
+  status       CourseStatus   @default(draft)
+  createdById  String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  createdBy    User          @relation("CourseCreatedBy", fields: [createdById], references: [id])
+  sections     Section[]
+  classCourses ClassCourse[]
+
+  @@index([createdById])
+  @@map("courses")
+}
+
+model Section {
+  id        String   @id @default(cuid())
+  courseId  String
+  title     String
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@unique([courseId, order])
+  @@map("sections")
+}
+
+model Lesson {
+  id               String     @id @default(cuid())
+  sectionId        String
+  title            String
+  order            Int
+  type             LessonType @default(article)
+  contentMd        String?
+  videoUrl         String?
+  refId            String? // soft-ref tới CodingProblem/Quiz/Assignment tùy type (thêm ở phase sau)
+  estimatedMinutes Int?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  section  Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  gates    LessonGate[]
+  progress LessonProgress[]
+
+  @@unique([sectionId, order])
+  @@index([refId])
+  @@map("lessons")
+}
+
+// === Class / Cohort (T1.0) — docs/DESIGN.md §4.3 ===
+
+enum ClassStatus {
+  planning
+  active
+  finished
+  archived
+}
+
+enum ClassMemberRole {
+  student
+  ta
+  instructor
+}
+
+enum ClassMemberStatus {
+  active
+  removed
+}
+
+enum ProgressStatus {
+  not_started
+  in_progress
+  completed
+}
+
+model Class {
+  id          String      @id @default(cuid())
+  name        String
+  code        String      @unique
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      ClassStatus @default(planning)
+  createdById String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  createdBy User             @relation("ClassCreatedBy", fields: [createdById], references: [id])
+  courses   ClassCourse[]
+  members   ClassMember[]
+  gates     LessonGate[]
+  progress  LessonProgress[]
+
+  @@index([createdById])
+  @@map("classes")
+}
+
+// Gán khóa học cho lớp.
+model ClassCourse {
+  id        String   @id @default(cuid())
+  classId   String
+  courseId  String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  class  Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, courseId])
+  @@index([courseId])
+  @@map("class_courses")
+}
+
+// Thành viên lớp (học viên/TA/giáo viên phụ trách). roleInClass dùng cho scope PBAC theo lớp.
+model ClassMember {
+  id          String            @id @default(cuid())
+  classId     String
+  userId      String
+  roleInClass ClassMemberRole   @default(student)
+  status      ClassMemberStatus @default(active)
+  joinedAt    DateTime          @default(now())
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, userId])
+  @@index([userId])
+  @@map("class_members")
+}
+
+// Mở bài theo tiến độ lớp: bài chỉ mở cho lớp khi có gate isActive=true (invariant domain).
+model LessonGate {
+  id            String    @id @default(cuid())
+  classId       String
+  lessonId      String
+  isActive      Boolean   @default(false)
+  activatedAt   DateTime?
+  activatedById String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  class       Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  lesson      Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  activatedBy User?  @relation("GateActivatedBy", fields: [activatedById], references: [id], onDelete: SetNull)
+
+  @@unique([classId, lessonId])
+  @@index([lessonId])
+  @@map("lesson_gates")
+}
+
+// Tiến độ học của học viên theo từng bài trong một lớp.
+model LessonProgress {
+  id          String         @id @default(cuid())
+  userId      String
+  lessonId    String
+  classId     String
+  status      ProgressStatus @default(not_started)
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  class  Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId, classId])
+  @@index([classId])
+  @@index([lessonId])
+  @@map("lesson_progress")
+}

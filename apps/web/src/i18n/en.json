@@ -1,0 +1,116 @@
+{
+  "app": {
+    "name": "CodeSpace LMS",
+    "tagline": "Learn to code with Scratch & Python"
+  },
+  "nav": {
+    "admin": "Admin",
+    "teach": "Teaching",
+    "learn": "Learning",
+    "logout": "Sign out"
+  },
+  "login": {
+    "title": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "loading": "Signing in...",
+    "failed": "Sign in failed. Check your email/password."
+  },
+  "roles": {
+    "super_admin": "Super Admin",
+    "admin": "Admin",
+    "instructor": "Instructor",
+    "teaching_assistant": "Teaching Assistant",
+    "student": "Student"
+  },
+  "common": {
+    "loading": "Loading...",
+    "forbidden": "You don't have permission to view this page.",
+    "signedInAs": "Signed in as",
+    "error": "Something went wrong"
+  },
+  "courseStatus": {
+    "draft": "Draft",
+    "published": "Published",
+    "archived": "Archived"
+  },
+  "lessonType": {
+    "video": "Video",
+    "article": "Article",
+    "interactive": "Interactive",
+    "coding": "Coding",
+    "quiz": "Quiz",
+    "assignment": "Assignment"
+  },
+  "roleInClass": {
+    "student": "Student",
+    "ta": "Teaching Assistant",
+    "instructor": "Instructor"
+  },
+  "progress": {
+    "not_started": "Not started",
+    "in_progress": "In progress",
+    "completed": "Completed"
+  },
+  "courses": {
+    "heading": "Courses",
+    "create": "Create course",
+    "titleField": "Course title",
+    "slug": "Slug",
+    "slugHint": "Lowercase letters, numbers and hyphens only",
+    "add": "Create course",
+    "empty": "No courses yet.",
+    "selectHint": "Select a course to edit.",
+    "publish": "Publish",
+    "noSections": "No sections yet.",
+    "noLessons": "No lessons.",
+    "sectionTitle": "New section title",
+    "addSection": "Add section",
+    "lessonTitle": "New lesson title",
+    "addLesson": "Add lesson"
+  },
+  "classes": {
+    "heading": "Classes",
+    "create": "Create class",
+    "name": "Class name",
+    "code": "Class code",
+    "add": "Create class",
+    "empty": "No classes yet.",
+    "selectHint": "Select a class to manage.",
+    "courses": "Class courses",
+    "noCourses": "No course assigned.",
+    "selectCourse": "Select a course…",
+    "assignCourse": "Assign",
+    "members": "Members",
+    "noMembers": "No members yet.",
+    "userId": "User ID",
+    "enroll": "Add",
+    "lessonGates": "Lesson gating",
+    "gatesNeedCourse": "Assign a course to the class first to gate lessons.",
+    "gateOpen": "Open",
+    "gateClosed": "Locked"
+  },
+  "admin": {
+    "title": "Admin dashboard",
+    "usersHeading": "Users",
+    "email": "Email",
+    "name": "Full name",
+    "status": "Status",
+    "roles": "Roles",
+    "empty": "No users yet."
+  },
+  "teach": {
+    "title": "Teaching area",
+    "tab_courses": "Courses",
+    "tab_classes": "Classes"
+  },
+  "learn": {
+    "title": "Learning area",
+    "noClasses": "You haven't been added to any class yet.",
+    "selectClass": "Class:",
+    "noLessons": "No lessons have been opened for this class yet.",
+    "markInProgress": "Start",
+    "markCompleted": "Complete"
+  }
+}

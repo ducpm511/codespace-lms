@@ -1,0 +1,47 @@
+# Hạ tầng dev cho CodeSpace LMS: PostgreSQL + Redis.
+# Khớp giá trị với .env.example. Chỉ dùng cho DEV (mật khẩu là giá trị dev, không dùng prod).
+#
+#   docker compose up -d        # bật
+#   docker compose ps           # xem trạng thái
+#   docker compose down         # tắt (giữ data)
+#   docker compose down -v      # tắt + xóa data
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lms
+      POSTGRES_PASSWORD: lms_dev_password
+      POSTGRES_DB: lms
+    ports:
+      # Host 5433 để tránh đụng PostgreSQL native đã cài trên máy (chiếm 5432). Trong container vẫn 5432.
+      - "5433:5432"
+    volumes:
+      - lms_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms -d lms"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: lms-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      # Host 6380 để tránh đụng Redis khác trên máy. Trong container vẫn 6379.
+      - "6380:6379"
+    volumes:
+      - lms_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lms_pgdata:
+  lms_redisdata:
