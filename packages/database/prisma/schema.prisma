@@ -47,6 +47,10 @@ model User {
   submissions        Submission[] @relation("SubmissionByUser")
   submissionsGraded  Submission[] @relation("SubmissionGradedBy")
 
+  // P3 (Coding & Runner)
+  codingProblemsCreated CodingProblem[]    @relation("CodingProblemCreatedBy")
+  codingSubmissions     CodingSubmission[]
+
   @@map("users")
 }
 
@@ -167,10 +171,11 @@ model Course {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  createdBy    User          @relation("CourseCreatedBy", fields: [createdById], references: [id])
-  sections     Section[]
-  classCourses ClassCourse[]
-  assignments  Assignment[]
+  createdBy      User            @relation("CourseCreatedBy", fields: [createdById], references: [id])
+  sections       Section[]
+  classCourses   ClassCourse[]
+  assignments    Assignment[]
+  codingProblems CodingProblem[]
 
   @@index([createdById])
   @@map("courses")
@@ -204,10 +209,11 @@ model Lesson {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  section     Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  gates       LessonGate[]
-  progress    LessonProgress[]
-  assignments Assignment[]
+  section        Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  gates          LessonGate[]
+  progress       LessonProgress[]
+  assignments    Assignment[]
+  codingProblems CodingProblem[]
 
   @@unique([sectionId, order])
   @@index([refId])
@@ -252,12 +258,13 @@ model Class {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  createdBy   User             @relation("ClassCreatedBy", fields: [createdById], references: [id])
-  courses     ClassCourse[]
-  members     ClassMember[]
-  gates       LessonGate[]
-  progress    LessonProgress[]
-  submissions Submission[]
+  createdBy         User               @relation("ClassCreatedBy", fields: [createdById], references: [id])
+  courses           ClassCourse[]
+  members           ClassMember[]
+  gates             LessonGate[]
+  progress          LessonProgress[]
+  submissions       Submission[]
+  codingSubmissions CodingSubmission[]
 
   @@index([createdById])
   @@map("classes")
@@ -404,4 +411,134 @@ model Submission {
   @@index([classId])
   @@index([userId])
   @@map("submissions")
+}
+
+// === Coding & Runner (T3.2) - docs/DESIGN.md 4.5, 6 ===
+
+enum CodingLanguage {
+  python
+}
+
+enum CodingDifficulty {
+  easy
+  medium
+  hard
+}
+
+enum TestCaseKind {
+  sample
+  hidden
+}
+
+enum CodingSubmissionStatus {
+  queued
+  running
+  passed
+  failed
+  error
+}
+
+enum TestCaseResultStatus {
+  passed
+  failed
+  tle
+  mle
+  re
+  ce
+}
+
+// Coding problem. Hidden testcases + solutionCode are authoring/runner only; never returned to students.
+model CodingProblem {
+  id            String           @id @default(cuid())
+  courseId      String
+  lessonId      String?
+  title         String
+  statementMd   String
+  language      CodingLanguage   @default(python)
+  starterCode   String?
+  solutionCode  String?
+  timeLimitMs   Int              @default(2000)
+  memoryLimitMb Int              @default(128)
+  difficulty    CodingDifficulty @default(easy)
+  maxScore      Decimal          @default(100) @db.Decimal(6, 2)
+  createdById   String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  course      Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson      Lesson?            @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  createdBy   User               @relation("CodingProblemCreatedBy", fields: [createdById], references: [id])
+  testCases   TestCase[]
+  submissions CodingSubmission[]
+
+  @@index([courseId])
+  @@index([lessonId])
+  @@index([createdById])
+  @@map("coding_problems")
+}
+
+// Testcase for a coding problem. kind=hidden is never sent to students while solving.
+model TestCase {
+  id             String       @id @default(cuid())
+  problemId      String
+  name           String?
+  stdin          String
+  expectedStdout String
+  kind           TestCaseKind @default(sample)
+  weight         Decimal      @default(1) @db.Decimal(6, 2)
+  order          Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  problem CodingProblem    @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  results TestCaseResult[]
+
+  @@unique([problemId, order])
+  @@index([problemId, kind])
+  @@map("test_cases")
+}
+
+// Official code submission. Score source of truth = server-side runner; never trust client/Pyodide.
+model CodingSubmission {
+  id          String                 @id @default(cuid())
+  problemId   String
+  userId      String
+  classId     String?
+  sourceCode  String
+  language    CodingLanguage         @default(python)
+  status      CodingSubmissionStatus @default(queued)
+  score       Decimal?               @db.Decimal(6, 2)
+  runtimeMs   Int?
+  memoryKb    Int?
+  submittedAt DateTime               @default(now())
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  problem CodingProblem    @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class   Class?           @relation(fields: [classId], references: [id], onDelete: SetNull)
+  results TestCaseResult[]
+
+  @@index([problemId, userId, classId])
+  @@index([classId])
+  @@index([status])
+  @@map("coding_submissions")
+}
+
+// Per-testcase result for a submission. Never hard-delete submission/result; keep grading history.
+model TestCaseResult {
+  id           String               @id @default(cuid())
+  submissionId String
+  testCaseId   String
+  status       TestCaseResultStatus
+  actualStdout String?
+  runtimeMs    Int?
+  createdAt    DateTime             @default(now())
+
+  submission CodingSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  testCase   TestCase         @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, testCaseId])
+  @@index([testCaseId])
+  @@map("test_case_results")
 }

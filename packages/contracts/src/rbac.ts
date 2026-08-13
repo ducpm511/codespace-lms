@@ -44,6 +44,13 @@ export const PERMISSIONS = {
   ASSIGNMENT_DELETE: 'assignment.delete',
   SUBMISSION_READ: 'submission.read', // GV/TA xem bài nộp của lớp
   GRADE_WRITE: 'grade.write', // chấm tay (scope theo lớp)
+  // P3 — Coding & Runner
+  CODING_READ: 'coding.read',
+  CODING_CREATE: 'coding.create',
+  CODING_UPDATE: 'coding.update',
+  CODING_DELETE: 'coding.delete',
+  CODING_SUBMIT: 'coding.submit',
+  CODING_RESULT_READ: 'coding.result.read',
 } as const;
 
 export type PermissionCatalogKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
