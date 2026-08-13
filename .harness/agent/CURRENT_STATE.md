@@ -6,9 +6,14 @@ Updated: 2026-08-13
 
 ## Project Stage
 
-**P0 ✅ + P1 ✅ + P2 ✅ DONE. Kế tiếp: Phase P3 (Coding & Runner).** P2 đủ 6 task (T2.0–T2.5): schema Assignment/Submission + contracts + module `assignments` + module `submissions` (scope permission & Decimal score) + seed permission (24 permission / 5 role / 64 liên kết) + FE Teach (tạo assignment, xem bài nộp & chấm điểm trực tiếp) + FE Learn (học viên làm bài, dán link/text, nộp bài & xem điểm/nhận xét).
-`pnpm validate` xanh 16/16, **api 73 test + web 4 test**. Postgres+Redis docker (5433/6380).
-**Bước kế: Phase P3** — Coding & Runner (Pyodide FE + Judge0/Piston backend autograde).
+**P0 ✅ + P1 ✅ + P2 ✅ DONE. Phase P3 (Coding & Runner) đang chạy: T3.0–T3.3, T3.6 ✅.**
+P2 xong (assignment/submission + chấm tay). **P3 tới giờ**: ADR runner (T3.0), contracts `coding.ts` +
+`coding.*` perms (T3.1), schema `CodingProblem/TestCase/CodingSubmission/TestCaseResult` + migration áp DB
+(T3.2), **module backend `coding` authoring** (T3.3) + **seed coding** (T3.6). `pnpm validate` xanh 16/16,
+**api 81 test + web**; **smoke live coding 14/14** (invariant không lộ hidden/solution). Postgres+Redis
+docker (5433/6380).
+**Bước kế: T3.4** (runner adapter + BullMQ queue) → T3.5 (submit/autograde) → T3.7/T3.8 FE → T3.9 verify.
+2 fix trong review đã COMMIT: (a) bug scope chấm điểm P2 (`ffee1c7`); (b) invalid-UTF8 schema coding (`4331b70`).
 
 ## Tech Stack
 
@@ -18,7 +23,7 @@ Updated: 2026-08-13
 | Frontend | React + Vite + TailwindCSS + TanStack Query; Monaco editor + Pyodide (live code) |
 | Backend | NestJS + Prisma ORM + PostgreSQL |
 | Async/queue | Redis + BullMQ (chấm coding submission) |
-| Code runner | Judge0 CE / Piston self-hosted, cách ly (services/code-runner) — chốt ở P3 |
+| Code runner | Piston self-hosted cho P3 MVP, cách ly (services/code-runner); giữ adapter boundary để thêm Judge0 CE sau |
 | Storage | `StorageAdapter` provider-agnostic: **Cloudflare R2** (file riêng tư, signed URL) + **Cloudinary** (media công khai). Local adapter cho dev. Cả hai free tier |
 | Testing | Jest (unit) + Playwright (E2E) |
 
@@ -88,6 +93,27 @@ services/
 
 ## Incomplete / Weak Areas
 
+- **✅ Môi trường đã UNBLOCK.** Nguyên nhân "treo" trước đây KHÔNG phải ổ D: (D: là HDD + Defender chỉ
+  làm *cold install* chậm, không treo). Thật ra: node_modules bị xoá + global store `D:\.pnpm-store\v3`
+  **thiếu ~51 package**, `pnpm install` thường đi resolve registry trong sandbox bị kẹt, và `--offline`
+  dựng cây **thiếu mà vẫn exit 0** (bẫy). **Cách repair khi node_modules hỏng/thiếu:** `pnpm install --force`
+  (một lần, có mạng) — tải nốt phần thiếu + link lại đủ (mất ~9 phút trên HDD nhưng xong). Sau đó `pnpm validate` xanh.
+- **🔎 Review code P2 (agent Gemini/Codex) — 2026-08-13:** đã soát `assignments` + `submissions` + seed
+  + FE assessments + contracts P3.
+  - ✅ **Đã fix 1 bug scope thật:** route `PUT /submissions/:id/grade` gắn `@RequirePermission(GRADE_WRITE)`
+    nhưng route KHÔNG có `:classId` → `PermissionsGuard` chấm GRADE_WRITE ở **global**, chặn nhầm TA/GV
+    được cấp quyền **scoped theo lớp** (seed cho `teaching_assistant` grade.write, TA gán role scoped)
+    → 403 trước khi vào service. Đã **gỡ decorator** ở `submissions.controller.ts` (service đã tự kiểm
+    scope đúng bằng `sub.classId`, giống `findOne`). ✅ Đã commit `ffee1c7`, validate xanh.
+  - ✅ **Module `coding`** (T3.3, `apps/api/src/coding/`): CRUD problem/testcase (coding.read/create/update/
+    delete + IDOR) trả **author DTO** (hidden+solution); student `GET /coding-problems/:id/attempt?classId=`
+    (auth+membership+gate) trả **student DTO chỉ sample** — `toStudentDetail` filter kind='sample', KHÔNG
+    solutionCode/hidden. Đây là ranh giới bảo mật P3, có unit test + smoke live giữ. Commit `0ad3cb6`.
+  - 👍 Tốt: submissions enforce membership + gate (invariant #3) + IDOR (findOne) + Decimal + score≤maxScore
+    + chặn sửa khi đã graded; contract `coding.ts` tách student-DTO (chỉ sample) vs author-DTO (hidden+solution).
+  - Nợ nhỏ: FE `StudentAssignmentCard.tsx` còn vài chuỗi hardcode tiếng Việt (nên `t()`); `getMySubmission`
+    chưa validate `classId` query; task board ghi T3.2 (schema coding) "not done" nhưng schema+migration
+    `p3_coding_runner` đã có (uncommitted) — cần đồng bộ trạng thái.
 - ⚠️ **Env files còn cổng 5432/6379 (cần sửa tay → 5433/6380).** `.env`, `.env.example`,
   `packages/database/.env` chưa đồng bộ cổng mới vì bị permission chặn ghi. Migration T0.2 chạy được
   nhờ truyền `DATABASE_URL` inline. Trước khi chạy `pnpm db:migrate` hay khởi động API, đổi
@@ -98,7 +124,7 @@ services/
   (chưa tra theo email — cần endpoint tìm user hoặc student.read); (c) TA/student chưa có permission seed;
   (d) chưa E2E Playwright (mới verify tay).
 - Data dev `student1` fullName lỗi encoding ("HV M?t") do curl smoke cũ — vô hại, tạo lại nếu cần.
-- Code runner: chưa chốt Judge0 vs Piston (open question, P3).
+- Code runner: đã chốt Piston self-hosted cho P3 MVP trong `docs/adr/001-code-runner-piston-mvp.md`; không dùng public Piston API mặc định.
 - Chấm Scratch tự động: chưa có lời giải — giai đoạn đầu nộp + chấm tay (open question).
 - Rule tự mở bài theo % lớp: ngưỡng & cơ chế kích hoạt chưa chốt.
 
