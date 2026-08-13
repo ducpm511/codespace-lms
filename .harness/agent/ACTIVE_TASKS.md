@@ -29,10 +29,31 @@ Phụ thuộc chung: `contracts → prisma schema → backend → frontend`. P3 
 
 ## Active Phase
 
-### Phase P2: Assessments (chưa bắt đầu)
+### Phase P2: Assessments (Assignment + Submission + chấm tay)
 
-Status: ⬜ Not started. Goal (docs/DESIGN.md): assignment + submission + chấm tay. Phụ thuộc P1 (course/
-lesson/class + progress) đã xong. Chưa breakdown task — cần chạy session-startup + routing khi bắt đầu.
+Status: 🔄 Đang chạy. Goal (docs/DESIGN.md §4.4, §5.2): bài tập nộp (text/file/link) + chấm tay
+(score `Decimal` + feedback). Coding autograde = P3, Quiz = P4 (KHÔNG trong P2).
+
+#### Task Breakdown (P2)
+
+| Task | Scope | Surface | Risk | Order |
+|---|---|---|---|---|
+| **T2.0** Schema `Assignment` + `Submission` + enum (SubmissionType text/file/link, SubmissionStatus draft/submitted/graded/returned) + migration | schema | schema | Med | 1 |
+| **T2.1** Contracts assignment/submission + PERMISSIONS (assignment.*, submission.read/grade) | contracts | contracts | Low | 2 |
+| **T2.2** Module `assignments` (CRUD assignment) + PBAC | backend | api | Med | 3 |
+| **T2.3** Module `submissions` (HV nộp/sửa draft theo membership; GV liệt kê + chấm tay theo scope lớp; điểm Decimal, không tin client) | backend | api | High | 4 |
+| **T2.4** Seed permission assignment/grade cho admin/instructor/TA (idempotent) | schema | schema | Low | 5 |
+| **T2.5** FE Teach (tạo assignment, xem bài nộp, chấm) + Learn (xem đề, nộp, xem điểm/feedback) | frontend | web | Med | 6 |
+
+Dependency: T2.0 → T2.1 → T2.2 → T2.3 → T2.4 → T2.5.
+
+#### Acceptance Criteria (P2)
+- `pnpm validate` + migration áp sạch. Điểm là `Decimal` (không Float); không hard-delete Submission.
+- GV tạo assignment cho course/lesson; HV (thành viên lớp) nộp bài (draft→submitted); GV chấm (score+feedback,
+  status→graded), scope theo lớp (GV/TA chỉ chấm lớp phụ trách). HV xem điểm/feedback sau khi graded.
+- Không tin score client gửi; unique 1 submission/(assignment,user,class); IDOR trên :id.
+- **Hoãn (không thuộc P2)**: file upload thật (cần StorageAdapter — text/link nộp được ngay, file để sau);
+  AuditLog & GradeEntry tổng hợp (P5/P6).
 
 ### Phase P1: Course & Class — ✅ DONE (6/6)
 

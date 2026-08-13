@@ -37,6 +37,13 @@ export const PERMISSIONS = {
   CLASS_UPDATE: 'class.update',
   CLASS_MANAGE: 'class.manage', // gán khóa, enroll thành viên, mở/tắt gate bài
   CLASS_DELETE: 'class.delete',
+  // P2 — Assessments (Assignment)
+  ASSIGNMENT_READ: 'assignment.read',
+  ASSIGNMENT_CREATE: 'assignment.create',
+  ASSIGNMENT_UPDATE: 'assignment.update',
+  ASSIGNMENT_DELETE: 'assignment.delete',
+  SUBMISSION_READ: 'submission.read', // GV/TA xem bài nộp của lớp
+  GRADE_WRITE: 'grade.write', // chấm tay (scope theo lớp)
 } as const;
 
 export type PermissionCatalogKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

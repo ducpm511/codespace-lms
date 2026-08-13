@@ -42,6 +42,11 @@ model User {
   lessonProgress   LessonProgress[]
   gatesActivated   LessonGate[]     @relation("GateActivatedBy")
 
+  // P2 (Assessments)
+  assignmentsCreated Assignment[] @relation("AssignmentCreatedBy")
+  submissions        Submission[] @relation("SubmissionByUser")
+  submissionsGraded  Submission[] @relation("SubmissionGradedBy")
+
   @@map("users")
 }
 
@@ -165,6 +170,7 @@ model Course {
   createdBy    User          @relation("CourseCreatedBy", fields: [createdById], references: [id])
   sections     Section[]
   classCourses ClassCourse[]
+  assignments  Assignment[]
 
   @@index([createdById])
   @@map("courses")
@@ -198,9 +204,10 @@ model Lesson {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  section  Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  gates    LessonGate[]
-  progress LessonProgress[]
+  section     Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  gates       LessonGate[]
+  progress    LessonProgress[]
+  assignments Assignment[]
 
   @@unique([sectionId, order])
   @@index([refId])
@@ -245,11 +252,12 @@ model Class {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  createdBy User             @relation("ClassCreatedBy", fields: [createdById], references: [id])
-  courses   ClassCourse[]
-  members   ClassMember[]
-  gates     LessonGate[]
-  progress  LessonProgress[]
+  createdBy   User             @relation("ClassCreatedBy", fields: [createdById], references: [id])
+  courses     ClassCourse[]
+  members     ClassMember[]
+  gates       LessonGate[]
+  progress    LessonProgress[]
+  submissions Submission[]
 
   @@index([createdById])
   @@map("classes")
@@ -327,4 +335,73 @@ model LessonProgress {
   @@index([classId])
   @@index([lessonId])
   @@map("lesson_progress")
+}
+
+// === Assessments — Assignment (nộp/chấm tay) (T2.0) — docs/DESIGN.md §4.4 ===
+
+enum SubmissionType {
+  text
+  file
+  link
+}
+
+enum SubmissionStatus {
+  draft
+  submitted
+  graded
+  returned
+}
+
+// Bài tập nộp/chấm tay. Coding autograde (§4.5) = P3, Quiz (§4.6) = P4 — KHÔNG ở đây.
+model Assignment {
+  id             String         @id @default(cuid())
+  courseId       String
+  lessonId       String?
+  title          String
+  descriptionMd  String?
+  dueAt          DateTime?
+  maxScore       Decimal        @default(100) @db.Decimal(6, 2)
+  allowLate      Boolean        @default(false)
+  submissionType SubmissionType @default(text)
+  createdById    String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson      Lesson?      @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  createdBy   User         @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
+  submissions Submission[]
+
+  @@index([courseId])
+  @@index([lessonId])
+  @@map("assignments")
+}
+
+// Bài nộp của học viên trong 1 lớp. Điểm là Decimal; KHÔNG hard-delete (giữ lịch sử — soft/return).
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  userId       String
+  classId      String
+  contentText  String?
+  fileId       String? // soft-ref tới file private (StorageAdapter) — upload thật hoãn sau P2
+  linkUrl      String?
+  status       SubmissionStatus @default(draft)
+  score        Decimal?         @db.Decimal(6, 2)
+  feedbackMd   String?
+  gradedById   String?
+  gradedAt     DateTime?
+  submittedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user       User       @relation("SubmissionByUser", fields: [userId], references: [id], onDelete: Cascade)
+  class      Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  gradedBy   User?      @relation("SubmissionGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
+
+  @@unique([assignmentId, userId, classId])
+  @@index([classId])
+  @@index([userId])
+  @@map("submissions")
 }
