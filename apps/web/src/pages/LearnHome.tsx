@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useMyClasses, useMyLessons, useUpdateProgress } from '../features/classes/hooks';
 import { useAssignments } from '../features/assessments/hooks';
 import { StudentAssignmentCard } from '../features/assessments/StudentAssignmentCard';
+import { LearnCoding } from './learn/LearnCoding';
 
 export function LearnHome(): JSX.Element {
   const { t } = useTranslation();
@@ -44,6 +45,7 @@ export function LearnHome(): JSX.Element {
         <div className="space-y-6">
           <Lessons classId={classId} />
           <ClassAssignments classId={classId} />
+          <LearnCoding classId={classId} />
         </div>
       )}
     </section>

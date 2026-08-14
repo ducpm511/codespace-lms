@@ -1,6 +1,9 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CodingService } from './coding.service';
 import type { PrismaService } from '../prisma/prisma.service';
+import type { RbacService } from '../rbac/rbac.service';
+import type { SubmissionQueue } from './queue/submission-queue';
+import type { AuthPrincipal } from '../auth/auth.types';
 
 function makePrisma() {
   return {
@@ -13,14 +16,21 @@ function makePrisma() {
       delete: jest.fn(),
     },
     testCase: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), aggregate: jest.fn() },
+    codingSubmission: { create: jest.fn(), findUnique: jest.fn() },
     course: { findUnique: jest.fn() },
     lesson: { findUnique: jest.fn() },
     classMember: { findUnique: jest.fn() },
-    classCourse: { findUnique: jest.fn() },
-    lessonGate: { findUnique: jest.fn() },
+    classCourse: { findUnique: jest.fn(), findMany: jest.fn() },
+    lessonGate: { findUnique: jest.fn(), findMany: jest.fn() },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
 }
+
+function makeRbac() {
+  return { getEffectivePermissions: jest.fn().mockResolvedValue([]), hasPermission: jest.fn().mockReturnValue(false) };
+}
+
+const principal = (userId: string): AuthPrincipal => ({ userId }) as AuthPrincipal;
 
 const now = new Date('2026-08-13T00:00:00.000Z');
 
@@ -49,11 +59,19 @@ function problemRow(over: Record<string, unknown> = {}) {
 
 describe('CodingService', () => {
   let prisma: ReturnType<typeof makePrisma>;
+  let rbac: ReturnType<typeof makeRbac>;
+  let queue: { enqueue: jest.Mock };
   let service: CodingService;
 
   beforeEach(() => {
     prisma = makePrisma();
-    service = new CodingService(prisma as unknown as PrismaService);
+    rbac = makeRbac();
+    queue = { enqueue: jest.fn().mockResolvedValue(undefined) };
+    service = new CodingService(
+      prisma as unknown as PrismaService,
+      rbac as unknown as RbacService,
+      queue as unknown as SubmissionQueue,
+    );
   });
 
   describe('getAuthorDetail', () => {
@@ -138,6 +156,149 @@ describe('CodingService', () => {
       await expect(
         service.upsertTestCase('p1', { id: 't9', stdin: '', expectedStdout: '', kind: 'sample' }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  function submissionRow(over: Record<string, unknown> = {}) {
+    return {
+      id: 'sub1',
+      problemId: 'p1',
+      userId: 'stu-1',
+      classId: 'class-1',
+      language: 'python',
+      status: 'passed',
+      score: '100',
+      runtimeMs: 5,
+      memoryKb: 0,
+      submittedAt: now,
+      results: [
+        { id: 'r1', testCaseId: 't1', status: 'passed', actualStdout: '3', runtimeMs: 5, testCase: { name: 'sample', order: 0 } },
+      ],
+      ...over,
+    };
+  }
+
+  describe('submit', () => {
+    const okMembership = () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.classCourse.findUnique.mockResolvedValue({ id: 'cc1' });
+    };
+
+    it('tạo submission queued + enqueue + trả DTO (không tin điểm client)', async () => {
+      prisma.codingProblem.findUnique.mockResolvedValue({ id: 'p1', courseId: 'c1', lessonId: null, language: 'python' });
+      okMembership();
+      prisma.codingSubmission.create.mockResolvedValue({ id: 'sub1' });
+      prisma.codingSubmission.findUnique.mockResolvedValue(submissionRow());
+
+      const res = await service.submit('p1', 'stu-1', { classId: 'class-1', sourceCode: 'print(3)' });
+
+      expect(prisma.codingSubmission.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'queued', problemId: 'p1', userId: 'stu-1' }) }),
+      );
+      expect(queue.enqueue).toHaveBeenCalledWith('sub1');
+      expect(res.id).toBe('sub1');
+      expect(res.score).toBe(100);
+      expect(res.results).toHaveLength(1);
+    });
+
+    it('404 khi bài không tồn tại', async () => {
+      prisma.codingProblem.findUnique.mockResolvedValue(null);
+      await expect(service.submit('ghost', 'stu-1', { classId: 'class-1', sourceCode: 'x' })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(queue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('403 khi không phải thành viên active (không enqueue)', async () => {
+      prisma.codingProblem.findUnique.mockResolvedValue({ id: 'p1', courseId: 'c1', lessonId: null, language: 'python' });
+      prisma.classMember.findUnique.mockResolvedValue(null);
+      await expect(service.submit('p1', 'stu-1', { classId: 'class-1', sourceCode: 'x' })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(queue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('403 khi lesson chưa mở gate', async () => {
+      prisma.codingProblem.findUnique.mockResolvedValue({ id: 'p1', courseId: 'c1', lessonId: 'l1', language: 'python' });
+      okMembership();
+      prisma.lessonGate.findUnique.mockResolvedValue({ isActive: false });
+      await expect(service.submit('p1', 'stu-1', { classId: 'class-1', sourceCode: 'x' })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(queue.enqueue).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getSubmission (ownership + scope)', () => {
+    it('chủ sở hữu xem được, không cần permission', async () => {
+      prisma.codingSubmission.findUnique.mockResolvedValue(submissionRow());
+      const res = await service.getSubmission('sub1', principal('stu-1'));
+      expect(res.id).toBe('sub1');
+      expect(rbac.hasPermission).not.toHaveBeenCalled();
+    });
+
+    it('người khác không có coding.result.read theo lớp → 403', async () => {
+      prisma.codingSubmission.findUnique.mockResolvedValue(submissionRow());
+      rbac.hasPermission.mockReturnValue(false);
+      await expect(service.getSubmission('sub1', principal('gv-x'))).rejects.toBeInstanceOf(ForbiddenException);
+      expect(rbac.hasPermission).toHaveBeenCalledWith(expect.anything(), 'coding.result.read', 'class-1');
+    });
+
+    it('GV có coding.result.read theo lớp → xem được', async () => {
+      prisma.codingSubmission.findUnique.mockResolvedValue(submissionRow());
+      rbac.hasPermission.mockReturnValue(true);
+      const res = await service.getSubmission('sub1', principal('gv-x'));
+      expect(res.userId).toBe('stu-1');
+    });
+
+    it('404 khi submission không tồn tại', async () => {
+      prisma.codingSubmission.findUnique.mockResolvedValue(null);
+      await expect(service.getSubmission('nope', principal('stu-1'))).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('KHÔNG lộ stdin/expectedStdout của testcase (nhất là hidden)', async () => {
+      prisma.codingSubmission.findUnique.mockResolvedValue(submissionRow());
+      const res = await service.getSubmission('sub1', principal('stu-1'));
+      const flat = JSON.stringify(res);
+      expect(flat).not.toContain('stdin');
+      expect(flat).not.toContain('expectedStdout');
+    });
+  });
+
+  describe('listForClass (student list — membership + gate)', () => {
+    it('403 khi không phải thành viên active (không truy vấn problem)', async () => {
+      prisma.classMember.findUnique.mockResolvedValue(null);
+      await expect(service.listForClass('class-1', 'stu-1')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.codingProblem.findMany).not.toHaveBeenCalled();
+    });
+
+    it('lớp chưa gán khóa nào → trả rỗng', async () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.classCourse.findMany.mockResolvedValue([]);
+      const res = await service.listForClass('class-1', 'stu-1');
+      expect(res).toEqual([]);
+      expect(prisma.codingProblem.findMany).not.toHaveBeenCalled();
+    });
+
+    it('chỉ trả bài không gắn lesson HOẶC lesson đã mở gate; không lộ field nội bộ', async () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.classCourse.findMany.mockResolvedValue([{ courseId: 'c1' }]);
+      prisma.codingProblem.findMany.mockResolvedValue([
+        problemRow({ id: 'free', lessonId: null }),
+        problemRow({ id: 'gated-open', lessonId: 'l-open' }),
+        problemRow({ id: 'gated-closed', lessonId: 'l-closed' }),
+      ]);
+      prisma.lessonGate.findMany.mockResolvedValue([{ lessonId: 'l-open' }]);
+
+      const res = await service.listForClass('class-1', 'stu-1');
+
+      expect(res.map((p) => p.id).sort()).toEqual(['free', 'gated-open']);
+      // Summary không lộ solutionCode / testCases / hidden stdin
+      const flat = JSON.stringify(res);
+      expect(flat).not.toContain('solutionCode');
+      expect(flat).not.toContain('testCases');
+      expect(flat).not.toContain('10 20');
+      expect(flat).not.toContain('print(sum');
     });
   });
 });

@@ -6,25 +6,40 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@lms/database';
-import type {
-  CodingProblemAuthorDetail,
-  CodingProblemStudentDetail,
-  CodingProblemSummary,
-  Paginated,
+import {
+  PERMISSIONS,
+  type CodingProblemAuthorDetail,
+  type CodingProblemStudentDetail,
+  type CodingProblemSummary,
+  type CodingSubmissionDto,
+  type Paginated,
 } from '@lms/contracts';
+import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
+import { RbacService } from '../rbac/rbac.service';
+import { SubmissionQueue } from './queue/submission-queue';
 import type { CreateCodingProblemDto } from './dto/create-coding-problem.dto';
 import type { UpdateCodingProblemDto } from './dto/update-coding-problem.dto';
 import type { UpsertTestCaseDto } from './dto/upsert-test-case.dto';
+import type { SubmitCodingSubmissionDto } from './dto/submit-coding-submission.dto';
 
 const withTestCases = {
   testCases: { orderBy: { order: 'asc' } },
 } satisfies Prisma.CodingProblemInclude;
 type ProblemWithTests = Prisma.CodingProblemGetPayload<{ include: typeof withTestCases }>;
 
+const withResults = {
+  results: { include: { testCase: { select: { name: true, order: true } } } },
+} satisfies Prisma.CodingSubmissionInclude;
+type SubmissionWithResults = Prisma.CodingSubmissionGetPayload<{ include: typeof withResults }>;
+
 @Injectable()
 export class CodingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rbac: RbacService,
+    private readonly queue: SubmissionQueue,
+  ) {}
 
   // --- Authoring (GV/admin) ---
 
@@ -171,6 +186,113 @@ export class CodingService {
     return toStudentDetail(problem);
   }
 
+  /**
+   * Danh sách bài lập trình học viên trong lớp CÓ THỂ làm: thuộc khóa đã gán lớp (ClassCourse) và
+   * (không gắn lesson HOẶC lesson đã mở gate isActive). Chỉ summary — KHÔNG hidden test/solution.
+   * Không @RequirePermission ở route: quyền = học viên active của lớp (kiểm ở đây).
+   */
+  async listForClass(classId: string, userId: string): Promise<CodingProblemSummary[]> {
+    await this.ensureActiveMember(classId, userId);
+
+    const classCourses = await this.prisma.classCourse.findMany({
+      where: { classId },
+      select: { courseId: true },
+    });
+    const courseIds = classCourses.map((c) => c.courseId);
+    if (courseIds.length === 0) {
+      return [];
+    }
+
+    const [problems, gates] = await this.prisma.$transaction([
+      this.prisma.codingProblem.findMany({
+        where: { courseId: { in: courseIds } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.lessonGate.findMany({
+        where: { classId, isActive: true },
+        select: { lessonId: true },
+      }),
+    ]);
+
+    const openLessons = new Set(gates.map((g) => g.lessonId));
+    return problems
+      .filter((p) => p.lessonId === null || openLessons.has(p.lessonId))
+      .map(toSummary);
+  }
+
+  // --- Submission (nộp chính thức + xem kết quả) ---
+
+  /**
+   * Nộp bài chính thức: kiểm membership + khóa thuộc lớp + gate, tạo submission status=queued rồi
+   * đẩy vào queue chấm server-side. KHÔNG tin source làm điểm — điểm do autograder tính lại.
+   * Không gắn @RequirePermission ở route: quyền nộp = là học viên active của lớp (kiểm ở đây).
+   */
+  async submit(
+    problemId: string,
+    userId: string,
+    dto: SubmitCodingSubmissionDto,
+  ): Promise<CodingSubmissionDto> {
+    const problem = await this.prisma.codingProblem.findUnique({
+      where: { id: problemId },
+      select: { id: true, courseId: true, lessonId: true, language: true },
+    });
+    if (!problem) {
+      throw new NotFoundException('Bài lập trình không tồn tại');
+    }
+    await this.ensureActiveMember(dto.classId, userId);
+    await this.ensureCourseInClass(dto.classId, problem.courseId);
+    if (problem.lessonId) {
+      await this.ensureLessonGateActive(dto.classId, problem.lessonId);
+    }
+
+    const created = await this.prisma.codingSubmission.create({
+      data: {
+        problemId,
+        userId,
+        classId: dto.classId,
+        sourceCode: dto.sourceCode,
+        language: dto.language ?? problem.language,
+        status: 'queued',
+      },
+      select: { id: true },
+    });
+
+    await this.queue.enqueue(created.id);
+
+    // Trả trạng thái mới nhất (inline driver đã chấm xong; bull driver vẫn queued).
+    return this.getSubmissionForOwner(created.id);
+  }
+
+  /**
+   * Xem một submission: chủ sở hữu, hoặc GV/TA có coding.result.read theo lớp của submission.
+   * Không có :classId trên route nên scope kiểm trong service theo sub.classId (giống submissions.findOne).
+   */
+  async getSubmission(id: string, currentUser: AuthPrincipal): Promise<CodingSubmissionDto> {
+    const sub = await this.loadSubmission(id);
+    if (sub.userId !== currentUser.userId) {
+      const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
+      if (!this.rbac.hasPermission(eff, PERMISSIONS.CODING_RESULT_READ, sub.classId ?? undefined)) {
+        throw new ForbiddenException('Không có quyền xem kết quả bài nộp này');
+      }
+    }
+    return toSubmissionDto(sub);
+  }
+
+  private async getSubmissionForOwner(id: string): Promise<CodingSubmissionDto> {
+    return toSubmissionDto(await this.loadSubmission(id));
+  }
+
+  private async loadSubmission(id: string): Promise<SubmissionWithResults> {
+    const sub = await this.prisma.codingSubmission.findUnique({
+      where: { id },
+      include: withResults,
+    });
+    if (!sub) {
+      throw new NotFoundException('Bài nộp không tồn tại');
+    }
+    return sub;
+  }
+
   // --- helpers ---
 
   private async ensureProblem(id: string): Promise<void> {
@@ -302,5 +424,36 @@ function toStudentDetail(p: ProblemWithTests): CodingProblemStudentDetail {
         expectedStdout: t.expectedStdout,
         order: t.order,
       })),
+  };
+}
+
+/**
+ * Submission + kết quả cho client. KHÔNG lộ stdin/expectedStdout của testcase (nhất là hidden);
+ * chỉ trả output của CHÍNH học viên (actualStdout) + trạng thái/điểm đã chấm server-side.
+ */
+function toSubmissionDto(s: SubmissionWithResults): CodingSubmissionDto {
+  const results = [...s.results]
+    .sort((a, b) => a.testCase.order - b.testCase.order)
+    .map((r) => ({
+      id: r.id,
+      testCaseId: r.testCaseId,
+      name: r.testCase.name,
+      status: r.status,
+      actualStdout: r.actualStdout,
+      runtimeMs: r.runtimeMs,
+      order: r.testCase.order,
+    }));
+  return {
+    id: s.id,
+    problemId: s.problemId,
+    userId: s.userId,
+    classId: s.classId,
+    language: s.language,
+    status: s.status,
+    score: s.score !== null && s.score !== undefined ? Number(s.score) : null,
+    runtimeMs: s.runtimeMs,
+    memoryKb: s.memoryKb,
+    submittedAt: s.submittedAt.toISOString(),
+    results,
   };
 }
