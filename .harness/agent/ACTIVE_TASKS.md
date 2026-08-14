@@ -30,9 +30,11 @@ Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`. P3 run
 
 ### Phase P3: Coding & Runner (Pyodide FE + server autograde) — ⬅️ ACTIVE
 
-Status: 🔄 Đang chạy — T3.0–T3.6 ✅ (contracts + schema + backend authoring + seed + **runner/queue + submit/autograde**). Còn **T3.7/T3.8 FE**, **T3.9 verify**. `pnpm validate` xanh 16/16 (api **105 test**). Goal (docs/DESIGN.md §4.5, §5.2, §6): bài tập lập trình Python, học viên chạy thử bằng Pyodide với sample test trên trình duyệt, nộp chính thức qua server runner cách ly, chấm toàn bộ sample + hidden test và tính điểm `Decimal`.
+Status: 🔄 Đang chạy — T3.0–T3.7 ✅ (contracts + schema + backend authoring + seed + **runner/queue + submit/autograde** + **FE Teach coding**). Còn **T3.8 FE Learn**, **T3.9 verify**. `pnpm validate` xanh 16/16 (api **105 test**), web typecheck+lint xanh, live smoke e2e xanh. Goal (docs/DESIGN.md §4.5, §5.2, §6): bài tập lập trình Python, học viên chạy thử bằng Pyodide với sample test trên trình duyệt, nộp chính thức qua server runner cách ly, chấm toàn bộ sample + hidden test và tính điểm `Decimal`.
 
-**Bước kế: T3.7/T3.8** — FE Teach coding (author UI) + FE Learn (Monaco + Pyodide worker sample, submit + polling). Runner/queue backend đã sẵn sàng (T3.4/T3.5).
+**Bước kế: T3.8** — FE Learn coding (Monaco + Pyodide worker chạy sample, submit + polling). Backend runner/queue + FE authoring đã sẵn sàng.
+
+**⚠️ GAP backend cho T3.8**: chưa có endpoint student-facing liệt kê coding problem của lớp (route `/coding-problems?courseId=` bị chặn `@RequirePermission(CODING_READ)` — student không có quyền này). Cần thêm ví dụ `GET /coding-problems/for-class/:classId` (auth + membership trong service, trả `CodingProblemSummary[]` cho problem thuộc course đã gán lớp và lesson gate active hoặc lessonId=null; KHÔNG hidden/solution). FE `features/coding/api.ts` đã có sẵn `getCodingAttempt`/`submitCoding`/`getCodingSubmission` cho T3.8.
 
 #### Task Breakdown (P3)
 
@@ -45,7 +47,7 @@ Status: 🔄 Đang chạy — T3.0–T3.6 ✅ (contracts + schema + backend auth
 | ✅ **T3.4** Runner adapter + queue: `RunnerService` interface + Piston adapter (env) + Stub (non-exec dev) + `RunnerModule`; `AutograderService` (chấm all-test, score Decimal weighted, transaction + LessonProgress); `SubmissionQueue` port + Inline/Bull driver (BullMQ Redis 6380) qua `CODE_QUEUE_DRIVER` | backend | api/queue | High | 5 |
 | ✅ **T3.5** Backend submission/autograde: `POST /coding-problems/:id/submissions` (membership+gate, tạo queued + enqueue), `GET /coding-submissions/:id` (ownership hoặc coding.result.read scoped); chấm lại server-side, không tin client; KHÔNG lộ stdin/expected ra client | backend | api | High | 6 |
 | ✅ **T3.6** Seed permission coding cho admin/instructor/TA/student theo least privilege (30 perm / 85 liên kết) | schema | seed | Med | 7 |
-| **T3.7** FE Teach coding: tạo/sửa coding problem + sample/hidden testcase UI; không render hidden expected output cho student surface | frontend | web | Med | 8 |
+| ✅ **T3.7** FE Teach coding: `features/coding` (api+hooks author CRUD) + trang `TeachCoding` (course picker, tạo problem, list, editor + testcase manager sample/hidden). Tab `coding` trong TeachHome, i18n vi/en. Verified live (login GV → render problem/editor/testcase). Author thấy hidden expected (invariant #2 chỉ chặn surface student) | frontend | web | Med | 8 |
 | **T3.8** FE Learn coding: Monaco + Pyodide worker chạy sample tests, submit server, polling trạng thái autograde/result | frontend | web | High | 9 |
 | **T3.9** Verify live: docker runner/queue smoke, security regression hidden-test leak, `pnpm validate`, prisma validate | test | all | High | 10 |
 

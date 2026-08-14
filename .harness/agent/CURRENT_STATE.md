@@ -6,13 +6,13 @@ Updated: 2026-08-13
 
 ## Project Stage
 
-**P0 ✅ + P1 ✅ + P2 ✅ DONE. Phase P3 (Coding & Runner) đang chạy: T3.0–T3.6 ✅.**
+**P0 ✅ + P1 ✅ + P2 ✅ DONE. Phase P3 (Coding & Runner) đang chạy: T3.0–T3.7 ✅. Còn T3.8 (FE Learn) + T3.9.**
 P2 xong (assignment/submission + chấm tay). **P3 tới giờ**: ADR runner (T3.0), contracts `coding.ts` +
 `coding.*` perms (T3.1), schema `CodingProblem/TestCase/CodingSubmission/TestCaseResult` + migration áp DB
 (T3.2), **module backend `coding` authoring** (T3.3), **seed coding** (T3.6), **runner adapter + queue**
 (T3.4) + **submit/autograde** (T3.5). `pnpm validate` xanh 16/16, **api 105 test**. Postgres+Redis
 docker (5433/6380).
-**Bước kế: T3.7/T3.8 FE** (author UI + Monaco/Pyodide submit+polling) → T3.9 verify live.
+**Bước kế: T3.8 FE Learn** (Monaco + Pyodide submit+polling; cần thêm endpoint list problem theo lớp — xem ACTIVE_TASKS §GAP) → T3.9 verify live.
 2 fix trong review đã COMMIT: (a) bug scope chấm điểm P2 (`ffee1c7`); (b) invalid-UTF8 schema coding (`4331b70`).
 
 ### T3.4/T3.5 (runner + autograde) — 2026-08-14
@@ -35,6 +35,16 @@ docker (5433/6380).
   **score=25** (weighted 1/(1+3)·100 Decimal), 2 results (sample passed/hidden failed) chấm server-side,
   owner GET 200 / non-owner GET 403, không lộ stdin/expectedStdout. Boot API OK: DI resolve RunnerModule/
   CodingQueueModule, routes `POST /coding-problems/:id/submissions` + `GET /coding-submissions/:id` mapped.
+
+### T3.7 (FE Teach coding) — 2026-08-14
+- `apps/web/src/features/coding/` (api.ts + hooks.ts): author CRUD (list/get/create/update/delete problem,
+  upsert/delete testcase) + **sẵn** student helpers (getCodingAttempt/submitCoding/getCodingSubmission) cho T3.8.
+- `apps/web/src/pages/teach/TeachCoding.tsx`: course picker → form tạo problem (title/statement/lesson/difficulty/
+  maxScore) + list → editor (statement + limits) + testcase manager tách **sample**/**hidden** (author XEM hidden
+  expected — invariant #2 chỉ chặn surface student). Tab `coding` trong TeachHome; i18n vi/en (`coding.*`, đã gồm
+  cả key cho T3.8 Learn: run/submit/status_*/tcstatus_*).
+- Verified live (Vite 5173 proxy → API 3000): login GV → tab Coding render list "Echo", editor + sample(#0)/hidden(#1),
+  form thêm test mở đúng. web typecheck + lint xanh.
 
 ## Tech Stack
 
