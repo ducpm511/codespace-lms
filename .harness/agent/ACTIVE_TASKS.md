@@ -18,7 +18,7 @@ Updated: 2026-08-14
 | **P1** Course & Class | course/section/lesson, class, gate, progress | ✅ Done |
 | **P2** Assessments | assignment + submission + chấm tay | ✅ Done |
 | **P3** Coding & Runner | Pyodide FE + Judge0/Piston + autograde | ✅ Done |
-| **P4** Quiz | quiz engine + autograde | ⬅️ Active |
+| **P4** Quiz | quiz engine + autograde | ✅ Done (chờ merge main) |
 | **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | Not started |
 | **P6** Polish | notification, audit UI, báo cáo | Not started |
 
@@ -28,11 +28,10 @@ Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
 ## Active Phase
 
-### Phase P4: Quiz (engine + autograde) — ⬅️ ACTIVE
+### Phase P4: Quiz (engine + autograde) — ✅ DONE (chờ merge main)
 
-Status: 🔄 Đang chạy — **T4.0–T4.5 ✅** (contracts + schema + seed + backend authoring + **attempt/autograde** + **FE Teach quiz + nền Nocturne**).
-Còn **T4.6 FE Learn** (theo Nocturne design) + T4.7 verify. `pnpm
-validate` xanh 16/16 (api **129 test**), web typecheck/lint/build xanh, live smoke authoring + full student flow + FE Teach quiz xanh. Goal (docs/DESIGN.md
+Status: ✅ **T4.0–T4.7 hoàn tất.** contracts + schema + seed + backend authoring + attempt/autograde + **FE Teach quiz + FE Learn quiz + nền Nocturne**.
+`pnpm validate` xanh **16/16** (api **129 test**, web 4 test), web typecheck/lint/build xanh, live e2e authoring + full student flow (Teach tạo quiz + Learn làm bài chấm server-side 4/4) xanh, regression KHÔNG lộ isCorrect/correctAnswer. **Chờ user quyết định merge main** (như P3 qua PR). Goal (docs/DESIGN.md
 §4.6, §5.2): quiz nhiều loại câu hỏi
 (single/multiple choice, true/false, short_answer, code_fill); học viên làm bài trong lớp (lesson gated),
 nộp → **chấm tự động server-side**, điểm `Decimal` weighted theo `Question.points`, `passScore` ngưỡng đạt.
@@ -54,9 +53,9 @@ KHÔNG BAO GIỜ gửi ra client khi làm bài. Student DTO (`QuizStudentDetail`
 | ✅ **T4.4** Backend attempt + autograde: `GET /quizzes/for-class/:classId` (membership, gated/no-lesson), `GET /quizzes/:id/attempt?classId` (student DTO KHÔNG isCorrect/correctAnswer), `POST /quizzes/:id/attempts` (nộp + CHẤM 1 lần, enforce attemptsAllowed), `GET /quiz-attempts/:id` (ownership hoặc quiz.result.read). Chấm server-side: choice exact-set-match, text normalized (trim+lowercase+gộp space); score Decimal weighted; lưu QuizAnswer + attempt + LessonProgress trong 1 transaction. 21 unit test + full e2e smoke xanh | backend | api | High | 5 |
 | ✅ **T4.5** FE Teach quiz + **nền Nocturne**: port `nocturne-tokens.css` → `apps/web/src/styles/nocturne.css` (token + component classes, **scope-safe**: KHÔNG áp reset typography toàn cục → màn cũ light-slate KHÔNG regression; ground tối bọc trong `.nocturne-surface`), import ở `main.tsx`, assets → `public/brand/`. `features/quiz` (api+hooks mirror coding) + `pages/teach/TeachQuiz.tsx` (course picker → tạo quiz → list → editor: settings dialog + question manager, 5 loại câu hỏi, option editor đánh dấu đáp án). Tab `quiz` TeachHome, i18n vi/en (`quiz.*` 60 key + `teach.tab_quiz`). Author thấy đáp án (invariant chỉ chặn student surface). Verify: web typecheck/lint/build xanh; live smoke (GV tạo quiz + câu hỏi single_choice + short_answer → editor render đúng Nocturne, computed token khớp; màn cũ không regression) | frontend | web | Med | 6 |
 | ✅ **T4.6** FE Learn quiz: `pages/learn/LearnQuiz.tsx` (Nocturne `.nocturne-surface`) — list quiz theo lớp → workspace làm bài (render 5 loại câu hỏi KHÔNG đáp án: radio single/tf, checkbox multi, input/textarea text) → submit `POST :id/attempts` → result (score/maxScore + mascot hearts/grumpy + tag đạt/chưa đạt + per-question Đúng/Sai + awardedPoints, **KHÔNG lộ đáp án đúng**) + "Làm lại" reset. Handle 403 hết lượt (ApiError.status). Wire vào `LearnHome`. i18n bổ sung `answerPlaceholder`. Verify live: student làm quiz 3 câu (single+multi+short) → 4/4 chấm server-side, per-question đúng, regression đề+kết quả KHÔNG có isCorrect/correctAnswer | frontend | web | Med | 7 |
-| **T4.7** Verify live: `pnpm validate` + `prisma validate`, smoke e2e (GV tạo quiz → student làm → chấm tự động), regression: KHÔNG lộ isCorrect/correctAnswer ra student surface | test | all | High | 8 |
+| ✅ **T4.7** Verify live: `pnpm validate` xanh 16/16 (api 129 + web 4 test), web build xanh; live e2e GV tạo quiz + câu hỏi → student làm → chấm tự động 4/4 server-side; regression: đề + kết quả student KHÔNG lộ isCorrect/correctAnswer (verified API payload + UI) | test | all | High | 8 |
 
-Dependency: T4.0–T4.6 ✅ -> **T4.7 verify (đang chốt: pnpm validate + live e2e đã xanh)**.
+Dependency: T4.0–T4.7 ✅ **P4 DONE** -> chờ merge main -> P5 Gradebook & Certificate.
 
 #### Autograde rules (T4.4)
 - `single_choice`/`true_false`: đúng khi tập option đã chọn == đúng 1 option isCorrect.
