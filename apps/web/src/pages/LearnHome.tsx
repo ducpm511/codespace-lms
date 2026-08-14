@@ -4,6 +4,7 @@ import { useMyClasses, useMyLessons, useUpdateProgress } from '../features/class
 import { useAssignments } from '../features/assessments/hooks';
 import { StudentAssignmentCard } from '../features/assessments/StudentAssignmentCard';
 import { LearnCoding } from './learn/LearnCoding';
+import { LearnQuiz } from './learn/LearnQuiz';
 
 export function LearnHome(): JSX.Element {
   const { t } = useTranslation();
@@ -45,6 +46,7 @@ export function LearnHome(): JSX.Element {
         <div className="space-y-6">
           <Lessons classId={classId} />
           <ClassAssignments classId={classId} />
+          <LearnQuiz classId={classId} />
           <LearnCoding classId={classId} />
         </div>
       )}

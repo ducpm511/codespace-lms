@@ -168,7 +168,8 @@
     "answerWrong": "Sai",
     "retake": "Làm lại",
     "attemptsExhausted": "Bạn đã dùng hết số lượt làm bài.",
-    "unanswered": "Chưa trả lời"
+    "unanswered": "Chưa trả lời",
+    "answerPlaceholder": "Nhập câu trả lời…"
   },
   "coding": {
     "heading": "Bài lập trình",

@@ -168,7 +168,8 @@
     "answerWrong": "Wrong",
     "retake": "Retake",
     "attemptsExhausted": "You have used all your attempts.",
-    "unanswered": "Not answered"
+    "unanswered": "Not answered",
+    "answerPlaceholder": "Type your answer…"
   },
   "coding": {
     "heading": "Coding problems",

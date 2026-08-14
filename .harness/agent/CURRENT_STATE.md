@@ -6,10 +6,26 @@ Updated: 2026-08-14
 
 ## Project Stage
 
-**P0–P3 ✅ DONE. Phase P4 (Quiz) đang chạy: T4.0–T4.5 ✅ (contracts + schema + seed + authoring + attempt/autograde + FE Teach quiz + nền Nocturne).**
-Branch FE `claude/p4-quiz-fe-nocturne-7759f7` (reset lên đỉnh P4 backend `d206ecd`, chưa merge main). **Kế tiếp T4.6 FE Learn quiz**
-(theo **Nocturne design handoff** — xem memory + `apps/web/design_handoff_lms_ui/`) → T4.7 verify. `pnpm
-validate` xanh 16/16 (api **129 test**), web typecheck/lint/build xanh, live smoke authoring + full student flow + FE Teach quiz xanh.
+**P0–P3 ✅ DONE. Phase P4 (Quiz): T4.0–T4.6 ✅ (contracts + schema + seed + authoring + attempt/autograde + FE Teach quiz + FE Learn quiz + nền Nocturne). Còn T4.7 verify (đang chốt).**
+Branch FE `claude/p4-quiz-fe-nocturne-7759f7` (reset lên đỉnh P4 backend `d206ecd`, chưa merge main). `pnpm
+validate` xanh 16/16 (api **129 test**), web typecheck/lint/build xanh, live e2e authoring + full student flow (Teach + Learn quiz) xanh.
+
+### T4.6 (FE Learn quiz) — 2026-08-14
+- `apps/web/src/pages/learn/LearnQuiz.tsx` (Nocturne `.nocturne-surface`, wired vào `LearnHome` sau ClassAssignments,
+  trước LearnCoding). List quiz theo lớp (`useQuizzesForClass`) → `QuizWorkspace` (openId pattern): `useQuizAttempt`
+  (student DTO — KHÔNG đáp án) render 5 loại câu hỏi (single/true_false = `.radio`, multiple = `.checkbox`, short_answer
+  = input, code_fill = textarea). Local answers state → `useSubmitQuizAttempt` (`POST :id/attempts`, nộp+chấm 1 lần) →
+  `QuizResult`: score/maxScore + mascot (hearts đạt / grumpy chưa đạt) + tag đạt/chưa (score ≥ passScore) + per-question
+  Đúng/Sai + awardedPoints/points từ `attempt.answers[].isCorrect`. **KHÔNG render đáp án đúng** (invariant). "Làm lại"
+  reset answers + result + `submit.reset()`. 403 hết lượt → `ApiError.status===403` → `quiz.attemptsExhausted`.
+- Build/submit payload: chỉ gửi câu đã trả lời (choice có selectedOptionIds, text có textAnswer.trim()); server chấm
+  câu thiếu = 0.
+- **Live e2e student xanh**: student mới (enroll lớp KQ, course QuizFull) → quiz lessonId=null hiện for-class → làm 3 câu
+  (single Hà Nội + multi {2,4} + short "5") → nộp → **score 4/4 chấm server-side, Đạt**, per-question Đúng 1/1·2/2·1/1;
+  "Làm lại" reset OK. **Regression xanh**: `GET :id/attempt` payload KHÔNG chứa `isCorrect`/`correctAnswer` (verified
+  API + UI); result chỉ hiện Đúng/Sai + điểm, không lộ đáp án.
+- Ghi nhận (pre-existing, KHÔNG do quiz): `LearnHome > ClassAssignments` gọi `GET /assignments` → 403 với student
+  không có `assignment.read` (console 403). Nợ nhỏ của LearnHome, nên đổi sang endpoint student-scope sau.
 
 ### T4.5 (FE Teach quiz + nền Nocturne) — 2026-08-14
 - **Nền Nocturne** (bước khởi động redesign chung): port `design_handoff_lms_ui/nocturne-tokens.css` →
