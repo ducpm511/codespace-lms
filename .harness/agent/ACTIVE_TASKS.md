@@ -18,8 +18,8 @@ Updated: 2026-08-14
 | **P1** Course & Class | course/section/lesson, class, gate, progress | ✅ Done |
 | **P2** Assessments | assignment + submission + chấm tay | ✅ Done |
 | **P3** Coding & Runner | Pyodide FE + Judge0/Piston + autograde | ✅ Done |
-| **P4** Quiz | quiz engine + autograde | ✅ Done (chờ merge main) |
-| **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | Not started |
+| **P4** Quiz | quiz engine + autograde | ✅ Done (merged main local) |
+| **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | ⬅️ Next |
 | **P6** Polish | notification, audit UI, báo cáo | Not started |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.

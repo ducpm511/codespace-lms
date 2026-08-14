@@ -6,9 +6,10 @@ Updated: 2026-08-14
 
 ## Project Stage
 
-**P0–P3 ✅ DONE. Phase P4 (Quiz) ✅ DONE (T4.0–T4.7): contracts + schema + seed + authoring + attempt/autograde + FE Teach quiz + FE Learn quiz + nền Nocturne. Chờ user quyết định merge main.**
-Branch FE `claude/p4-quiz-fe-nocturne-7759f7` = **P4 đầy đủ nhất** (reset lên đỉnh P4 backend `d206ecd` + FE commits `8a73231` T4.5, `f0eac6c` T4.6; chưa merge main). `pnpm
-validate` xanh **16/16** (api **129 test**, web 4), web typecheck/lint/build xanh, live e2e authoring + full student flow (Teach + Learn quiz) xanh. **Bước kế: P5 Gradebook & Certificate** (sau khi merge P4).
+**P0–P4 ✅ DONE. Phase P4 (Quiz) đã MERGE vào `main` (local FF, CHƯA push origin) — `main` ở `88df26e`.**
+P4 gồm T4.0–T4.7: contracts + schema + seed + authoring + attempt/autograde + FE Teach quiz + FE Learn quiz + nền Nocturne.
+`pnpm validate` xanh **16/16** (api **129 test**, web 4), live e2e authoring + full student flow (Teach + Learn quiz) xanh.
+**Bước kế: P5 Gradebook & Certificate** (chưa breakdown task). Lưu ý: main mới merge local, cần `git push origin main` khi muốn đồng bộ remote.
 
 ### T4.6 (FE Learn quiz) — 2026-08-14
 - `apps/web/src/pages/learn/LearnQuiz.tsx` (Nocturne `.nocturne-surface`, wired vào `LearnHome` sau ClassAssignments,
