@@ -15,7 +15,10 @@
     "password": "Mật khẩu",
     "submit": "Đăng nhập",
     "loading": "Đang đăng nhập...",
-    "failed": "Đăng nhập thất bại. Kiểm tra lại email/mật khẩu."
+    "failed": "Đăng nhập thất bại. Kiểm tra lại email/mật khẩu.",
+    "bannerHeading": "Học lập trình, vui như chơi",
+    "bannerSub": "Nền tảng học Scratch, Python & AI của CodeSpace cho học viên 7–16 tuổi.",
+    "footer": "Quên mật khẩu? Liên hệ giáo viên của bạn."
   },
   "roles": {
     "super_admin": "Quản trị hệ thống",
@@ -274,6 +277,8 @@
   },
   "learn": {
     "title": "Khu vực học tập",
+    "greeting": "Xin chào, {{name}}",
+    "lessonsHeading": "Bài học",
     "noClasses": "Bạn chưa được thêm vào lớp nào.",
     "selectClass": "Lớp:",
     "noLessons": "Chưa có bài học nào được mở cho lớp này.",

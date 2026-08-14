@@ -13,6 +13,8 @@ import {
 } from '../../features/classes/hooks';
 import { useCourse, useCourses } from '../../features/courses/hooks';
 
+const dividerBorder = { borderColor: 'var(--color-divider)' } as const;
+
 export function TeachClasses(): JSX.Element {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
@@ -22,26 +24,25 @@ export function TeachClasses(): JSX.Element {
     <div className="grid gap-4 md:grid-cols-[18rem_1fr]">
       <div className="space-y-4">
         <CreateClassForm onCreated={(id) => setSelected(id)} />
-        <div className="rounded-lg border border-slate-200 bg-white">
-          <div className="border-b border-slate-100 px-3 py-2 text-sm font-medium">
+        <div className="panel overflow-hidden">
+          <div className="panel-head flex items-center gap-2">
             {t('classes.heading')}
-            {classes.data && <span className="ml-2 text-slate-400">({classes.data.total})</span>}
+            {classes.data && <span className="text-muted">({classes.data.total})</span>}
           </div>
-          {classes.isLoading && <p className="px-3 py-4 text-sm text-slate-500">{t('common.loading')}</p>}
+          {classes.isLoading && <p className="text-muted px-3 py-4 text-sm">{t('common.loading')}</p>}
           {classes.data?.items.length === 0 && (
-            <p className="px-3 py-4 text-sm text-slate-500">{t('classes.empty')}</p>
+            <p className="text-muted px-3 py-4 text-sm">{t('classes.empty')}</p>
           )}
           <ul>
             {classes.data?.items.map((c) => (
               <li key={c.id}>
                 <button
                   onClick={() => setSelected(c.id)}
-                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                    selected === c.id ? 'bg-slate-100 font-medium' : ''
-                  }`}
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-white/5"
+                  style={selected === c.id ? { background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' } : undefined}
                 >
                   <span className="truncate">{c.name}</span>
-                  <span className="text-xs text-slate-400">{c.code}</span>
+                  <span className="text-muted text-xs">{c.code}</span>
                 </button>
               </li>
             ))}
@@ -53,7 +54,7 @@ export function TeachClasses(): JSX.Element {
         {selected ? (
           <ClassDetailPanel classId={selected} />
         ) : (
-          <p className="rounded-lg border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500">
+          <p className="text-muted rounded-lg border border-dashed px-4 py-10 text-center text-sm" style={dividerBorder}>
             {t('classes.selectHint')}
           </p>
         )}
@@ -82,31 +83,15 @@ function CreateClassForm({ onCreated }: { onCreated: (id: string) => void }): JS
           },
         );
       }}
-      className="space-y-2 rounded-lg border border-slate-200 bg-white p-3"
+      className="card gap-2"
     >
-      <p className="text-sm font-medium">{t('classes.create')}</p>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder={t('classes.name')}
-        required
-        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-      />
-      <input
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        placeholder={t('classes.code')}
-        required
-        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-      />
-      <button
-        type="submit"
-        disabled={create.isPending}
-        className="w-full rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
-      >
+      <p className="card-title">{t('classes.create')}</p>
+      <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('classes.name')} required />
+      <input className="input" value={code} onChange={(e) => setCode(e.target.value)} placeholder={t('classes.code')} required />
+      <button type="submit" disabled={create.isPending} className="btn btn-primary btn-block">
         {t('classes.add')}
       </button>
-      {create.isError && <p className="text-xs text-red-600">{errMsg(create.error)}</p>}
+      {create.isError && <p className="text-xs text-red-400">{errMsg(create.error)}</p>}
     </form>
   );
 }
@@ -114,15 +99,20 @@ function CreateClassForm({ onCreated }: { onCreated: (id: string) => void }): JS
 function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
   const { t } = useTranslation();
   const cls = useClass(classId);
-  if (cls.isLoading) return <p className="text-sm text-slate-500">{t('common.loading')}</p>;
-  if (cls.isError || !cls.data) return <p className="text-sm text-red-600">{t('common.error')}</p>;
+  if (cls.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
+  if (cls.isError || !cls.data) return <p className="text-sm text-red-400">{t('common.error')}</p>;
   const c = cls.data;
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">{c.name}</h2>
-        <p className="text-xs text-slate-400">{c.code}</p>
+      <div className="card">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg">{c.name}</h2>
+            <p className="text-muted text-xs">{c.code}</p>
+          </div>
+          <span className="tag tag-outline">{t('classes.ongoing', { defaultValue: 'Đang diễn ra' })}</span>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -148,15 +138,15 @@ function CoursesPanel({
   const [courseId, setCourseId] = useState('');
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <p className="mb-2 text-sm font-medium">{t('classes.courses')}</p>
-      <ul className="mb-2 space-y-1 text-sm">
+    <div className="card gap-2">
+      <p className="card-title text-sm">{t('classes.courses')}</p>
+      <ul className="space-y-1 text-sm">
         {courses.map((cc) => (
-          <li key={cc.id} className="rounded bg-slate-50 px-2 py-1">
+          <li key={cc.id} className="chip">
             {cc.title}
           </li>
         ))}
-        {courses.length === 0 && <li className="text-xs text-slate-400">{t('classes.noCourses')}</li>}
+        {courses.length === 0 && <li className="text-muted text-xs">{t('classes.noCourses')}</li>}
       </ul>
       <form
         onSubmit={(e) => {
@@ -165,12 +155,7 @@ function CoursesPanel({
         }}
         className="flex gap-2"
       >
-        <select
-          value={courseId}
-          onChange={(e) => setCourseId(e.target.value)}
-          required
-          className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
-        >
+        <select className="input flex-1" value={courseId} onChange={(e) => setCourseId(e.target.value)} required>
           <option value="">{t('classes.selectCourse')}</option>
           {allCourses.data?.items.map((c) => (
             <option key={c.id} value={c.id}>
@@ -178,15 +163,11 @@ function CoursesPanel({
             </option>
           ))}
         </select>
-        <button
-          type="submit"
-          disabled={assign.isPending}
-          className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50"
-        >
+        <button type="submit" disabled={assign.isPending} className="btn btn-secondary shrink-0">
           {t('classes.assignCourse')}
         </button>
       </form>
-      {assign.isError && <p className="mt-1 text-xs text-red-600">{errMsg(assign.error)}</p>}
+      {assign.isError && <p className="text-xs text-red-400">{errMsg(assign.error)}</p>}
     </div>
   );
 }
@@ -204,16 +185,18 @@ function MembersPanel({
   const [role, setRole] = useState<ClassMemberRoleValue>('student');
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <p className="mb-2 text-sm font-medium">{t('classes.members')}</p>
-      <ul className="mb-2 space-y-1 text-sm">
+    <div className="card gap-2">
+      <p className="card-title text-sm">{t('classes.members')}</p>
+      <ul className="space-y-1 text-sm">
         {members.map((m) => (
-          <li key={m.id} className="flex items-center justify-between rounded bg-slate-50 px-2 py-1">
+          <li key={m.id} className="chip flex items-center justify-between">
             <span className="truncate">{m.fullName || m.email}</span>
-            <span className="text-xs text-slate-400">{t(`roleInClass.${m.roleInClass}`, { defaultValue: m.roleInClass })}</span>
+            <span className="text-muted text-xs">
+              {t(`roleInClass.${m.roleInClass}`, { defaultValue: m.roleInClass })}
+            </span>
           </li>
         ))}
-        {members.length === 0 && <li className="text-xs text-slate-400">{t('classes.noMembers')}</li>}
+        {members.length === 0 && <li className="text-muted text-xs">{t('classes.noMembers')}</li>}
       </ul>
       <form
         onSubmit={(e) => {
@@ -222,33 +205,19 @@ function MembersPanel({
         }}
         className="space-y-2"
       >
-        <input
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          placeholder={t('classes.userId')}
-          required
-          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-        />
+        <input className="input" value={userId} onChange={(e) => setUserId(e.target.value)} placeholder={t('classes.userId')} required />
         <div className="flex gap-2">
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as ClassMemberRoleValue)}
-            className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
-          >
+          <select className="input flex-1" value={role} onChange={(e) => setRole(e.target.value as ClassMemberRoleValue)}>
             <option value="student">{t('roleInClass.student')}</option>
             <option value="ta">{t('roleInClass.ta')}</option>
             <option value="instructor">{t('roleInClass.instructor')}</option>
           </select>
-          <button
-            type="submit"
-            disabled={enroll.isPending}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50"
-          >
+          <button type="submit" disabled={enroll.isPending} className="btn btn-secondary shrink-0">
             {t('classes.enroll')}
           </button>
         </div>
       </form>
-      {enroll.isError && <p className="mt-1 text-xs text-red-600">{errMsg(enroll.error)}</p>}
+      {enroll.isError && <p className="text-xs text-red-400">{errMsg(enroll.error)}</p>}
     </div>
   );
 }
@@ -262,7 +231,6 @@ function GatesPanel({
 }): JSX.Element {
   const { t } = useTranslation();
   const [picked, setPicked] = useState<string | null>(null);
-  // Mặc định khóa đầu tiên khi chưa chọn (state khởi tạo trước khi lớp có khóa).
   const courseId = picked ?? assignedCourses[0]?.courseId ?? null;
   const course = useCourse(courseId);
   const gates = useGates(classId);
@@ -271,16 +239,16 @@ function GatesPanel({
   const activeSet = new Set(gates.data?.filter((g) => g.isActive).map((g) => g.lessonId));
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <p className="mb-2 text-sm font-medium">{t('classes.lessonGates')}</p>
+    <div className="card gap-2">
+      <p className="card-title text-sm">{t('classes.lessonGates')}</p>
       {assignedCourses.length === 0 ? (
-        <p className="text-xs text-slate-400">{t('classes.gatesNeedCourse')}</p>
+        <p className="text-muted text-xs">{t('classes.gatesNeedCourse')}</p>
       ) : (
         <>
           <select
+            className="input md:w-72"
             value={courseId ?? ''}
             onChange={(e) => setPicked(e.target.value || null)}
-            className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm md:w-72"
           >
             {assignedCourses.map((cc) => (
               <option key={cc.courseId} value={cc.courseId}>
@@ -289,24 +257,23 @@ function GatesPanel({
             ))}
           </select>
           {course.data?.sections.map((s) => (
-            <div key={s.id} className="mb-2">
-              <p className="text-xs font-medium text-slate-500">{s.title}</p>
-              <ul className="divide-y divide-slate-100">
+            <div key={s.id} className="mt-1">
+              <p className="text-muted text-xs font-medium">{s.title}</p>
+              <ul>
                 {s.lessons.map((l) => {
                   const on = activeSet.has(l.id);
                   return (
-                    <li key={l.id} className="flex items-center justify-between py-1.5 text-sm">
+                    <li
+                      key={l.id}
+                      className="flex items-center justify-between py-1.5 text-sm"
+                      style={{ borderTop: '1px solid var(--color-divider)' }}
+                    >
                       <span>{l.title}</span>
-                      <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500">
-                        {on ? t('classes.gateOpen') : t('classes.gateClosed')}
-                        <input
-                          type="checkbox"
-                          checked={on}
-                          disabled={setGate.isPending}
-                          onChange={(e) => setGate.mutate({ lessonId: l.id, isActive: e.target.checked })}
-                          className="h-4 w-4"
-                        />
-                      </label>
+                      <GateToggle
+                        on={on}
+                        disabled={setGate.isPending}
+                        onChange={(v) => setGate.mutate({ lessonId: l.id, isActive: v })}
+                      />
                     </li>
                   );
                 })}
@@ -315,8 +282,35 @@ function GatesPanel({
           ))}
         </>
       )}
-      {setGate.isError && <p className="mt-1 text-xs text-red-600">{errMsg(setGate.error)}</p>}
+      {setGate.isError && <p className="text-xs text-red-400">{errMsg(setGate.error)}</p>}
     </div>
+  );
+}
+
+function GateToggle({
+  on,
+  disabled,
+  onChange,
+}: {
+  on: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      disabled={disabled}
+      onClick={() => onChange(!on)}
+      className="relative inline-flex h-5 w-[34px] shrink-0 items-center rounded-full transition-colors disabled:opacity-50"
+      style={{ background: on ? 'var(--color-accent)' : 'var(--color-neutral-700)' }}
+    >
+      <span
+        className="inline-block h-4 w-4 rounded-full bg-white transition-transform"
+        style={{ transform: on ? 'translateX(15px)' : 'translateX(1px)' }}
+      />
+    </button>
   );
 }
 

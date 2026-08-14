@@ -15,7 +15,10 @@
     "password": "Password",
     "submit": "Sign in",
     "loading": "Signing in...",
-    "failed": "Sign in failed. Check your email/password."
+    "failed": "Sign in failed. Check your email/password.",
+    "bannerHeading": "Learn to code, playfully",
+    "bannerSub": "CodeSpace's Scratch, Python & AI learning platform for ages 7–16.",
+    "footer": "Forgot your password? Contact your teacher."
   },
   "roles": {
     "super_admin": "Super Admin",
@@ -274,6 +277,8 @@
   },
   "learn": {
     "title": "Learning area",
+    "greeting": "Hello, {{name}}",
+    "lessonsHeading": "Lessons",
     "noClasses": "You haven't been added to any class yet.",
     "selectClass": "Class:",
     "noLessons": "No lessons have been opened for this class yet.",

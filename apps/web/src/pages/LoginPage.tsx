@@ -20,50 +20,79 @@ export function LoginPage(): JSX.Element {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+    <div className="flex min-h-screen flex-col md:flex-row">
+      {/* Banner trái */}
+      <div
+        className="relative flex items-center justify-center overflow-hidden px-8 py-12 md:min-h-screen md:basis-[48%]"
+        style={{
+          background: 'linear-gradient(155deg, var(--color-section), var(--color-section-glow))',
+        }}
       >
-        <div className="text-center">
-          <h1 className="text-lg font-semibold">{t('app.name')}</h1>
-          <p className="text-sm text-slate-500">{t('app.tagline')}</p>
+        <img
+          src="/brand/logo-horizontal-white.png"
+          alt={t('app.name')}
+          className="absolute left-8 top-8 h-[30px] w-auto opacity-90"
+        />
+        <img
+          src="/brand/logo-vertical-white.png"
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute -bottom-10 -right-10 w-[420px] opacity-[0.06]"
+        />
+        <div className="relative z-10 max-w-[360px] text-center">
+          <img
+            src="/brand/mascot-laptop.png"
+            alt=""
+            aria-hidden
+            className="mx-auto mb-6 w-[220px]"
+            style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.35))' }}
+          />
+          <h2 className="mb-2">{t('login.bannerHeading')}</h2>
+          <p className="text-[var(--color-text)]/70">{t('login.bannerSub')}</p>
         </div>
+      </div>
 
-        <label className="block space-y-1">
-          <span className="text-sm text-slate-700">{t('login.email')}</span>
-          <input
-            type="email"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-900 focus:outline-none"
-          />
-        </label>
+      {/* Form phải */}
+      <div className="flex flex-1 items-center justify-center px-8 py-12">
+        <form onSubmit={onSubmit} className="w-full max-w-[360px] space-y-4">
+          <div>
+            <h1 className="text-[26px]">{t('login.title')}</h1>
+            <p className="text-muted text-sm">{t('app.tagline')}</p>
+          </div>
 
-        <label className="block space-y-1">
-          <span className="text-sm text-slate-700">{t('login.password')}</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-900 focus:outline-none"
-          />
-        </label>
+          <div className="field">
+            <label>{t('login.email')}</label>
+            <input
+              className="input"
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
 
-        {loginMut.isError && <p className="text-sm text-red-600">{t('login.failed')}</p>}
+          <div className="field">
+            <label>{t('login.password')}</label>
+            <input
+              className="input"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loginMut.isPending}
-          className="w-full rounded bg-slate-900 py-2 text-white hover:bg-slate-800 disabled:opacity-50"
-        >
-          {loginMut.isPending ? t('login.loading') : t('login.submit')}
-        </button>
-      </form>
+          {loginMut.isError && <p className="text-sm text-red-400">{t('login.failed')}</p>}
+
+          <button type="submit" disabled={loginMut.isPending} className="btn btn-primary btn-block">
+            {loginMut.isPending ? t('login.loading') : t('login.submit')}
+          </button>
+
+          <p className="text-muted text-center text-xs">{t('login.footer')}</p>
+        </form>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,8 @@ import {
   useSubmissions,
 } from '../../features/assessments/hooks';
 
+const dividerBorder = { borderColor: 'var(--color-divider)' } as const;
+
 export function TeachAssignments(): JSX.Element {
   const { t } = useTranslation();
   const courses = useCourses();
@@ -21,25 +23,21 @@ export function TeachAssignments(): JSX.Element {
   const [classId, setClassId] = useState<string>('');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
 
-  // Chọn course/class đầu tiên khi load xong
   const activeCourseId = courseId || courses.data?.items[0]?.id || '';
   const activeClassId = classId || classes.data?.items[0]?.id || '';
 
   return (
     <div className="space-y-4">
-      {/* Thanh chọn Khóa học và Lớp học */}
-      <div className="flex flex-wrap gap-4 rounded-lg border border-slate-200 bg-white p-3">
-        <div className="flex-1 min-w-[200px]">
-          <label className="mb-1 block text-xs font-medium text-slate-500">
-            {t('assignments.selectCourse')}
-          </label>
+      <div className="card flex flex-row flex-wrap gap-4">
+        <div className="field min-w-[200px] flex-1">
+          <label>{t('assignments.selectCourse')}</label>
           <select
+            className="input"
             value={activeCourseId}
             onChange={(e) => {
               setCourseId(e.target.value);
               setSelectedAssignmentId(null);
             }}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
           >
             {courses.data?.items.map((c) => (
               <option key={c.id} value={c.id}>
@@ -49,15 +47,9 @@ export function TeachAssignments(): JSX.Element {
           </select>
         </div>
 
-        <div className="flex-1 min-w-[200px]">
-          <label className="mb-1 block text-xs font-medium text-slate-500">
-            {t('assignments.selectClass')}
-          </label>
-          <select
-            value={activeClassId}
-            onChange={(e) => setClassId(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-          >
+        <div className="field min-w-[200px] flex-1">
+          <label>{t('assignments.selectClass')}</label>
+          <select className="input" value={activeClassId} onChange={(e) => setClassId(e.target.value)}>
             {classes.data?.items.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({c.code})
@@ -68,21 +60,15 @@ export function TeachAssignments(): JSX.Element {
       </div>
 
       <div className="grid gap-4 md:grid-cols-[18rem_1fr]">
-        {/* Cột trái: Tạo & Danh sách bài tập */}
         <div className="space-y-4">
           {activeCourseId && (
-            <CreateAssignmentForm
-              courseId={activeCourseId}
-              onCreated={(id) => setSelectedAssignmentId(id)}
-            />
+            <CreateAssignmentForm courseId={activeCourseId} onCreated={(id) => setSelectedAssignmentId(id)} />
           )}
 
-          <div className="rounded-lg border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 px-3 py-2 text-sm font-medium">
-              {t('assignments.heading')}
-            </div>
+          <div className="panel overflow-hidden">
+            <div className="panel-head">{t('assignments.heading')}</div>
             {!activeCourseId ? (
-              <p className="px-3 py-4 text-xs text-slate-400">{t('assignments.selectCourse')}</p>
+              <p className="text-muted px-3 py-4 text-xs">{t('assignments.selectCourse')}</p>
             ) : (
               <AssignmentsList
                 courseId={activeCourseId}
@@ -93,15 +79,11 @@ export function TeachAssignments(): JSX.Element {
           </div>
         </div>
 
-        {/* Cột phải: Xem bài nộp & Chấm điểm */}
         <div>
           {selectedAssignmentId && activeClassId ? (
-            <SubmissionsGradingPanel
-              classId={activeClassId}
-              assignmentId={selectedAssignmentId}
-            />
+            <SubmissionsGradingPanel classId={activeClassId} assignmentId={selectedAssignmentId} />
           ) : (
-            <p className="rounded-lg border border-dashed border-slate-300 px-4 py-12 text-center text-sm text-slate-500">
+            <p className="text-muted rounded-lg border border-dashed px-4 py-12 text-center text-sm" style={dividerBorder}>
               {t('assignments.selectHint')}
             </p>
           )}
@@ -151,72 +133,43 @@ function CreateAssignmentForm({
   };
 
   return (
-    <form onSubmit={submit} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
-      <p className="text-sm font-medium">{t('assignments.create')}</p>
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder={t('assignments.title')}
-        required
-        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-      />
+    <form onSubmit={submit} className="card gap-2">
+      <p className="card-title">{t('assignments.create')}</p>
+      <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('assignments.title')} required />
       <textarea
+        className="input text-xs"
         value={descriptionMd}
         onChange={(e) => setDescriptionMd(e.target.value)}
         placeholder={t('assignments.description')}
         rows={2}
-        className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs"
       />
       <div className="flex gap-2">
-        <div className="flex-1">
-          <label className="block text-[10px] text-slate-500">{t('assignments.maxScore')}</label>
-          <input
-            type="number"
-            min={1}
-            max={1000}
-            value={maxScore}
-            onChange={(e) => setMaxScore(Number(e.target.value))}
-            className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
-          />
+        <div className="field flex-1">
+          <label>{t('assignments.maxScore')}</label>
+          <input className="input" type="number" min={1} max={1000} value={maxScore} onChange={(e) => setMaxScore(Number(e.target.value))} />
         </div>
-        <div className="flex-1">
-          <label className="block text-[10px] text-slate-500">{t('assignments.submissionType')}</label>
-          <select
-            value={submissionType}
-            onChange={(e) => setSubmissionType(e.target.value as SubmissionTypeValue)}
-            className="w-full rounded border border-slate-300 px-1 py-1 text-xs"
-          >
+        <div className="field flex-1">
+          <label>{t('assignments.submissionType')}</label>
+          <select className="input" value={submissionType} onChange={(e) => setSubmissionType(e.target.value as SubmissionTypeValue)}>
             <option value="text">Text</option>
             <option value="link">Link</option>
             <option value="file">File</option>
           </select>
         </div>
       </div>
-      <div>
-        <label className="block text-[10px] text-slate-500">{t('assignments.dueAt')}</label>
-        <input
-          type="datetime-local"
-          value={dueAt}
-          onChange={(e) => setDueAt(e.target.value)}
-          className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
-        />
+      <div className="field">
+        <label>{t('assignments.dueAt')}</label>
+        <input className="input" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
       </div>
-      <label className="flex items-center gap-2 text-xs text-slate-600">
-        <input
-          type="checkbox"
-          checked={allowLate}
-          onChange={(e) => setAllowLate(e.target.checked)}
-        />
-        {t('assignments.allowLate')}
+      <label className="checkbox">
+        <input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} />
+        <span className="box">{allowLate ? '✓' : ''}</span>
+        <span className="text-sm">{t('assignments.allowLate')}</span>
       </label>
-      <button
-        type="submit"
-        disabled={create.isPending}
-        className="w-full rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
-      >
+      <button type="submit" disabled={create.isPending} className="btn btn-primary btn-block">
         {t('assignments.add')}
       </button>
-      {create.isError && <p className="text-xs text-red-600">{errMsg(create.error)}</p>}
+      {create.isError && <p className="text-xs text-red-400">{errMsg(create.error)}</p>}
     </form>
   );
 }
@@ -233,24 +186,23 @@ function AssignmentsList({
   const { t } = useTranslation();
   const assignments = useAssignments(courseId);
 
-  if (assignments.isLoading) return <p className="px-3 py-4 text-xs text-slate-400">{t('common.loading')}</p>;
+  if (assignments.isLoading) return <p className="text-muted px-3 py-4 text-xs">{t('common.loading')}</p>;
   if (assignments.data?.items.length === 0) {
-    return <p className="px-3 py-4 text-xs text-slate-400">{t('assignments.empty')}</p>;
+    return <p className="text-muted px-3 py-4 text-xs">{t('assignments.empty')}</p>;
   }
 
   return (
-    <ul className="divide-y divide-slate-100">
+    <ul>
       {assignments.data?.items.map((a) => (
         <li key={a.id}>
           <button
             onClick={() => onSelect(a.id)}
-            className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-              selectedId === a.id ? 'bg-slate-100 font-medium' : ''
-            }`}
+            className="w-full px-3 py-2 text-left text-sm hover:bg-white/5"
+            style={selectedId === a.id ? { background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' } : undefined}
           >
             <p className="truncate font-medium">{a.title}</p>
-            <p className="text-xs text-slate-400">
-              Score: {a.maxScore} · {a.submissionType}
+            <p className="text-muted text-xs">
+              {t('assignments.maxScore')}: {a.maxScore} · {a.submissionType}
             </p>
           </button>
         </li>
@@ -270,61 +222,50 @@ function SubmissionsGradingPanel({
   const submissions = useSubmissions(classId, assignmentId);
   const [selectedSub, setSelectedSub] = useState<SubmissionDto | null>(null);
 
-  if (submissions.isLoading) return <p className="text-sm text-slate-500">{t('common.loading')}</p>;
+  if (submissions.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
 
   const items = submissions.data?.items || [];
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h2 className="text-base font-semibold">{t('assignments.submissionsHeading')}</h2>
-          <span className="text-xs text-slate-400">Total: {items.length}</span>
-        </div>
-
-        {items.length === 0 ? (
-          <p className="py-6 text-center text-xs text-slate-400">
-            {t('assignments.noSubmissions')}
-          </p>
-        ) : (
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <ul className="divide-y divide-slate-100 rounded border border-slate-200">
-              {items.map((sub) => (
-                <li key={sub.id}>
-                  <button
-                    onClick={() => setSelectedSub(sub)}
-                    className={`flex w-full items-center justify-between p-2.5 text-left text-xs hover:bg-slate-50 ${
-                      selectedSub?.id === sub.id ? 'bg-slate-100 font-medium' : ''
-                    }`}
-                  >
-                    <div>
-                      <p className="font-medium text-slate-800">
-                        {sub.fullName || sub.email || sub.userId}
-                      </p>
-                      <p className="text-[10px] text-slate-400">{sub.email}</p>
-                    </div>
-                    <SubmissionStatusBadge status={sub.status} score={sub.score} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            <div>
-              {selectedSub ? (
-                <GradingForm
-                  classId={classId}
-                  assignmentId={assignmentId}
-                  submission={selectedSub}
-                />
-              ) : (
-                <p className="rounded border border-dashed border-slate-200 p-6 text-center text-xs text-slate-400">
-                  Chọn một học viên để xem bài và chấm điểm
-                </p>
-              )}
-            </div>
-          </div>
-        )}
+    <div className="card gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base">{t('assignments.submissionsHeading')}</h2>
+        <span className="text-muted text-xs">{items.length}</span>
       </div>
+
+      {items.length === 0 ? (
+        <p className="text-muted py-6 text-center text-xs">{t('assignments.noSubmissions')}</p>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          <ul className="panel overflow-hidden">
+            {items.map((sub) => (
+              <li key={sub.id}>
+                <button
+                  onClick={() => setSelectedSub(sub)}
+                  className="flex w-full items-center justify-between p-2.5 text-left text-xs hover:bg-white/5"
+                  style={selectedSub?.id === sub.id ? { background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' } : undefined}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{sub.fullName || sub.email || sub.userId}</p>
+                    <p className="text-muted text-[10px]">{sub.email}</p>
+                  </div>
+                  <SubmissionStatusBadge status={sub.status} score={sub.score} />
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <div>
+            {selectedSub ? (
+              <GradingForm classId={classId} assignmentId={assignmentId} submission={selectedSub} />
+            ) : (
+              <p className="text-muted rounded-md border border-dashed p-6 text-center text-xs" style={dividerBorder}>
+                {t('assignments.pickStudent', { defaultValue: 'Chọn một học viên để xem bài và chấm điểm' })}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -352,88 +293,50 @@ function GradingForm({
   };
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded border border-slate-200 bg-slate-50 p-3">
+    <form onSubmit={submit} className="space-y-3 rounded-md p-3" style={{ background: 'var(--color-neutral-900)', boxShadow: 'inset 0 0 0 1px var(--color-divider)' }}>
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-slate-700">
-          {submission.fullName || submission.email}
-        </p>
+        <p className="text-xs font-semibold">{submission.fullName || submission.email}</p>
         <SubmissionStatusBadge status={submission.status} score={submission.score} />
       </div>
 
-      <div className="rounded bg-white p-2 text-xs">
-        <p className="font-medium text-slate-500">Nội dung bài làm:</p>
-        {submission.contentText && (
-          <p className="mt-1 whitespace-pre-wrap text-slate-800">{submission.contentText}</p>
-        )}
+      <div className="chip text-xs">
+        <p className="text-muted font-medium">{t('assignments.submissionContent', { defaultValue: 'Nội dung bài làm' })}:</p>
+        {submission.contentText && <p className="mt-1 whitespace-pre-wrap">{submission.contentText}</p>}
         {submission.linkUrl && (
-          <a
-            href={submission.linkUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 block text-blue-600 underline hover:text-blue-800"
-          >
+          <a href={submission.linkUrl} target="_blank" rel="noreferrer" className="mt-1 block underline">
             {submission.linkUrl}
           </a>
         )}
         {!submission.contentText && !submission.linkUrl && (
-          <p className="mt-1 text-slate-400 font-italic">(Trống)</p>
+          <p className="text-muted mt-1 italic">({t('common.empty', { defaultValue: 'Trống' })})</p>
         )}
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-slate-600">{t('assignments.score')}</label>
-        <input
-          type="number"
-          step="0.5"
-          min={0}
-          max={1000}
-          value={score}
-          onChange={(e) => setScore(Number(e.target.value))}
-          required
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs"
-        />
+      <div className="field">
+        <label>{t('assignments.score')}</label>
+        <input className="input" type="number" step="0.5" min={0} max={1000} value={score} onChange={(e) => setScore(Number(e.target.value))} required />
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-slate-600">{t('assignments.feedback')}</label>
-        <textarea
-          value={feedbackMd}
-          onChange={(e) => setFeedbackMd(e.target.value)}
-          placeholder={t('assignments.feedback')}
-          rows={3}
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs"
-        />
+      <div className="field">
+        <label>{t('assignments.feedback')}</label>
+        <textarea className="input" value={feedbackMd} onChange={(e) => setFeedbackMd(e.target.value)} placeholder={t('assignments.feedback')} rows={3} />
       </div>
 
-      <button
-        type="submit"
-        disabled={gradeMutation.isPending}
-        className="w-full rounded bg-emerald-600 px-3 py-1.5 text-xs text-white hover:bg-emerald-700 disabled:opacity-50"
-      >
+      <button type="submit" disabled={gradeMutation.isPending} className="btn btn-primary btn-block">
         {t('assignments.submitGrade')}
       </button>
 
-      {gradeMutation.isSuccess && (
-        <p className="text-[10px] text-emerald-600 font-medium">✔ Đã lưu điểm thành công!</p>
-      )}
-      {gradeMutation.isError && (
-        <p className="text-[10px] text-red-600">{errMsg(gradeMutation.error)}</p>
-      )}
+      {gradeMutation.isSuccess && <p className="text-xs text-[var(--color-accent-300)]">✔ {t('assignments.gradeSaved', { defaultValue: 'Đã lưu điểm thành công!' })}</p>}
+      {gradeMutation.isError && <p className="text-xs text-red-400">{errMsg(gradeMutation.error)}</p>}
     </form>
   );
 }
 
 function SubmissionStatusBadge({ status, score }: { status: string; score?: number | null }): JSX.Element {
   const { t } = useTranslation();
-  const cls =
-    status === 'graded'
-      ? 'bg-emerald-100 text-emerald-700'
-      : status === 'submitted'
-        ? 'bg-blue-100 text-blue-700'
-        : 'bg-slate-100 text-slate-600';
-
+  const cls = status === 'graded' ? 'tag tag-accent' : status === 'submitted' ? 'tag tag-outline' : 'tag tag-neutral';
   return (
-    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>
+    <span className={`${cls} shrink-0`}>
       {t(`submissions.status_${status}`, { defaultValue: status })}
       {status === 'graded' && score !== null && score !== undefined && ` (${score})`}
     </span>

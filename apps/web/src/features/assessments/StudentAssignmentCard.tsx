@@ -3,11 +3,7 @@ import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssignmentSummary } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
-import {
-  useMySubmission,
-  useSaveSubmission,
-  useSubmitSubmission,
-} from './hooks';
+import { useMySubmission, useSaveSubmission, useSubmitSubmission } from './hooks';
 
 export function StudentAssignmentCard({
   classId,
@@ -45,7 +41,7 @@ export function StudentAssignmentCard({
       },
       {
         onSuccess: () => {
-          setSuccessMsg('Đã lưu nháp thành công!');
+          setSuccessMsg(t('submissions.draftSaved', { defaultValue: 'Đã lưu nháp thành công!' }));
         },
       },
     );
@@ -67,99 +63,74 @@ export function StudentAssignmentCard({
   const isSubmitted = submission?.status === 'submitted';
 
   return (
-    <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+    <div className="card gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="font-semibold text-slate-800">{assignment.title}</h3>
-          <p className="text-xs text-slate-400">
-            Score: {assignment.maxScore} · {assignment.submissionType}
-            {assignment.dueAt && ` · Hạn nộp: ${new Date(assignment.dueAt).toLocaleDateString()}`}
+          <h3 className="card-title">{assignment.title}</h3>
+          <p className="card-meta">
+            {t('assignments.maxScore')}: {assignment.maxScore} · {assignment.submissionType}
+            {assignment.dueAt && ` · ${t('assignments.dueAt')}: ${new Date(assignment.dueAt).toLocaleDateString()}`}
           </p>
         </div>
         {submission && (
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-medium ${
-              isGraded
-                ? 'bg-emerald-100 text-emerald-700'
-                : isSubmitted
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-slate-100 text-slate-600'
-            }`}
-          >
+          <span className={isGraded ? 'tag tag-accent' : isSubmitted ? 'tag tag-outline' : 'tag tag-neutral'}>
             {t(`submissions.status_${submission.status}`, { defaultValue: submission.status })}
           </span>
         )}
       </div>
 
-      {/* Hiển thị Điểm & Feedback của Giáo Viên nếu đã chấm */}
       {isGraded && (
-        <div className="space-y-1 rounded-md bg-emerald-50 p-3 text-xs border border-emerald-200">
-          <p className="font-bold text-emerald-800">
+        <div className="space-y-1 rounded-md p-3 text-xs" style={{ background: 'var(--color-accent-900)', border: '1px solid var(--color-accent-700)' }}>
+          <p className="font-bold" style={{ color: 'var(--color-accent-100)' }}>
             {t('submissions.scoreTitle')}: {submission.score} / {assignment.maxScore}
           </p>
           {submission.feedbackMd && (
-            <p className="text-emerald-700">
-              <span className="font-medium">Nhận xét:</span> {submission.feedbackMd}
+            <p style={{ color: 'var(--color-accent-300)' }}>
+              <span className="font-medium">{t('assignments.feedback')}:</span> {submission.feedbackMd}
             </p>
           )}
         </div>
       )}
 
-      {/* Form Nộp Bài */}
       <form onSubmit={handleSave} className="space-y-2">
         {assignment.submissionType === 'link' || assignment.submissionType === 'text' ? (
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              {t('submissions.yourSubmission')}
-            </label>
+          <div className="field">
+            <label>{t('submissions.yourSubmission')}</label>
             {assignment.submissionType === 'link' && (
               <input
+                className="input mb-2"
                 type="url"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
                 placeholder={t('submissions.linkPlaceholder')}
                 disabled={isGraded}
-                className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs disabled:bg-slate-100 mb-2"
               />
             )}
             <textarea
+              className="input text-xs"
               value={contentText}
               onChange={(e) => setContentText(e.target.value)}
               placeholder={t('submissions.contentPlaceholder')}
               rows={3}
               disabled={isGraded}
-              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs disabled:bg-slate-100"
             />
           </div>
         ) : null}
 
         {!isGraded && (
           <div className="flex items-center gap-2 pt-1">
-            <button
-              type="submit"
-              disabled={saveMutation.isPending || submitMutation.isPending}
-              className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium hover:bg-slate-100 disabled:opacity-50"
-            >
+            <button type="submit" disabled={saveMutation.isPending || submitMutation.isPending} className="btn btn-secondary">
               {t('submissions.saveDraft')}
             </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saveMutation.isPending || submitMutation.isPending}
-              className="rounded bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-            >
+            <button type="button" onClick={handleSubmit} disabled={saveMutation.isPending || submitMutation.isPending} className="btn btn-primary">
               {t('submissions.submit')}
             </button>
           </div>
         )}
 
-        {successMsg && <p className="text-xs text-emerald-600 font-medium">{successMsg}</p>}
-        {saveMutation.isError && (
-          <p className="text-xs text-red-600">{errMsg(saveMutation.error)}</p>
-        )}
-        {submitMutation.isError && (
-          <p className="text-xs text-red-600">{errMsg(submitMutation.error)}</p>
-        )}
+        {successMsg && <p className="text-xs" style={{ color: 'var(--color-accent-300)' }}>{successMsg}</p>}
+        {saveMutation.isError && <p className="text-xs text-red-400">{errMsg(saveMutation.error)}</p>}
+        {submitMutation.isError && <p className="text-xs text-red-400">{errMsg(submitMutation.error)}</p>}
       </form>
     </div>
   );

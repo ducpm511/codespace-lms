@@ -8,28 +8,34 @@ import { TeachQuiz } from './teach/TeachQuiz';
 
 type Tab = 'courses' | 'classes' | 'assignments' | 'coding' | 'quiz';
 
+const TABS: Tab[] = ['courses', 'classes', 'assignments', 'coding', 'quiz'];
+
 export function TeachHome(): JSX.Element {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('courses');
 
   return (
     <section className="space-y-4">
-      <h1 className="text-xl font-semibold">{t('teach.title')}</h1>
+      <h1 className="text-xl">{t('teach.title')}</h1>
 
-      <div className="flex gap-1 border-b border-slate-200">
-        {(['courses', 'classes', 'assignments', 'coding', 'quiz'] as const).map((k) => (
-          <button
-            key={k}
-            onClick={() => setTab(k)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-              tab === k
-                ? 'border-slate-900 font-medium text-slate-900'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {t(`teach.tab_${k}`)}
-          </button>
-        ))}
+      <div className="seg flex-wrap">
+        {TABS.map((k) => {
+          const active = tab === k;
+          return (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className="seg-opt"
+              style={
+                active
+                  ? { color: 'var(--color-accent)', boxShadow: 'inset 0 0 0 1px var(--color-accent)' }
+                  : undefined
+              }
+            >
+              {t(`teach.tab_${k}`)}
+            </button>
+          );
+        })}
       </div>
 
       {tab === 'courses' && <TeachCourses />}

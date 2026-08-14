@@ -67,14 +67,51 @@
   --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
 }
 
-/* ── Nocturne surface scope ─────────────────────────────────────────────────
-   Ground tối + typography heading. Chỉ áp trong scope này để không đụng màn cũ. */
+/* ── Global ground ──────────────────────────────────────────────────────────
+   Toàn app Nocturne (re-skin toàn bộ). Body tối + heading Inter + link accent.
+   Chỉ set family/weight cho heading (KHÔNG ép size) để giữ size Tailwind mỗi màn. */
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+}
+a { color: var(--color-accent); }
+
+/* ── Nocturne surface scope (giữ cho các màn bọc panel riêng, vd quiz) ─────── */
 .nocturne-surface {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.55;
+}
+
+/* ── Container helpers ──────────────────────────────────────────────────────
+   .panel = khung surface có viền (list/panel có header). .chip = ô nền chìm. */
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+.panel-head {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 14px;
+}
+.chip {
+  background: var(--color-neutral-900);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+.nav-active {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent);
 }
 .nocturne-surface h1,
 .nocturne-surface h2,
