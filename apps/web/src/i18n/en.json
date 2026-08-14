@@ -159,7 +159,18 @@
     "tcstatus_tle": "Time limit",
     "tcstatus_mle": "Memory limit",
     "tcstatus_re": "Runtime error",
-    "tcstatus_ce": "Compile error"
+    "tcstatus_ce": "Compile error",
+    "open": "Open",
+    "back": "← Back to list",
+    "sourceCode": "Source code (Python)",
+    "previewNote": "Preview runs sample tests in your browser only — this is NOT the official grade.",
+    "samplePreviewHeading": "Sample run results",
+    "samplePassed": "{{passed}}/{{total}} sample tests passed",
+    "expected": "Expected",
+    "actual": "Actual",
+    "runnerError": "Could not run Python in the browser. Check your connection and try again.",
+    "noResultYet": "No result yet. Click \"Run\" or \"Submit\".",
+    "difficultyLabel": "Difficulty"
   },
   "assignments": {
     "heading": "Assignments",

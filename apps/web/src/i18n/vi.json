@@ -159,7 +159,18 @@
     "tcstatus_tle": "Quá thời gian",
     "tcstatus_mle": "Quá bộ nhớ",
     "tcstatus_re": "Lỗi chạy",
-    "tcstatus_ce": "Lỗi biên dịch"
+    "tcstatus_ce": "Lỗi biên dịch",
+    "open": "Mở bài",
+    "back": "← Danh sách bài",
+    "sourceCode": "Mã nguồn (Python)",
+    "previewNote": "Chạy thử chỉ chấm trên test mẫu ngay trong trình duyệt — KHÔNG phải điểm chính thức.",
+    "samplePreviewHeading": "Kết quả chạy thử (test mẫu)",
+    "samplePassed": "{{passed}}/{{total}} test mẫu đạt",
+    "expected": "Mong đợi",
+    "actual": "Thực tế",
+    "runnerError": "Không chạy được Python trong trình duyệt. Kiểm tra kết nối mạng rồi thử lại.",
+    "noResultYet": "Chưa có kết quả. Bấm \"Chạy thử\" hoặc \"Nộp bài\".",
+    "difficultyLabel": "Độ khó"
   },
   "assignments": {
     "heading": "Bài tập",

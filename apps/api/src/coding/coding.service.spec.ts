@@ -20,8 +20,8 @@ function makePrisma() {
     course: { findUnique: jest.fn() },
     lesson: { findUnique: jest.fn() },
     classMember: { findUnique: jest.fn() },
-    classCourse: { findUnique: jest.fn() },
-    lessonGate: { findUnique: jest.fn() },
+    classCourse: { findUnique: jest.fn(), findMany: jest.fn() },
+    lessonGate: { findUnique: jest.fn(), findMany: jest.fn() },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
 }
@@ -262,6 +262,43 @@ describe('CodingService', () => {
       const flat = JSON.stringify(res);
       expect(flat).not.toContain('stdin');
       expect(flat).not.toContain('expectedStdout');
+    });
+  });
+
+  describe('listForClass (student list — membership + gate)', () => {
+    it('403 khi không phải thành viên active (không truy vấn problem)', async () => {
+      prisma.classMember.findUnique.mockResolvedValue(null);
+      await expect(service.listForClass('class-1', 'stu-1')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.codingProblem.findMany).not.toHaveBeenCalled();
+    });
+
+    it('lớp chưa gán khóa nào → trả rỗng', async () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.classCourse.findMany.mockResolvedValue([]);
+      const res = await service.listForClass('class-1', 'stu-1');
+      expect(res).toEqual([]);
+      expect(prisma.codingProblem.findMany).not.toHaveBeenCalled();
+    });
+
+    it('chỉ trả bài không gắn lesson HOẶC lesson đã mở gate; không lộ field nội bộ', async () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.classCourse.findMany.mockResolvedValue([{ courseId: 'c1' }]);
+      prisma.codingProblem.findMany.mockResolvedValue([
+        problemRow({ id: 'free', lessonId: null }),
+        problemRow({ id: 'gated-open', lessonId: 'l-open' }),
+        problemRow({ id: 'gated-closed', lessonId: 'l-closed' }),
+      ]);
+      prisma.lessonGate.findMany.mockResolvedValue([{ lessonId: 'l-open' }]);
+
+      const res = await service.listForClass('class-1', 'stu-1');
+
+      expect(res.map((p) => p.id).sort()).toEqual(['free', 'gated-open']);
+      // Summary không lộ solutionCode / testCases / hidden stdin
+      const flat = JSON.stringify(res);
+      expect(flat).not.toContain('solutionCode');
+      expect(flat).not.toContain('testCases');
+      expect(flat).not.toContain('10 20');
+      expect(flat).not.toContain('print(sum');
     });
   });
 });

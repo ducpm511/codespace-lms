@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-08-13
+Updated: 2026-08-14
 
 ## Quy ước đặt tên
 
@@ -17,8 +17,8 @@ Updated: 2026-08-13
 | **P0** Scaffold & nền auth/RBAC | monorepo, prisma, auth, PBAC | ✅ Done |
 | **P1** Course & Class | course/section/lesson, class, gate, progress | ✅ Done |
 | **P2** Assessments | assignment + submission + chấm tay | ✅ Done |
-| **P3** Coding & Runner | Pyodide FE + Judge0/Piston + autograde | ⬅️ Active |
-| **P4** Quiz | quiz engine + autograde | Not started |
+| **P3** Coding & Runner | Pyodide FE + Judge0/Piston + autograde | ✅ Done |
+| **P4** Quiz | quiz engine + autograde | ⬅️ Next |
 | **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | Not started |
 | **P6** Polish | notification, audit UI, báo cáo | Not started |
 
@@ -28,13 +28,13 @@ Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`. P3 run
 
 ## Active Phase
 
-### Phase P3: Coding & Runner (Pyodide FE + server autograde) — ⬅️ ACTIVE
+### Phase P3: Coding & Runner (Pyodide FE + server autograde) — ✅ DONE
 
-Status: 🔄 Đang chạy — T3.0–T3.7 ✅ (contracts + schema + backend authoring + seed + **runner/queue + submit/autograde** + **FE Teach coding**). Còn **T3.8 FE Learn**, **T3.9 verify**. `pnpm validate` xanh 16/16 (api **105 test**), web typecheck+lint xanh, live smoke e2e xanh. Goal (docs/DESIGN.md §4.5, §5.2, §6): bài tập lập trình Python, học viên chạy thử bằng Pyodide với sample test trên trình duyệt, nộp chính thức qua server runner cách ly, chấm toàn bộ sample + hidden test và tính điểm `Decimal`.
+Status: ✅ **T3.0–T3.9 hoàn tất.** contracts + schema + backend authoring + seed + runner/queue + submit/autograde + FE Teach + **FE Learn (Monaco + Pyodide) + verify live**. `pnpm validate` xanh 16/16 (api **108 test**), web typecheck+lint+build xanh, **live smoke e2e xanh** (student enrolled + lesson gated: for-class list → Monaco self-host → Pyodide sample 1/1 đạt → submit → score 100 server-side; regression: KHÔNG lộ hidden stdin/expected).
 
-**Bước kế: T3.8** — FE Learn coding (Monaco + Pyodide worker chạy sample, submit + polling). Backend runner/queue + FE authoring đã sẵn sàng.
+**P3 xong. Bước kế: P4 Quiz** (chưa breakdown task).
 
-**⚠️ GAP backend cho T3.8**: chưa có endpoint student-facing liệt kê coding problem của lớp (route `/coding-problems?courseId=` bị chặn `@RequirePermission(CODING_READ)` — student không có quyền này). Cần thêm ví dụ `GET /coding-problems/for-class/:classId` (auth + membership trong service, trả `CodingProblemSummary[]` cho problem thuộc course đã gán lớp và lesson gate active hoặc lessonId=null; KHÔNG hidden/solution). FE `features/coding/api.ts` đã có sẵn `getCodingAttempt`/`submitCoding`/`getCodingSubmission` cho T3.8.
+**Ghi chú tích hợp branch**: T3.4/T3.5/T3.7 từng ở branch `claude/codespace-p3-runner-queue-8a75f8`; đã **fast-forward** vào branch T3.8 (`claude/codespace-t3-8-learn-fe-b4590f`) trước khi làm T3.8. Cả P3 giờ nằm trên một branch, chưa merge `main`.
 
 #### Task Breakdown (P3)
 
@@ -48,10 +48,10 @@ Status: 🔄 Đang chạy — T3.0–T3.7 ✅ (contracts + schema + backend auth
 | ✅ **T3.5** Backend submission/autograde: `POST /coding-problems/:id/submissions` (membership+gate, tạo queued + enqueue), `GET /coding-submissions/:id` (ownership hoặc coding.result.read scoped); chấm lại server-side, không tin client; KHÔNG lộ stdin/expected ra client | backend | api | High | 6 |
 | ✅ **T3.6** Seed permission coding cho admin/instructor/TA/student theo least privilege (30 perm / 85 liên kết) | schema | seed | Med | 7 |
 | ✅ **T3.7** FE Teach coding: `features/coding` (api+hooks author CRUD) + trang `TeachCoding` (course picker, tạo problem, list, editor + testcase manager sample/hidden). Tab `coding` trong TeachHome, i18n vi/en. Verified live (login GV → render problem/editor/testcase). Author thấy hidden expected (invariant #2 chỉ chặn surface student) | frontend | web | Med | 8 |
-| **T3.8** FE Learn coding: Monaco + Pyodide worker chạy sample tests, submit server, polling trạng thái autograde/result | frontend | web | High | 9 |
-| **T3.9** Verify live: docker runner/queue smoke, security regression hidden-test leak, `pnpm validate`, prisma validate | test | all | High | 10 |
+| ✅ **T3.8** FE Learn coding: `GET /coding-problems/for-class/:classId` (auth+membership, chỉ bài gated/no-lesson, summary không hidden/solution) + `features/coding` student hooks (list/attempt/submit/poll) + `pages/learn/LearnCoding` (Monaco self-host `/monaco/vs`, Pyodide worker self-host `/pyodide/` chạy sample preview, submit + polling `getCodingSubmission` tới terminal, hiển thị score + per-test không lộ expected). Deps: `@monaco-editor/react` + `monaco-editor` + `pyodide` + `vite-plugin-static-copy` (asset local, KHÔNG CDN runtime) | frontend | web | High | 9 |
+| ✅ **T3.9** Verify live: `pnpm validate` xanh 16/16 (api 108 test), web build xanh; live e2e student flow xanh; regression hidden-leak an toàn (DTO không có stdin/expectedStdout; actualStdout chỉ là output học viên) | test | all | High | 10 |
 
-Dependency: T3.0–T3.6 ✅ -> T3.7/T3.8 (FE) -> T3.9 (verify).
+Dependency: T3.0–T3.6 ✅ -> T3.7/T3.8 (FE) ✅ -> T3.9 (verify) ✅.
 
 **Env mới (T3.4/T3.5)** — `.env.example` bị deny-rule nên ghi ở đây, thêm tay khi cấu hình runner thật:
 `CODE_QUEUE_DRIVER=inline|bull` (mặc định inline — chấm đồng bộ, không cần Redis; `bull` cần `REDIS_URL`),

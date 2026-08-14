@@ -186,6 +186,40 @@ export class CodingService {
     return toStudentDetail(problem);
   }
 
+  /**
+   * Danh sách bài lập trình học viên trong lớp CÓ THỂ làm: thuộc khóa đã gán lớp (ClassCourse) và
+   * (không gắn lesson HOẶC lesson đã mở gate isActive). Chỉ summary — KHÔNG hidden test/solution.
+   * Không @RequirePermission ở route: quyền = học viên active của lớp (kiểm ở đây).
+   */
+  async listForClass(classId: string, userId: string): Promise<CodingProblemSummary[]> {
+    await this.ensureActiveMember(classId, userId);
+
+    const classCourses = await this.prisma.classCourse.findMany({
+      where: { classId },
+      select: { courseId: true },
+    });
+    const courseIds = classCourses.map((c) => c.courseId);
+    if (courseIds.length === 0) {
+      return [];
+    }
+
+    const [problems, gates] = await this.prisma.$transaction([
+      this.prisma.codingProblem.findMany({
+        where: { courseId: { in: courseIds } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.lessonGate.findMany({
+        where: { classId, isActive: true },
+        select: { lessonId: true },
+      }),
+    ]);
+
+    const openLessons = new Set(gates.map((g) => g.lessonId));
+    return problems
+      .filter((p) => p.lessonId === null || openLessons.has(p.lessonId))
+      .map(toSummary);
+  }
+
   // --- Submission (nộp chính thức + xem kết quả) ---
 
   /**

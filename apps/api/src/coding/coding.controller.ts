@@ -61,6 +61,17 @@ export class CodingController {
     return this.coding.submit(id, user.userId, dto);
   }
 
+  // Danh sách bài lập trình học viên trong lớp có thể làm (summary, không hidden/solution).
+  // Không @RequirePermission: quyền = học viên active của lớp, kiểm membership trong service.
+  // Đặt TRƯỚC ':id' để không bị nuốt route.
+  @Get('for-class/:classId')
+  listForClass(
+    @Param('classId') classId: string,
+    @CurrentUser() user: AuthPrincipal,
+  ): Promise<CodingProblemSummary[]> {
+    return this.coding.listForClass(classId, user.userId);
+  }
+
   @Get(':id')
   @RequirePermission(PERMISSIONS.CODING_READ)
   findOne(@Param('id') id: string): Promise<CodingProblemAuthorDetail> {

@@ -2,18 +2,35 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-08-13
+Updated: 2026-08-14
 
 ## Project Stage
 
-**P0 ✅ + P1 ✅ + P2 ✅ DONE. Phase P3 (Coding & Runner) đang chạy: T3.0–T3.7 ✅. Còn T3.8 (FE Learn) + T3.9.**
-P2 xong (assignment/submission + chấm tay). **P3 tới giờ**: ADR runner (T3.0), contracts `coding.ts` +
-`coding.*` perms (T3.1), schema `CodingProblem/TestCase/CodingSubmission/TestCaseResult` + migration áp DB
-(T3.2), **module backend `coding` authoring** (T3.3), **seed coding** (T3.6), **runner adapter + queue**
-(T3.4) + **submit/autograde** (T3.5). `pnpm validate` xanh 16/16, **api 105 test**. Postgres+Redis
+**P0 ✅ + P1 ✅ + P2 ✅ + P3 ✅ DONE. Phase P3 (Coding & Runner) hoàn tất T3.0–T3.9. Bước kế: P4 Quiz.**
+P3: ADR runner (T3.0), contracts `coding.ts` + `coding.*` perms (T3.1), schema + migration (T3.2),
+backend `coding` authoring (T3.3), seed coding (T3.6), runner adapter + queue (T3.4), submit/autograde
+(T3.5), FE Teach (T3.7), **FE Learn coding (T3.8): Monaco + Pyodide self-host + submit/polling** + **verify
+live (T3.9)**. `pnpm validate` xanh 16/16, **api 108 test**, web build/typecheck/lint xanh. Postgres+Redis
 docker (5433/6380).
-**Bước kế: T3.8 FE Learn** (Monaco + Pyodide submit+polling; cần thêm endpoint list problem theo lớp — xem ACTIVE_TASKS §GAP) → T3.9 verify live.
-2 fix trong review đã COMMIT: (a) bug scope chấm điểm P2 (`ffee1c7`); (b) invalid-UTF8 schema coding (`4331b70`).
+
+### T3.8/T3.9 (FE Learn coding + verify) — 2026-08-14
+- **Backend gap đã vá**: `GET /coding-problems/for-class/:classId` (CodingController, auth-only, đặt trước `:id`)
+  → `CodingService.listForClass` (ensure active member + lọc problem thuộc ClassCourse và (lessonId=null HOẶC
+  LessonGate active); trả `CodingProblemSummary[]`, KHÔNG hidden/solution). Unit test: 403 non-member, rỗng khi
+  chưa gán khóa, chỉ trả bài gated + không lộ field nội bộ.
+- **FE**: `features/coding/api.ts` `listCodingProblemsForClass` + hooks student (`useCodingProblemsForClass`,
+  `useCodingAttempt`, `useSubmitCoding`, `useCodingSubmission` polling 1.5s tới terminal). `pages/learn/LearnCoding.tsx`
+  wired vào `LearnHome`: chọn lớp → list bài → mở workspace (Monaco editor + chạy sample bằng Pyodide worker
+  preview + submit + poll → score + per-test). i18n vi/en `coding.*` bổ sung (open/back/sourceCode/previewNote/…).
+- **Editor/Runner (theo yêu cầu install)**: `@monaco-editor/react`+`monaco-editor` (self-host `/monaco/vs` qua
+  `vite-plugin-static-copy`, loader.config paths.vs — KHÔNG CDN); `pyodide` (self-host `/pyodide/*` — `pyodide.worker.js`
+  dynamic import ESM `pyodide.mjs`, module worker). `vite.config.ts` copy asset. Pyodide npm mới versioning số lớn
+  (`314.0.3` = latest chính thức pyodide/pyodide) — file `pyodide.asm.mjs` (ESM), không còn `.asm.js`.
+- **Live e2e xanh**: student enrolled + lesson gated → for-class trả bài → Monaco tải 100% từ `/monaco/vs` (0 CDN) →
+  Pyodide chạy sample 1/1 đạt in-browser → submit inline+stub → score 100 server-side, per-test sample+hidden.
+  Regression: submission DTO KHÔNG có key stdin/expectedStdout; hidden expected KHÔNG lộ (actualStdout chỉ là output
+  học viên — stub echo stdin chỉ là artifact dev).
+- **Branch**: T3.4/T3.5/T3.7 (branch `codespace-p3-runner-queue`) đã **fast-forward** vào branch T3.8; cả P3 một branch.
 
 ### T3.4/T3.5 (runner + autograde) — 2026-08-14
 - `apps/api/src/coding/runner/`: `RunnerService` interface (input trung lập: language/source/stdin/limits/stdoutCap →
