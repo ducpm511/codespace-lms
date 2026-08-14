@@ -6,10 +6,32 @@ Updated: 2026-08-14
 
 ## Project Stage
 
-**P0–P3 ✅ DONE. Phase P4 (Quiz) đang chạy: T4.0–T4.4 ✅ (contracts + schema + seed + authoring + attempt/autograde).**
-Branch `claude/codespace-p4-quiz` (tách từ main sau P3 merge PR #1). **Kế tiếp T4.5/T4.6 FE Teach/Learn quiz**
+**P0–P3 ✅ DONE. Phase P4 (Quiz) đang chạy: T4.0–T4.5 ✅ (contracts + schema + seed + authoring + attempt/autograde + FE Teach quiz + nền Nocturne).**
+Branch FE `claude/p4-quiz-fe-nocturne-7759f7` (reset lên đỉnh P4 backend `d206ecd`, chưa merge main). **Kế tiếp T4.6 FE Learn quiz**
 (theo **Nocturne design handoff** — xem memory + `apps/web/design_handoff_lms_ui/`) → T4.7 verify. `pnpm
-validate` xanh 16/16 (api **129 test**), live smoke authoring + full student flow xanh.
+validate` xanh 16/16 (api **129 test**), web typecheck/lint/build xanh, live smoke authoring + full student flow + FE Teach quiz xanh.
+
+### T4.5 (FE Teach quiz + nền Nocturne) — 2026-08-14
+- **Nền Nocturne** (bước khởi động redesign chung): port `design_handoff_lms_ui/nocturne-tokens.css` →
+  `apps/web/src/styles/nocturne.css` (GIỮ nguyên giá trị token + component classes `.btn/.card/.tag/.field/
+  .input/.seg/.radio/.checkbox/.table/.dialog`). **SCOPE-SAFE**: KHÔNG áp reset typography toàn cục
+  (body/h1..h6/p/a/img) → các màn cũ light-slate KHÔNG regression (verified: app root vẫn slate-50, h1 vẫn
+  20px Tailwind, white card vẫn trắng). Ground tối + heading Nocturne bọc trong `.nocturne-surface`. Import ở
+  `main.tsx` (TRƯỚC index.css để Tailwind utilities thắng). Logo + mascot → `apps/web/public/brand/`.
+- **FE quiz**: `features/quiz/{api,hooks}.ts` mirror `features/coding` (author CRUD: list/get/create/update/
+  delete quiz + upsertQuestion/deleteQuestion; student: listForClass/getAttempt/submitAttempt/getAttemptResult).
+  `pages/teach/TeachQuiz.tsx`: course picker → CreateQuizForm → QuizList (selected accent-900) → QuizEditor
+  (header meta + settings dialog updateQuiz + delete) → QuestionsManager (5 loại: single/multiple/true_false/
+  short_answer/code_fill; option editor radio(single/tf)/checkbox(multi) đánh dấu isCorrect; correctAnswer cho
+  short/code_fill; auto-seed 2 opt cho true_false). Author XEM đáp án — invariant chỉ chặn student surface.
+- Tab `quiz` trong `TeachHome`; i18n `quiz.*` (60 key vi/en, parity OK) + `teach.tab_quiz`.
+- **Verify**: web typecheck + lint (1 warning cũ useSampleRunner, không phải task này) + build xanh. Live smoke:
+  login GV → tab Trắc nghiệm render Nocturne (computed token khớp: bg #161826, accent #9184d9, surface #232532,
+  radius 8px, Inter) → tạo quiz + câu hỏi single_choice(✓ đánh dấu đáp án) + short_answer(correctAnswer) →
+  editor render đúng. Chỉ 401 transient (auth refresh pattern sẵn có), KHÔNG lỗi JS/render. Màn cũ không regression.
+- **⚠️ Trạng thái transition**: hiện chỉ màn quiz (Teach) dùng Nocturne (self-contained dark surface); các màn
+  khác (courses/classes/assignments/coding + Learn + Admin + AppLayout + Login) VẪN light-slate. Re-skin toàn app
+  theo README là redesign chung nối tiếp (ngoài scope T4.5). T4.6 Learn quiz cũng dùng `.nocturne-surface`.
 
 ### T4.4 (Quiz attempt + autograde) — 2026-08-14
 - Endpoints: `GET /quizzes/for-class/:classId` (student list, membership + gated/no-lesson),

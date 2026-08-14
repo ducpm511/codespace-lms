@@ -30,9 +30,9 @@ Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
 ### Phase P4: Quiz (engine + autograde) — ⬅️ ACTIVE
 
-Status: 🔄 Đang chạy — **T4.0–T4.4 ✅** (contracts + schema + seed + backend authoring + **attempt/autograde**).
-Còn **T4.5/T4.6 FE Teach/Learn** (theo Nocturne design — xem memory/design handoff) + T4.7 verify. `pnpm
-validate` xanh 16/16 (api **129 test**), live smoke authoring + full student flow xanh. Goal (docs/DESIGN.md
+Status: 🔄 Đang chạy — **T4.0–T4.5 ✅** (contracts + schema + seed + backend authoring + **attempt/autograde** + **FE Teach quiz + nền Nocturne**).
+Còn **T4.6 FE Learn** (theo Nocturne design) + T4.7 verify. `pnpm
+validate` xanh 16/16 (api **129 test**), web typecheck/lint/build xanh, live smoke authoring + full student flow + FE Teach quiz xanh. Goal (docs/DESIGN.md
 §4.6, §5.2): quiz nhiều loại câu hỏi
 (single/multiple choice, true/false, short_answer, code_fill); học viên làm bài trong lớp (lesson gated),
 nộp → **chấm tự động server-side**, điểm `Decimal` weighted theo `Question.points`, `passScore` ngưỡng đạt.
@@ -52,11 +52,11 @@ KHÔNG BAO GIỜ gửi ra client khi làm bài. Student DTO (`QuizStudentDetail`
 | ✅ **T4.2** Seed permission quiz cho admin/instructor/TA/student (mirror coding). Seed: 36 perm / 106 liên kết (student=submit+result.read, TA=read+result.read, instructor/admin=full authoring) | schema | seed | Med | 3 |
 | ✅ **T4.3** Backend quiz authoring module `apps/api/src/quiz/`: CRUD quiz (`/quizzes`) + upsert/xóa question (`:id/questions`) với options lồng (replace trong transaction), PBAC `quiz.*` + IDOR; author DTO CÓ isCorrect/correctAnswer; validate loại câu hỏi (choice ≥2 opt + ≥1 đúng; single/true_false đúng 1 đáp án). 11 unit test + live smoke authoring xanh | backend | api | High | 4 |
 | ✅ **T4.4** Backend attempt + autograde: `GET /quizzes/for-class/:classId` (membership, gated/no-lesson), `GET /quizzes/:id/attempt?classId` (student DTO KHÔNG isCorrect/correctAnswer), `POST /quizzes/:id/attempts` (nộp + CHẤM 1 lần, enforce attemptsAllowed), `GET /quiz-attempts/:id` (ownership hoặc quiz.result.read). Chấm server-side: choice exact-set-match, text normalized (trim+lowercase+gộp space); score Decimal weighted; lưu QuizAnswer + attempt + LessonProgress trong 1 transaction. 21 unit test + full e2e smoke xanh | backend | api | High | 5 |
-| **T4.5** FE Teach quiz: `features/quiz` (api+hooks) + trang TeachQuiz (tạo quiz + question/option editor theo loại); tab `quiz` trong TeachHome, i18n vi/en. **Theo Nocturne design** (đọc `apps/web/design_handoff_lms_ui/README.md` + port token). Author thấy đáp án — chỉ chặn surface student | frontend | web | Med | 6 |
+| ✅ **T4.5** FE Teach quiz + **nền Nocturne**: port `nocturne-tokens.css` → `apps/web/src/styles/nocturne.css` (token + component classes, **scope-safe**: KHÔNG áp reset typography toàn cục → màn cũ light-slate KHÔNG regression; ground tối bọc trong `.nocturne-surface`), import ở `main.tsx`, assets → `public/brand/`. `features/quiz` (api+hooks mirror coding) + `pages/teach/TeachQuiz.tsx` (course picker → tạo quiz → list → editor: settings dialog + question manager, 5 loại câu hỏi, option editor đánh dấu đáp án). Tab `quiz` TeachHome, i18n vi/en (`quiz.*` 60 key + `teach.tab_quiz`). Author thấy đáp án (invariant chỉ chặn student surface). Verify: web typecheck/lint/build xanh; live smoke (GV tạo quiz + câu hỏi single_choice + short_answer → editor render đúng Nocturne, computed token khớp; màn cũ không regression) | frontend | web | Med | 6 |
 | **T4.6** FE Learn quiz: list quiz theo lớp → làm bài (render câu hỏi KHÔNG đáp án) → submit → xem score + per-question đúng/sai. Wire vào LearnHome. **Theo Nocturne design** | frontend | web | Med | 7 |
 | **T4.7** Verify live: `pnpm validate` + `prisma validate`, smoke e2e (GV tạo quiz → student làm → chấm tự động), regression: KHÔNG lộ isCorrect/correctAnswer ra student surface | test | all | High | 8 |
 
-Dependency: T4.0–T4.4 ✅ -> **T4.5/T4.6 FE (kế tiếp, theo Nocturne design)** -> T4.7 verify.
+Dependency: T4.0–T4.5 ✅ -> **T4.6 FE Learn quiz (kế tiếp, theo Nocturne design)** -> T4.7 verify.
 
 #### Autograde rules (T4.4)
 - `single_choice`/`true_false`: đúng khi tập option đã chọn == đúng 1 option isCorrect.

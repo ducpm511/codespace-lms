@@ -4,8 +4,9 @@ import { TeachCourses } from './teach/TeachCourses';
 import { TeachClasses } from './teach/TeachClasses';
 import { TeachAssignments } from './teach/TeachAssignments';
 import { TeachCoding } from './teach/TeachCoding';
+import { TeachQuiz } from './teach/TeachQuiz';
 
-type Tab = 'courses' | 'classes' | 'assignments' | 'coding';
+type Tab = 'courses' | 'classes' | 'assignments' | 'coding' | 'quiz';
 
 export function TeachHome(): JSX.Element {
   const { t } = useTranslation();
@@ -16,7 +17,7 @@ export function TeachHome(): JSX.Element {
       <h1 className="text-xl font-semibold">{t('teach.title')}</h1>
 
       <div className="flex gap-1 border-b border-slate-200">
-        {(['courses', 'classes', 'assignments', 'coding'] as const).map((k) => (
+        {(['courses', 'classes', 'assignments', 'coding', 'quiz'] as const).map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -35,6 +36,7 @@ export function TeachHome(): JSX.Element {
       {tab === 'classes' && <TeachClasses />}
       {tab === 'assignments' && <TeachAssignments />}
       {tab === 'coding' && <TeachCoding />}
+      {tab === 'quiz' && <TeachQuiz />}
     </section>
   );
 }

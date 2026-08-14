@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { createQueryClient } from './lib/queryClient';
 import './i18n';
+import './styles/nocturne.css';
 import './index.css';
 
 const queryClient = createQueryClient();
