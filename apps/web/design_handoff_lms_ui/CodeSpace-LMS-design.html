@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="stylesheet" href="_ds/nocturne-bcce822d-47d8-4adf-8e67-cdad1faa395c/styles.css">
+  <script src="_ds/nocturne-bcce822d-47d8-4adf-8e67-cdad1faa395c/_ds_bundle.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <style>
+    a { color: var(--color-accent); }
+    a:hover { color: var(--color-accent-2); }
+    ::placeholder { color: color-mix(in srgb, var(--color-text) 40%, transparent); }
+    .tag, .btn, .seg-opt span { white-space: nowrap; }
+    .tag { flex: none; }
+    .seg { flex: none; }
+    .card-title, .card-meta { overflow: hidden; text-overflow: ellipsis; align-self: stretch; width: 100%; box-sizing: border-box; }
+    @keyframes cx-pop { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .cx-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+    @keyframes cx-shoot {
+      0% { transform: translate(0,0); opacity: 0; }
+      6% { opacity: 1; }
+      22% { opacity: 0; }
+      100% { transform: translate(-220px,150px); opacity: 0; }
+    }
+    .cx-shooting-star {
+      position: absolute; width: 90px; height: 2px; border-radius: 999px;
+      background: linear-gradient(to left, var(--color-neutral-100), transparent);
+      transform: rotate(35deg); animation: cx-shoot 4.5s ease-in infinite;
+    }
+  </style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(1200px 600px at 15% -10%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent), var(--color-bg);color:var(--color-text)">
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+<div style="min-height:100vh;display:flex">
+  <div style="flex:1 1 48%;background:linear-gradient(155deg, var(--color-section), var(--color-section-glow));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-6);padding:var(--space-8);position:relative;min-width:0;overflow:hidden">
+    <div style="position:absolute;inset:0;background:radial-gradient(480px 480px at 88% 8%, var(--color-section-ghost), transparent 70%),radial-gradient(420px 420px at 6% 96%, var(--color-section-ghost), transparent 70%);opacity:0.55"></div>
+    <img src="assets/logo-vertical-white.png" alt="" style="position:absolute;width:520px;height:auto;right:-160px;bottom:-140px;opacity:0.06;pointer-events:none"/>
+    <span class="cx-shooting-star" style="top:10%;left:70%;animation-delay:0s"></span>
+    <span class="cx-shooting-star" style="top:28%;left:92%;animation-delay:1.8s"></span>
+    <span class="cx-shooting-star" style="top:55%;left:82%;animation-delay:3.2s"></span>
+    <img src="assets/mascot-laptop.png" alt="Cody chào bạn" style="width:260px;height:auto;position:relative;z-index:1;filter:drop-shadow(0 20px 40px rgba(0,0,0,0.35))"/>
+    <span style="position:absolute;width:6px;height:6px;border-radius:50%;background:var(--color-neutral-100);opacity:0.5;top:14%;left:20%"></span>
+    <span style="position:absolute;width:4px;height:4px;border-radius:50%;background:var(--color-neutral-100);opacity:0.35;top:24%;left:78%"></span>
+    <span style="position:absolute;width:5px;height:5px;border-radius:50%;background:var(--color-neutral-100);opacity:0.4;top:70%;left:14%"></span>
+    <span style="position:absolute;width:3px;height:3px;border-radius:50%;background:var(--color-neutral-100);opacity:0.5;top:64%;left:86%"></span>
+    <span style="position:absolute;width:4px;height:4px;border-radius:50%;background:var(--color-neutral-100);opacity:0.3;top:40%;left:8%"></span>
+    <img src="assets/logo-horizontal-white.png" alt="CodeSpace" style="height:30px;width:auto;position:absolute;top:var(--space-8);left:var(--space-8);z-index:1"/>
+    <div style="text-align:center;max-width:360px;position:relative;z-index:1">
+      <h2 style="margin-bottom:8px">Học lập trình, vui như chơi</h2>
+      <p class="text-muted" style="margin:0">Scratch, Python và AI — CodeSpace đồng hành cùng học viên trên hành trình chinh phục công nghệ.</p>
+    </div>
+  </div>
+  <div style="flex:1 1 52%;display:flex;align-items:center;justify-content:center;padding:var(--space-8);min-width:0">
+    <form onSubmit="{{ onLoginSubmit }}" style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:var(--space-4)">
+      <div>
+        <h1 style="font-size:26px;margin-bottom:4px">Đăng nhập</h1>
+        <p class="text-muted" style="font-size:13px;margin:0">Nền tảng học lập trình Scratch &amp; Python</p>
+      </div>
+      <label class="field">
+        <label>Email</label>
+        <input class="input" type="email" placeholder="ten@codespace.vn" required=""/>
+      </label>
+      <label class="field">
+        <label>Mật khẩu</label>
+        <input class="input" type="password" placeholder="••••••••" required=""/>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">
+        <i class="ph ph-rocket-launch"></i> Đăng nhập
+      </button>
+      <p class="text-muted" style="font-size:12px;text-align:center;margin:0">Quên mật khẩu? <a href="#">Liên hệ giáo viên</a></p>
+    </form>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<div>
+  <header class="nav" style="background:var(--color-surface);border-bottom:1px solid var(--color-divider)">
+    <img src="assets/logo-horizontal-white.png" alt="CodeSpace" style="height:26px;width:auto"/>
+    <nav style="display:flex;gap:var(--space-1);margin-right:auto;margin-left:var(--space-8)">
+      <button onClick="{{ goLearn }}" class="btn" style="{{ tabLearnStyle }}"><i class="ph ph-graduation-cap"></i> Học tập</button>
+      <button onClick="{{ goTeach }}" class="btn" style="{{ tabTeachStyle }}"><i class="ph ph-chalkboard-teacher"></i> Giảng dạy</button>
+      <button onClick="{{ goAdmin }}" class="btn" style="{{ tabAdminStyle }}"><i class="ph ph-shield-check"></i> Quản trị</button>
+    </nav>
+    <button class="btn btn-icon btn-secondary" style="flex:none"><i class="ph ph-bell"></i></button>
+    <div style="display:flex;align-items:center;gap:8px;flex:none">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--color-accent-800);color:var(--color-accent-100);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex:none">CT</div>
+      <span style="font-size:13px;white-space:nowrap" class="text-muted">Cô Trang</span>
+    </div>
+    <button onClick="{{ onLogout }}" class="btn btn-secondary" style="flex:none"><i class="ph ph-sign-out"></i></button>
+  </header>
+
+  <main style="max-width:1100px;margin:0 auto;padding:var(--space-8) var(--space-6) 64px">
+
+    <sc-if value="{{ isLearnArea }}" hint-placeholder-val="{{ false }}">
+      <sc-if value="{{ isLearnList }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:var(--space-8)">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap">
+          <div>
+            <p style="color:var(--color-accent-300);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 4px">Xin chào, Bảo Anh</p>
+            <h1 style="margin:0">Khu vực học tập</h1>
+          </div>
+          <div class="seg" style="flex-wrap:nowrap">
+            <label class="seg-opt" style="white-space:nowrap"><input type="radio" name="cls" checked=""/> <span>Scratch Nhí K1</span></label>
+            <label class="seg-opt" style="white-space:nowrap"><input type="radio" name="cls"/> <span>Python Nhập Môn K3</span></label>
+          </div>
+        </div>
+
+        <sc-if value="{{ showCelebration }}" hint-placeholder-val="{{ false }}">
+        <div style="animation:cx-pop 0.25s ease;display:flex;align-items:center;gap:var(--space-4);background:var(--color-accent-900);border:1px solid var(--color-accent-700);border-radius:var(--radius-lg);padding:var(--space-4) var(--space-6)">
+          <img src="assets/mascot-hearts.png" alt="Cody ăn mừng" style="width:64px;height:auto;flex:none"/>
+          <div>
+            <p style="margin:0;font-weight:600">Tuyệt vời! Bạn vừa hoàn thành "Nhân vật đầu tiên di chuyển" 🎉</p>
+            <p class="text-muted" style="margin:2px 0 0;font-size:13px">Tiếp tục với bài học kế tiếp để giữ chuỗi ngày học nhé!</p>
+          </div>
+          <button onClick="{{ dismissCelebration }}" class="btn btn-icon btn-ghost" style="margin-left:auto"><i class="ph ph-x"></i></button>
+        </div>
+        </sc-if>
+
+        <section>
+          <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-4)"><i class="ph ph-book-open"></i> Bài học</h3>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <sc-for list="{{ lessons }}" as="l" hint-placeholder-count="4">
+              <div class="card" style="flex-direction:row;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:var(--space-4);min-width:0;flex:1 1 260px">
+                  <div style="width:40px;height:40px;border-radius:var(--radius-md);background:var(--color-neutral-800);display:flex;align-items:center;justify-content:center;flex:none">
+                    <i class="{{ l.icon }}" style="font-size:18px;color:var(--color-accent-300)"></i>
+                  </div>
+                  <div style="min-width:0;flex:1 1 auto">
+                    <p class="card-title" style="margin:0;white-space:nowrap">{{ l.title }}</p>
+                    <p class="card-meta" style="margin-top:2px;white-space:nowrap">{{ l.type }} · {{ l.minutes }} phút</p>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:var(--space-3);flex:none">
+                  <span class="tag {{ l.tagClass }}">{{ l.statusLabel }}</span>
+                  <button onClick="{{ l.action }}" class="btn {{ l.btnClass }}">{{ l.btnLabel }}</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section>
+          <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-4)"><i class="ph ph-note-pencil"></i> Bài tập</h3>
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap">
+              <div>
+                <p class="card-title" style="margin:0">Vẽ nhân vật của em</p>
+                <p class="card-meta" style="margin-top:4px">Hạn nộp: 20/08/2026 · Nộp bằng liên kết Scratch</p>
+              </div>
+              <span class="tag tag-accent">Đã nộp</span>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-4)"><i class="ph ph-check-square-offset"></i> Bài trắc nghiệm</h3>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <sc-for list="{{ quizzes }}" as="q" hint-placeholder-count="2">
+              <div class="card" style="flex-direction:row;align-items:center;justify-content:space-between;gap:var(--space-4)">
+                <div style="min-width:0;flex:1 1 auto">
+                  <p class="card-title" style="margin:0;white-space:nowrap">{{ q.title }}</p>
+                  <p class="card-meta" style="margin-top:2px;white-space:nowrap">{{ q.questionCount }} câu hỏi · Điểm tối đa {{ q.maxScore }}</p>
+                </div>
+                <div style="display:flex;align-items:center;gap:var(--space-3);flex:none">
+                  <span class="tag {{ q.tagClass }}">{{ q.statusLabel }}</span>
+                  <button onClick="{{ q.openFn }}" class="btn {{ q.btnClass }}">{{ q.btnLabel }}</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section>
+          <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-4)"><i class="ph ph-code"></i> Bài lập trình</h3>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <sc-for list="{{ codingProblems }}" as="p" hint-placeholder-count="3">
+              <div class="card" style="flex-direction:row;align-items:center;justify-content:space-between;gap:var(--space-4)">
+                <div style="min-width:0;flex:1 1 auto">
+                  <p class="card-title" style="margin:0;white-space:nowrap">{{ p.title }}</p>
+                  <p class="card-meta" style="margin-top:2px;white-space:nowrap">Độ khó: {{ p.difficulty }} · Điểm tối đa: {{ p.maxScore }}</p>
+                </div>
+                <div style="display:flex;align-items:center;gap:var(--space-3);flex:none">
+                  <span class="tag {{ p.tagClass }}">{{ p.statusLabel }}</span>
+                  <button onClick="{{ p.openFn }}" class="btn btn-primary">Mở bài <i class="ph ph-arrow-right"></i></button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isLearnLesson }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:var(--space-6);max-width:760px;margin:0 auto">
+        <button onClick="{{ closeLesson }}" class="btn btn-ghost" style="align-self:flex-start"><i class="ph ph-arrow-left"></i> Danh sách bài học</button>
+
+        <div>
+          <p class="text-muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 6px">Scratch Nhí K1 · Chương 1</p>
+          <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
+            <h1 style="margin:0">{{ openLessonTitle }}</h1>
+            <span class="tag tag-outline">{{ openLessonType }}</span>
+          </div>
+          <p class="card-meta" style="margin-top:6px">{{ openLessonMinutes }} phút</p>
+        </div>
+
+        <sc-if value="{{ isVideoLesson }}" hint-placeholder-val="{{ false }}">
+        <div style="border-radius:var(--radius-lg);overflow:hidden;background:#0b0d15;border:1px solid var(--color-divider)">
+          <div style="aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg, var(--color-neutral-900), var(--color-section))">
+            <button class="btn btn-icon" style="width:56px;height:56px;border-radius:50%;border-color:var(--color-neutral-100);color:var(--color-neutral-100)"><i class="ph ph-play" style="font-size:22px"></i></button>
+          </div>
+          <div style="padding:10px 14px;display:flex;align-items:center;gap:10px;color:var(--color-neutral-400);font-size:12px">
+            <i class="ph ph-speaker-simple-high"></i> 0:00 / {{ openLessonMinutes }}:24
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isInteractiveLesson }}" hint-placeholder-val="{{ false }}">
+        <div class="card" style="background:var(--color-neutral-900);align-items:center;text-align:center;gap:var(--space-3);padding:var(--space-8)">
+          <i class="ph ph-cursor-click" style="font-size:32px;color:var(--color-accent-300)"></i>
+          <p style="margin:0;font-weight:600">Khu vực thực hành Scratch</p>
+          <p class="text-muted" style="margin:0;max-width:420px">Kéo thả các khối lệnh để cho nhân vật di chuyển theo hướng dẫn bên dưới. Bài tương tác sẽ nhúng dự án Scratch tại đây.</p>
+        </div>
+        </sc-if>
+
+        <div class="card">
+          <p class="card-title" style="font-size:15px">Nội dung bài học</p>
+          <p style="margin:0;font-size:14px;opacity:0.85;white-space:pre-wrap">{{ openLessonBody }}</p>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;border-top:1px solid var(--color-divider);padding-top:var(--space-4)">
+          <button onClick="{{ closeLesson }}" class="btn btn-secondary"><i class="ph ph-arrow-left"></i> Bài trước</button>
+          <button onClick="{{ completeLesson }}" class="btn btn-primary"><i class="ph ph-check-circle"></i> Đánh dấu hoàn thành</button>
+        </div>
+
+        <div class="card" style="gap:var(--space-3)">
+          <p class="card-title" style="font-size:15px;display:flex;align-items:center;gap:8px"><i class="ph ph-chat-circle-dots"></i> Thảo luận</p>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <div style="display:flex;gap:10px">
+              <div style="width:30px;height:30px;border-radius:50%;background:var(--color-accent-800);color:var(--color-accent-100);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none">MK</div>
+              <div style="background:var(--color-neutral-900);border-radius:var(--radius-md);padding:8px 12px;flex:1 1 auto">
+                <p style="margin:0;font-size:13px;font-weight:600">Minh Khang</p>
+                <p style="margin:2px 0 0;font-size:13px;opacity:0.85">Nhân vật của em không di chuyển được, có phải do em quên khối "khi lá cờ xanh được bấm" không ạ?</p>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:var(--space-2)">
+            <input class="input" placeholder="Đặt câu hỏi hoặc chia sẻ với lớp…"/>
+            <button class="btn btn-primary" style="flex:none"><i class="ph ph-paper-plane-tilt"></i></button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isLearnQuiz }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:var(--space-6);max-width:640px;margin:0 auto">
+        <button onClick="{{ closeQuiz }}" class="btn btn-ghost" style="align-self:flex-start"><i class="ph ph-arrow-left"></i> Danh sách bài</button>
+
+        <div>
+          <h1 style="margin:0 0 4px">{{ openQuizTitle }}</h1>
+          <p class="card-meta" style="margin:0">{{ openQuizQuestionCount }} câu hỏi · Điểm tối đa {{ openQuizMaxScore }}</p>
+        </div>
+
+        <sc-if value="{{ isQuizResult }}" hint-placeholder-val="{{ false }}">
+        <div class="card" style="flex-direction:row;align-items:center;gap:var(--space-4);background:var(--color-accent-900);border:1px solid var(--color-accent-700)">
+          <img src="assets/mascot-hearts.png" alt="Cody ăn mừng" style="width:56px;height:auto;flex:none"/>
+          <div>
+            <p style="margin:0;font-weight:600">Hoàn thành! Đúng {{ quizCorrectCount }}/{{ openQuizQuestionCount }} câu — {{ quizScore }} điểm</p>
+            <p class="text-muted" style="margin:2px 0 0;font-size:13px">Xem lại đáp án bên dưới hoặc quay lại danh sách bài.</p>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-for list="{{ quizQuestions }}" as="qq" hint-placeholder-count="3">
+          <div class="card" style="gap:var(--space-3)">
+            <p class="card-title" style="font-size:15px;margin:0">{{ qq.displayNumber }}. {{ qq.text }}</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ qq.options }}" as="opt" hint-placeholder-count="4">
+                <label class="radio" style="{{ opt.wrapStyle }}">
+                  <input type="radio" name="{{ qq.name }}" checked="{{ opt.checked }}" onChange="{{ opt.selectFn }}" disabled="{{ opt.disabled }}"/>
+                  <span class="dot"></span>
+                  <span>{{ opt.label }}</span>
+                  <i class="{{ opt.resultIcon }}" style="{{ opt.resultIconStyle }}"></i>
+                </label>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+
+        <sc-if value="{{ isQuizTaking }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ onSubmitQuiz }}" class="btn btn-primary btn-block"><i class="ph ph-paper-plane-tilt"></i> Nộp bài</button>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isLearnCoding }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+        <button onClick="{{ closeCoding }}" class="btn btn-ghost" style="align-self:flex-start"><i class="ph ph-arrow-left"></i> Danh sách bài</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-6);align-items:start">
+          <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+            <div>
+              <h2 style="margin-bottom:4px">{{ openProblemTitle }}</h2>
+              <p class="text-muted" style="font-size:14px;white-space:pre-wrap">{{ openProblemStatement }}</p>
+            </div>
+            <div class="card" style="gap:var(--space-3)">
+              <p class="card-title" style="margin:0;font-size:14px">Test mẫu</p>
+              <sc-for list="{{ sampleTests }}" as="t" hint-placeholder-count="2">
+                <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-top:1px solid var(--color-divider)">
+                  <span class="text-muted">Đầu vào: <code>{{ t.stdin }}</code></span>
+                  <span class="text-muted">Kết quả: <code>{{ t.expected }}</code></span>
+                </div>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{ showRunnerHint }}" hint-placeholder-val="{{ false }}">
+            <div class="card" style="flex-direction:row;align-items:center;gap:var(--space-4);background:var(--color-neutral-900)">
+              <img src="assets/mascot-huh.png" alt="Cody đang chờ" style="width:52px;height:auto;flex:none"/>
+              <p style="margin:0;font-size:13px" class="text-muted">Chưa có kết quả. Bấm "Chạy thử" để xem bài của em chạy thế nào nhé!</p>
+            </div>
+            </sc-if>
+
+            <sc-if value="{{ showResult }}" hint-placeholder-val="{{ false }}">
+            <div class="card" style="flex-direction:row;align-items:center;gap:var(--space-4);background:var(--color-accent-900);border:1px solid var(--color-accent-700)">
+              <img src="assets/mascot-hearts.png" alt="Cody ăn mừng" style="width:56px;height:auto;flex:none"/>
+              <div>
+                <p style="margin:0;font-weight:600">Chính xác! Đạt {{ resultPassed }}/{{ resultTotal }} test — {{ resultScore }} điểm</p>
+                <p class="text-muted" style="margin:2px 0 0;font-size:13px">Bài đã được chấm điểm chính thức trên máy chủ.</p>
+              </div>
+            </div>
+            </sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <label class="field" style="margin:0">
+              <label>Mã nguồn (Python)</label>
+            </label>
+            <div style="border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden;background:#0f111a">
+              <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--color-divider)">
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--color-neutral-700)"></span>
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--color-neutral-700)"></span>
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--color-neutral-700)"></span>
+                <span class="text-muted" style="font-size:11px;margin-left:8px">solution.py</span>
+              </div>
+              <pre style="margin:0;padding:16px;font-family:'SFMono-Regular',Consolas,monospace;font-size:13px;line-height:1.6;overflow:auto"><span style="color:var(--color-accent-300)">n1</span> = <span style="color:#f2b56b">int</span>(input())
+<span style="color:var(--color-accent-300)">n2</span> = <span style="color:#f2b56b">int</span>(input())
+<span class="text-muted"># viết code của em ở đây</span>
+<span style="color:var(--color-accent-300)">print</span>(n1 + n2)</pre>
+            </div>
+            <div style="display:flex;gap:var(--space-2)">
+              <button onClick="{{ onRun }}" class="btn btn-secondary"><i class="ph ph-play"></i> Chạy thử</button>
+              <button onClick="{{ onSubmitCode }}" class="btn btn-primary"><i class="ph ph-paper-plane-tilt"></i> Nộp bài chấm điểm</button>
+            </div>
+            <p class="text-muted" style="font-size:12px;margin:0">Chạy thử chỉ kiểm tra test mẫu — không phải điểm chính thức.</p>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+    </sc-if>
+
+    <sc-if value="{{ isTeachArea }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:var(--space-6)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap">
+          <h1 style="margin:0">Khu vực giảng dạy</h1>
+          <div class="seg" style="flex:none">
+            <label class="seg-opt" style="white-space:nowrap"><input type="radio" name="teachtab" checked="{{ teachTabClassesChecked }}" onChange="{{ goTeachClasses }}"/> <span>Lớp học</span></label>
+            <label class="seg-opt" style="white-space:nowrap"><input type="radio" name="teachtab" checked="{{ teachTabAssignmentsChecked }}" onChange="{{ goTeachAssignments }}"/> <span>Bài tập &amp; chấm điểm</span></label>
+            <label class="seg-opt" style="white-space:nowrap"><input type="radio" name="teachtab" checked="{{ teachTabQuizzesChecked }}" onChange="{{ goTeachQuizzes }}"/> <span>Trắc nghiệm</span></label>
+          </div>
+        </div>
+
+        <sc-if value="{{ isTeachClasses }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:320px 1fr;gap:var(--space-6);align-items:start">
+          <div style="display:flex;flex-direction:column;gap:var(--space-3);min-width:0">
+            <button class="btn btn-secondary btn-block"><i class="ph ph-plus"></i> Tạo lớp mới</button>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ teachClasses }}" as="c" hint-placeholder-count="3">
+                <button onClick="{{ c.selectFn }}" class="card" style="{{ c.style }};align-items:flex-start;text-align:left;cursor:pointer;border:1px solid transparent;min-width:0;width:100%">
+                  <p class="card-title" style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:{{ c.titleColor }}">{{ c.name }}</p>
+                  <p class="card-meta" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">{{ c.code }} · {{ c.memberCount }} học viên</p>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:var(--space-4);min-width:0">
+            <div class="card" style="flex-direction:row;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap">
+              <div style="min-width:0;flex:1 1 auto">
+                <h2 style="margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ selectedClassName }}</h2>
+                <p class="card-meta" style="margin:0">{{ selectedClassCode }}</p>
+              </div>
+              <span class="tag tag-outline" style="flex:none">Đang diễn ra</span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)">
+              <div class="card">
+                <p class="card-title" style="font-size:14px">Khóa học của lớp</p>
+                <p style="margin:0;font-size:14px;background:var(--color-neutral-900);padding:8px 10px;border-radius:var(--radius-sm)">{{ selectedClassCourse }}</p>
+              </div>
+              <div class="card">
+                <p class="card-title" style="font-size:14px">Thành viên</p>
+                <sc-for list="{{ selectedClassMembers }}" as="m" hint-placeholder-count="3">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:5px 0">
+                    <span style="white-space:nowrap;flex:1 1 auto;min-width:0">{{ m.name }}</span>
+                    <span class="text-muted" style="flex:none;white-space:nowrap">{{ m.role }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div class="card">
+              <p class="card-title" style="font-size:14px;margin-bottom:4px">Mở bài theo tiến độ</p>
+              <sc-for list="{{ gateSections }}" as="s" hint-placeholder-count="2">
+                <div style="margin-top:var(--space-2)">
+                  <p class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 4px">{{ s.title }}</p>
+                  <sc-for list="{{ s.lessons }}" as="l" hint-placeholder-count="2">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-top:1px solid var(--color-divider)">
+                      <span style="font-size:14px">{{ l.title }}</span>
+                      <label class="cx-toggle" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px" onClick="{{ l.toggleFn }}">
+                        <span class="text-muted">{{ l.stateLabel }}</span>
+                        <span style="{{ l.trackStyle }}">
+                          <span style="{{ l.thumbStyle }}"></span>
+                        </span>
+                      </label>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isTeachQuizzes }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:var(--space-6);align-items:start">
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <button class="btn btn-secondary btn-block"><i class="ph ph-plus"></i> Tạo bài trắc nghiệm</button>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <sc-for list="{{ teachQuizzes }}" as="tq" hint-placeholder-count="2">
+                <button onClick="{{ tq.selectFn }}" class="card" style="{{ tq.style }};align-items:flex-start;text-align:left;cursor:pointer;border:1px solid transparent">
+                  <p class="card-title" style="margin:0">{{ tq.title }}</p>
+                  <p class="card-meta">{{ tq.questionCount }} câu · {{ tq.statusLabel }}</p>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+            <div class="card" style="flex-direction:row;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap">
+              <div style="min-width:0;flex:1 1 auto">
+                <h2 style="margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ selectedQuizTitle }}</h2>
+                <p class="card-meta" style="margin:0">{{ selectedQuizQuestionCount }} câu hỏi</p>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;flex:none">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer" onClick="{{ togglePublishQuiz }}">
+                  <span class="text-muted" style="font-size:12px">{{ selectedQuizStateLabel }}</span>
+                  <span style="{{ publishTrackStyle }}"><span style="{{ publishThumbStyle }}"></span></span>
+                </label>
+              </div>
+            </div>
+
+            <sc-for list="{{ selectedQuizQuestions }}" as="eq" hint-placeholder-count="3">
+              <div class="card" style="gap:var(--space-2)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3)">
+                  <p class="card-title" style="font-size:14px;margin:0">{{ eq.displayNumber }}. {{ eq.text }}</p>
+                  <button class="btn btn-icon btn-ghost"><i class="ph ph-pencil-simple"></i></button>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <sc-for list="{{ eq.options }}" as="eopt" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0" class="{{ eopt.mutedClass }}">
+                      <i class="{{ eopt.icon }}" style="{{ eopt.iconStyle }}"></i>
+                      <span>{{ eopt.label }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+
+            <button class="btn btn-secondary" style="align-self:flex-start"><i class="ph ph-plus"></i> Thêm câu hỏi</button>
+          </div>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isTeachAssignments }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:300px 1fr;gap:var(--space-6);align-items:start">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ teachAssignments }}" as="a" hint-placeholder-count="2">
+              <button onClick="{{ a.selectFn }}" class="card" style="{{ a.style }};align-items:flex-start;text-align:left;cursor:pointer;border:1px solid transparent">
+                <p class="card-title" style="margin:0">{{ a.title }}</p>
+                <p class="card-meta">Hạn nộp {{ a.dueAt }} · {{ a.submittedCount }} bài đã nộp</p>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+            <div class="card" style="flex-direction:row;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap">
+              <div style="min-width:0;flex:1 1 auto">
+                <h2 style="margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ selectedAssignmentTitle }}</h2>
+                <p class="card-meta" style="margin:0">Điểm tối đa {{ selectedAssignmentMax }}</p>
+              </div>
+            </div>
+            <table class="table">
+              <thead><tr><th>Học viên</th><th>Nộp lúc</th><th>Trạng thái</th><th>Điểm</th><th></th></tr></thead>
+              <tbody>
+                <sc-for list="{{ submissions }}" as="s" hint-placeholder-count="4">
+                  <tr>
+                    <td>{{ s.name }}</td>
+                    <td class="text-muted">{{ s.submittedAt }}</td>
+                    <td><span class="tag {{ s.tagClass }}">{{ s.statusLabel }}</span></td>
+                    <td>{{ s.scoreLabel }}</td>
+                    <td><button onClick="{{ s.gradeFn }}" class="btn btn-ghost">Chấm điểm</button></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isAdminArea }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:var(--space-6)">
+        <h1 style="margin:0">Bảng điều khiển quản trị</h1>
+        <div style="display:flex;gap:var(--space-3);align-items:center">
+          <input class="input" placeholder="Tìm theo tên hoặc email…" style="max-width:320px"/>
+          <button class="btn btn-secondary"><i class="ph ph-funnel"></i> Lọc theo vai trò</button>
+          <button class="btn btn-primary" style="margin-left:auto"><i class="ph ph-user-plus"></i> Thêm người dùng</button>
+        </div>
+        <div class="card" style="padding:0">
+          <table class="table">
+            <thead><tr><th>Email</th><th>Họ tên</th><th>Trạng thái</th><th>Vai trò</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ adminUsers }}" as="u" hint-placeholder-count="6">
+                <tr>
+                  <td>{{ u.email }}</td>
+                  <td>{{ u.name }}</td>
+                  <td><span class="tag {{ u.statusTag }}">{{ u.statusLabel }}</span></td>
+                  <td class="text-muted">{{ u.roles }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </sc-if>
+
+  </main>
+</div>
+</sc-if>
+
+<sc-if value="{{ isGradingOpen }}" hint-placeholder-val="{{ false }}">
+<div class="dialog-backdrop">
+  <div class="dialog">
+    <p class="dialog-title">Chấm điểm — {{ gradingStudent }}</p>
+    <div class="dialog-body" style="display:flex;flex-direction:column;gap:var(--space-3)">
+      <label class="field">
+        <label>Điểm số</label>
+        <input class="input" type="number" defaultValue="{{ gradingScoreDefault }}"/>
+      </label>
+      <label class="field">
+        <label>Nhận xét</label>
+        <textarea class="input" rows="3" placeholder="Viết nhận xét cho học viên…"></textarea>
+      </label>
+    </div>
+    <div class="dialog-actions">
+      <button onClick="{{ closeGrading }}" class="btn btn-secondary">Hủy</button>
+      <button onClick="{{ closeGrading }}" class="btn btn-primary">Lưu điểm &amp; nhận xét</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const MOCK_LESSONS = [
+  { id: 'l1', title: 'Làm quen giao diện Scratch', type: 'Video', minutes: 8, icon: 'ph ph-play-circle', status: 'completed',
+    body: 'Video hướng dẫn các vùng chính trong Scratch: sân khấu, thư viện khối lệnh, và khu vực kịch bản. Xem hết video trước khi chuyển sang bài tiếp theo.' },
+  { id: 'l2', title: 'Nhân vật đầu tiên di chuyển', type: 'Tương tác', minutes: 15, icon: 'ph ph-cursor-click', status: 'in_progress',
+    body: 'Kéo khối lệnh "di chuyển 10 bước" và "khi lá cờ xanh được bấm" vào khu vực kịch bản, sau đó bấm chạy để xem nhân vật di chuyển.' },
+  { id: 'l3', title: 'Vòng lặp & sự kiện', type: 'Bài đọc', minutes: 10, icon: 'ph ph-article', status: 'not_started',
+    body: 'Vòng lặp giúp lặp lại một hành động nhiều lần mà không cần kéo khối lệnh nhiều lần. Sự kiện giúp chương trình phản ứng khi có điều gì đó xảy ra, ví dụ khi bấm phím hoặc chạm vào nhân vật khác.' },
+  { id: 'l4', title: 'Thử thách: Trò chơi đuổi bắt', type: 'Bài tập', minutes: 25, icon: 'ph ph-flag-checkered', status: 'not_started',
+    body: 'Kết hợp những gì đã học để tạo trò chơi nhỏ: một nhân vật đuổi theo con trỏ chuột, một nhân vật khác chạy trốn. Nộp liên kết dự án Scratch ở mục "Bài tập" bên dưới.' },
+];
+
+const MOCK_CODING = [
+  { id: 'p1', title: 'Tính tổng hai số', difficulty: 'Dễ', maxScore: 10, status: 'passed' },
+  { id: 'p2', title: 'Đảo chuỗi ký tự', difficulty: 'Dễ', maxScore: 10, status: 'failed' },
+  { id: 'p3', title: 'Đếm số chẵn trong danh sách', difficulty: 'Trung bình', maxScore: 20, status: 'not_started' },
+];
+
+const MOCK_TEACH_CLASSES = [
+  { id: 'c1', name: 'Scratch Nhí K1', code: 'SC-2026-A', memberCount: 12, course: 'Scratch cho người mới bắt đầu',
+    members: [{ name: 'Bảo Anh', role: 'Học viên' }, { name: 'Minh Khang', role: 'Học viên' }, { name: 'Thầy Nam', role: 'Trợ giảng' }] },
+  { id: 'c2', name: 'Python Nhập Môn K3', code: 'PY-2026-C', memberCount: 18, course: 'Python cơ bản',
+    members: [{ name: 'Gia Hân', role: 'Học viên' }, { name: 'Đức Anh', role: 'Học viên' }] },
+  { id: 'c3', name: 'AI & Python Nâng cao K2', code: 'AI-2026-B', memberCount: 9, course: 'Python & AI nâng cao',
+    members: [{ name: 'Thảo Vy', role: 'Học viên' }] },
+];
+
+const MOCK_GATES = {
+  c1: [
+    { title: 'Chương 1 · Làm quen', lessons: [{ id: 'g1', title: 'Làm quen giao diện Scratch', on: true }, { id: 'g2', title: 'Nhân vật đầu tiên di chuyển', on: true }] },
+    { title: 'Chương 2 · Chuyển động', lessons: [{ id: 'g3', title: 'Vòng lặp & sự kiện', on: false }, { id: 'g4', title: 'Thử thách: Trò chơi đuổi bắt', on: false }] },
+  ],
+  c2: [{ title: 'Chương 1 · Cú pháp cơ bản', lessons: [{ id: 'g5', title: 'Biến & kiểu dữ liệu', on: true }] }],
+  c3: [{ title: 'Chương 1 · Nhập môn AI', lessons: [{ id: 'g6', title: 'Mô hình là gì?', on: false }] }],
+};
+
+const MOCK_ASSIGNMENTS = [
+  { id: 'a1', title: 'Vẽ nhân vật của em', dueAt: '20/08/2026', max: 10,
+    submissions: [
+      { name: 'Bảo Anh', submittedAt: '18/08 · 20:10', status: 'submitted', score: null },
+      { name: 'Minh Khang', submittedAt: '19/08 · 09:02', status: 'graded', score: 9 },
+      { name: 'Gia Hân', submittedAt: '—', status: 'draft', score: null },
+    ] },
+  { id: 'a2', title: 'Viết hàm tính giai thừa', dueAt: '25/08/2026', max: 20,
+    submissions: [
+      { name: 'Đức Anh', submittedAt: '20/08 · 14:30', status: 'submitted', score: null },
+      { name: 'Thảo Vy', submittedAt: '21/08 · 08:15', status: 'graded', score: 18 },
+    ] },
+];
+
+const MOCK_QUIZZES = [
+  { id: 'z1', title: 'Kiểm tra: Khối lệnh cơ bản', maxScore: 10, status: 'not_started',
+    questions: [
+      { text: 'Khối lệnh nào giúp nhân vật di chuyển?', options: ['di chuyển 10 bước', 'phát âm thanh', 'đổi trang phục', 'ẩn nhân vật'], correct: 0 },
+      { text: 'Sự kiện nào chạy chương trình khi bắt đầu?', options: ['khi phím cách được bấm', 'khi lá cờ xanh được bấm', 'khi nhận thông điệp', 'khi nhân vật bị chạm'], correct: 1 },
+      { text: 'Khối nào lặp lại một hành động mãi mãi?', options: ['lặp lại 10 lần', 'nếu... thì', 'lặp lại mãi mãi', 'đợi 1 giây'], correct: 2 },
+    ] },
+  { id: 'z2', title: 'Kiểm tra: Biến & vòng lặp Python', maxScore: 10, status: 'passed',
+    questions: [
+      { text: 'Từ khóa nào dùng để lặp qua một danh sách?', options: ['while', 'for', 'if', 'def'], correct: 1 },
+      { text: 'Kiểu dữ liệu nào lưu số nguyên?', options: ['str', 'float', 'int', 'bool'], correct: 2 },
+    ] },
+];
+
+const MOCK_TEACH_QUIZZES = {
+  c1: [
+    { id: 'z1', title: 'Kiểm tra: Khối lệnh cơ bản', published: true,
+      questions: [
+        { text: 'Khối lệnh nào giúp nhân vật di chuyển?', options: ['di chuyển 10 bước', 'phát âm thanh', 'đổi trang phục', 'ẩn nhân vật'], correct: 0 },
+        { text: 'Sự kiện nào chạy chương trình khi bắt đầu?', options: ['khi phím cách được bấm', 'khi lá cờ xanh được bấm', 'khi nhận thông điệp', 'khi nhân vật bị chạm'], correct: 1 },
+      ] },
+    { id: 'z3', title: 'Ôn tập chương 2', published: false,
+      questions: [{ text: 'Khối nào lặp lại một hành động mãi mãi?', options: ['lặp lại 10 lần', 'nếu... thì', 'lặp lại mãi mãi', 'đợi 1 giây'], correct: 2 }] },
+  ],
+  c2: [{ id: 'z2', title: 'Kiểm tra: Biến & vòng lặp Python', published: true,
+    questions: [{ text: 'Từ khóa nào dùng để lặp qua một danh sách?', options: ['while', 'for', 'if', 'def'], correct: 1 }] }],
+  c3: [],
+};
+
+const MOCK_ADMIN_USERS = [
+  { email: 'trang.nguyen@codespace.vn', name: 'Trang Nguyễn', status: 'active', roles: 'Quản trị đào tạo' },
+  { email: 'nam.le@codespace.vn', name: 'Nam Lê', status: 'active', roles: 'Giáo viên' },
+  { email: 'huong.tran@codespace.vn', name: 'Hương Trần', status: 'active', roles: 'Giáo viên, Trợ giảng' },
+  { email: 'baoanh@codespace.vn', name: 'Bảo Anh', status: 'active', roles: 'Học viên' },
+  { email: 'minhkhang@codespace.vn', name: 'Minh Khang', status: 'invited', roles: 'Học viên' },
+  { email: 'admin@codespace.vn', name: 'Quản trị viên', status: 'active', roles: 'Quản trị hệ thống' },
+];
+
+const LESSON_STATUS = {
+  completed: { label: 'Hoàn thành', tag: 'tag-accent', btnLabel: 'Xem lại', btnClass: 'btn-secondary' },
+  in_progress: { label: 'Đang học', tag: 'tag-outline', btnLabel: 'Tiếp tục', btnClass: 'btn-primary' },
+  not_started: { label: 'Chưa bắt đầu', tag: 'tag-neutral', btnLabel: 'Bắt đầu', btnClass: 'btn-secondary' },
+};
+
+const CODING_STATUS = {
+  passed: { label: 'Đạt', tag: 'tag-accent' },
+  failed: { label: 'Chưa đạt', tag: 'tag-neutral' },
+  not_started: { label: 'Chưa làm', tag: 'tag-outline' },
+};
+
+const ACTIVE_TAB_STYLE = 'background:color-mix(in srgb, var(--color-accent) 16%, transparent);color:var(--color-accent);border-color:transparent';
+const INACTIVE_TAB_STYLE = 'color:var(--color-text);opacity:0.75;border-color:transparent';
+
+class Component extends DCLogic {
+  state = {
+    screen: 'login',
+    area: 'learn',
+    learnView: 'list',
+    openProblemId: null,
+    openLessonId: null,
+    showCelebration: true,
+    runState: 'idle',
+    teachTab: 'classes',
+    selectedClassId: 'c1',
+    selectedAssignmentId: 'a1',
+    selectedTeachQuizId: 'z1',
+    openQuizId: null,
+    quizAnswers: {},
+    quizSubmitted: false,
+    teachQuizzesPublished: { z1: true, z2: true, z3: false },
+    gates: MOCK_GATES,
+    gradingOpen: false,
+    gradingTarget: null,
+  };
+
+  renderVals() {
+    const s = this.state;
+
+    const lessons = MOCK_LESSONS.map((l) => {
+      const meta = LESSON_STATUS[l.status];
+      return { ...l, statusLabel: meta.label, tagClass: meta.tag, btnLabel: meta.btnLabel, btnClass: `btn ${meta.btnClass}`.split(' ').slice(1).join(' '), action: () => this.openLesson(l.id) };
+    });
+
+    const openLesson = MOCK_LESSONS.find((l) => l.id === s.openLessonId);
+
+    const codingProblems = MOCK_CODING.map((p) => {
+      const meta = CODING_STATUS[p.status];
+      return { ...p, statusLabel: meta.label, tagClass: meta.tag, openFn: () => this.openProblem(p.id) };
+    });
+
+    const openProblem = MOCK_CODING.find((p) => p.id === s.openProblemId);
+
+    const QUIZ_STATUS = {
+      not_started: { label: 'Chưa làm', tag: 'tag-outline', btnLabel: 'Làm bài', btnClass: 'btn-primary' },
+      passed: { label: 'Đã hoàn thành', tag: 'tag-accent', btnLabel: 'Xem lại', btnClass: 'btn-secondary' },
+    };
+    const quizzes = MOCK_QUIZZES.map((q) => {
+      const meta = QUIZ_STATUS[q.status];
+      return { id: q.id, title: q.title, questionCount: q.questions.length, maxScore: q.maxScore, statusLabel: meta.label, tagClass: meta.tag, btnLabel: meta.btnLabel, btnClass: meta.btnClass, openFn: () => this.openQuiz(q.id) };
+    });
+
+    const openQuiz = MOCK_QUIZZES.find((q) => q.id === s.openQuizId);
+    let quizQuestions = [];
+    let quizCorrectCount = 0;
+    if (openQuiz) {
+      quizQuestions = openQuiz.questions.map((qq, qi) => {
+        const name = `quiz_${qi}`;
+        const chosen = s.quizAnswers[qi];
+        if (s.quizSubmitted && chosen === qq.correct) quizCorrectCount++;
+        return {
+          name,
+          displayNumber: qi + 1,
+          text: qq.text,
+          options: qq.options.map((label, oi) => {
+            let resultIcon = '', resultIconStyle = 'margin-left:auto;font-size:16px', wrapStyle = '';
+            if (s.quizSubmitted) {
+              if (oi === qq.correct) { resultIcon = 'ph ph-check-circle'; resultIconStyle += ';color:var(--color-accent-300)'; }
+              else if (oi === chosen) { resultIcon = 'ph ph-x-circle'; resultIconStyle += ';color:var(--color-neutral-500)'; }
+              wrapStyle = 'display:flex;align-items:center;gap:8px;opacity:0.9';
+            } else {
+              wrapStyle = 'display:flex;align-items:center;gap:8px;cursor:pointer';
+            }
+            return { label, checked: chosen === oi, disabled: s.quizSubmitted, selectFn: () => this.answerQuiz(qi, oi), resultIcon, resultIconStyle, wrapStyle };
+          }),
+        };
+      });
+    }
+    const quizScore = openQuiz ? Math.round((quizCorrectCount / openQuiz.questions.length) * openQuiz.maxScore) : 0;
+
+    const teachClasses = MOCK_TEACH_CLASSES.map((c) => ({
+      ...c,
+      selectFn: () => this.setState({ selectedClassId: c.id }),
+      style: c.id === s.selectedClassId ? 'background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700)' : '',
+      titleColor: c.id === s.selectedClassId ? 'var(--color-accent-100)' : 'var(--color-text)',
+    }));
+    const selectedClass = MOCK_TEACH_CLASSES.find((c) => c.id === s.selectedClassId) || MOCK_TEACH_CLASSES[0];
+
+    const gateSections = (s.gates[selectedClass.id] || []).map((sec) => ({
+      title: sec.title,
+      lessons: sec.lessons.map((l) => ({
+        id: l.id,
+        title: l.title,
+        stateLabel: l.on ? 'Đang mở' : 'Đang khóa',
+        toggleFn: () => this.toggleGate(selectedClass.id, l.id),
+        trackStyle: `width:34px;height:20px;border-radius:999px;position:relative;transition:background .15s;background:${l.on ? 'var(--color-accent)' : 'var(--color-neutral-700)'}`,
+        thumbStyle: `position:absolute;top:2px;left:${l.on ? '16px' : '2px'};width:16px;height:16px;border-radius:50%;background:var(--color-bg);transition:left .15s`,
+      })),
+    }));
+
+    const teachQuizzesForClass = MOCK_TEACH_QUIZZES[selectedClass.id] || [];
+    const teachQuizzes = teachQuizzesForClass.map((tq) => ({
+      id: tq.id,
+      title: tq.title,
+      questionCount: tq.questions.length,
+      statusLabel: s.teachQuizzesPublished[tq.id] ? 'Đã xuất bản' : 'Bản nháp',
+      selectFn: () => this.setState({ selectedTeachQuizId: tq.id }),
+      style: tq.id === s.selectedTeachQuizId ? 'background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700)' : '',
+    }));
+    const selectedQuiz = teachQuizzesForClass.find((tq) => tq.id === s.selectedTeachQuizId) || teachQuizzesForClass[0];
+    const selectedQuizPublished = selectedQuiz ? !!s.teachQuizzesPublished[selectedQuiz.id] : false;
+    const selectedQuizQuestions = selectedQuiz ? selectedQuiz.questions.map((eq, eqi) => ({
+      displayNumber: eqi + 1,
+      text: eq.text,
+      options: eq.options.map((label, oi) => ({
+        label,
+        mutedClass: oi === eq.correct ? '' : 'text-muted',
+        icon: oi === eq.correct ? 'ph ph-check-circle' : 'ph ph-circle',
+        iconStyle: oi === eq.correct ? 'color:var(--color-accent-300)' : 'color:var(--color-neutral-600)',
+      })),
+    })) : [];
+
+    const teachAssignments = MOCK_ASSIGNMENTS.map((a) => ({
+      ...a,
+      submittedCount: a.submissions.filter((x) => x.status !== 'draft').length,
+      selectFn: () => this.setState({ selectedAssignmentId: a.id }),
+      style: a.id === s.selectedAssignmentId ? 'background:var(--color-accent-900);box-shadow:inset 0 0 0 1px var(--color-accent-700)' : '',
+    }));
+    const selectedAssignment = MOCK_ASSIGNMENTS.find((a) => a.id === s.selectedAssignmentId) || MOCK_ASSIGNMENTS[0];
+    const SUB_STATUS = {
+      draft: { label: 'Chưa nộp', tag: 'tag-neutral' },
+      submitted: { label: 'Đã nộp', tag: 'tag-outline' },
+      graded: { label: 'Đã chấm', tag: 'tag-accent' },
+    };
+    const submissions = selectedAssignment.submissions.map((x) => ({
+      ...x,
+      statusLabel: SUB_STATUS[x.status].label,
+      tagClass: SUB_STATUS[x.status].tag,
+      scoreLabel: x.score != null ? `${x.score}/${selectedAssignment.max}` : '—',
+      gradeFn: () => this.setState({ gradingOpen: true, gradingTarget: { name: x.name, score: x.score } }),
+    }));
+
+    const adminUsers = MOCK_ADMIN_USERS.map((u) => ({
+      ...u,
+      statusLabel: u.status === 'active' ? 'Đang hoạt động' : 'Đã mời',
+      statusTag: u.status === 'active' ? 'tag-accent' : 'tag-neutral',
+    }));
+
+    return {
+      isLogin: s.screen === 'login',
+      isApp: s.screen === 'app',
+      isLearnArea: s.area === 'learn',
+      isTeachArea: s.area === 'teach',
+      isAdminArea: s.area === 'admin',
+      isLearnList: s.learnView === 'list',
+      isLearnCoding: s.learnView === 'coding',
+      isLearnLesson: s.learnView === 'lesson',
+      isLearnQuiz: s.learnView === 'quiz',
+      quizzes,
+      openQuizTitle: openQuiz?.title,
+      openQuizQuestionCount: openQuiz?.questions.length,
+      openQuizMaxScore: openQuiz?.maxScore,
+      quizQuestions,
+      isQuizTaking: !s.quizSubmitted,
+      isQuizResult: s.quizSubmitted,
+      quizCorrectCount,
+      quizScore,
+      closeQuiz: () => this.setState({ learnView: 'list', openQuizId: null, quizAnswers: {}, quizSubmitted: false }),
+      onSubmitQuiz: () => this.setState({ quizSubmitted: true }),
+      openLessonTitle: openLesson?.title,
+      openLessonType: openLesson?.type,
+      openLessonMinutes: openLesson?.minutes,
+      openLessonBody: openLesson?.body,
+      isVideoLesson: openLesson?.type === 'Video',
+      isInteractiveLesson: openLesson?.type === 'Tương tác',
+      closeLesson: () => this.setState({ learnView: 'list', openLessonId: null }),
+      completeLesson: () => this.setState({ learnView: 'list', openLessonId: null, showCelebration: true }),
+      isTeachClasses: s.teachTab === 'classes',
+      isTeachAssignments: s.teachTab === 'assignments',
+      isTeachQuizzes: s.teachTab === 'quizzes',
+      teachQuizzes,
+      selectedQuizTitle: selectedQuiz?.title,
+      selectedQuizQuestionCount: selectedQuiz?.questions.length ?? 0,
+      selectedQuizQuestions,
+      selectedQuizStateLabel: selectedQuizPublished ? 'Đã xuất bản' : 'Bản nháp',
+      publishTrackStyle: `width:34px;height:20px;border-radius:999px;position:relative;transition:background .15s;background:${selectedQuizPublished ? 'var(--color-accent)' : 'var(--color-neutral-700)'}`,
+      publishThumbStyle: `position:absolute;top:2px;left:${selectedQuizPublished ? '16px' : '2px'};width:16px;height:16px;border-radius:50%;background:var(--color-bg);transition:left .15s`,
+      togglePublishQuiz: () => this.toggleQuizPublish(selectedQuiz?.id),
+
+      tabLearnStyle: `${s.area === 'learn' ? ACTIVE_TAB_STYLE : INACTIVE_TAB_STYLE}`,
+      tabTeachStyle: `${s.area === 'teach' ? ACTIVE_TAB_STYLE : INACTIVE_TAB_STYLE}`,
+      tabAdminStyle: `${s.area === 'admin' ? ACTIVE_TAB_STYLE : INACTIVE_TAB_STYLE}`,
+
+      onLoginSubmit: (e) => { e.preventDefault(); this.setState({ screen: 'app' }); },
+      onLogout: () => this.setState({ screen: 'login', area: 'learn', learnView: 'list' }),
+      goLearn: () => this.setState({ area: 'learn', gradingOpen: false, gradingTarget: null }),
+      goTeach: () => this.setState({ area: 'teach', gradingOpen: false, gradingTarget: null }),
+      goAdmin: () => this.setState({ area: 'admin', gradingOpen: false, gradingTarget: null }),
+
+      lessons,
+      showCelebration: s.showCelebration,
+      dismissCelebration: () => this.setState({ showCelebration: false }),
+
+      codingProblems,
+      closeCoding: () => this.setState({ learnView: 'list', openProblemId: null, runState: 'idle' }),
+      openProblemTitle: openProblem?.title,
+      openProblemStatement: 'Viết chương trình đọc hai số nguyên n1, n2 từ bàn phím (mỗi số một dòng) và in ra tổng của chúng.',
+      sampleTests: [{ stdin: '3\\n4', expected: '7' }, { stdin: '10\\n-2', expected: '8' }],
+      showRunnerHint: s.runState === 'idle',
+      showResult: s.runState === 'passed',
+      resultPassed: 2, resultTotal: 2, resultScore: 10,
+      onRun: () => this.setState({ runState: 'ran' }),
+      onSubmitCode: () => this.setState({ runState: 'passed' }),
+
+      teachTabClassesChecked: s.teachTab === 'classes',
+      teachTabAssignmentsChecked: s.teachTab === 'assignments',
+      teachTabQuizzesChecked: s.teachTab === 'quizzes',
+      goTeachClasses: () => this.setState({ teachTab: 'classes' }),
+      goTeachAssignments: () => this.setState({ teachTab: 'assignments' }),
+      goTeachQuizzes: () => this.setState({ teachTab: 'quizzes' }),
+
+      teachClasses,
+      selectedClassName: selectedClass.name,
+      selectedClassCode: selectedClass.code,
+      selectedClassCourse: selectedClass.course,
+      selectedClassMembers: selectedClass.members,
+      gateSections,
+
+      teachAssignments,
+      selectedAssignmentTitle: selectedAssignment.title,
+      selectedAssignmentMax: selectedAssignment.max,
+      submissions,
+
+      adminUsers,
+
+      isGradingOpen: s.gradingOpen,
+      gradingStudent: s.gradingTarget?.name,
+      gradingScoreDefault: s.gradingTarget?.score ?? '',
+      closeGrading: () => this.setState({ gradingOpen: false, gradingTarget: null }),
+    };
+  }
+
+  openProblem(id) {
+    this.setState({ learnView: 'coding', openProblemId: id, runState: 'idle' });
+  }
+
+  openLesson(id) {
+    this.setState({ learnView: 'lesson', openLessonId: id });
+  }
+
+  openQuiz(id) {
+    this.setState({ learnView: 'quiz', openQuizId: id, quizAnswers: {}, quizSubmitted: false });
+  }
+
+  answerQuiz(qi, oi) {
+    this.setState((prev) => ({ quizAnswers: { ...prev.quizAnswers, [qi]: oi } }));
+  }
+
+  toggleQuizPublish(id) {
+    if (!id) return;
+    this.setState((prev) => ({ teachQuizzesPublished: { ...prev.teachQuizzesPublished, [id]: !prev.teachQuizzesPublished[id] } }));
+  }
+
+  toggleGate(classId, lessonId) {
+    this.setState((prev) => {
+      const gates = { ...prev.gates };
+      gates[classId] = gates[classId].map((sec) => ({
+        ...sec,
+        lessons: sec.lessons.map((l) => (l.id === lessonId ? { ...l, on: !l.on } : l)),
+      }));
+      return { gates };
+    });
+  }
+}
+
+</script>
+</body>
+</html>
