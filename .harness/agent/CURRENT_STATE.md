@@ -6,10 +6,25 @@ Updated: 2026-08-14
 
 ## Project Stage
 
-**P0–P3 ✅ DONE. Phase P4 (Quiz) đang chạy: T4.0 contracts + T4.1 schema + T4.2 seed + T4.3 backend authoring ✅.**
-Branch `claude/codespace-p4-quiz` (tách từ main sau P3 merge PR #1). **Kế tiếp T4.4 attempt/autograde** →
-T4.5/T4.6 FE Teach/Learn → T4.7 verify. `pnpm validate` xanh 16/16 (api **119 test**), live smoke authoring
-xanh. Breakdown + autograde rules + invariant (không lộ isCorrect/correctAnswer khi làm bài) ở ACTIVE_TASKS.md §P4.
+**P0–P3 ✅ DONE. Phase P4 (Quiz) đang chạy: T4.0–T4.4 ✅ (contracts + schema + seed + authoring + attempt/autograde).**
+Branch `claude/codespace-p4-quiz` (tách từ main sau P3 merge PR #1). **Kế tiếp T4.5/T4.6 FE Teach/Learn quiz**
+(theo **Nocturne design handoff** — xem memory + `apps/web/design_handoff_lms_ui/`) → T4.7 verify. `pnpm
+validate` xanh 16/16 (api **129 test**), live smoke authoring + full student flow xanh.
+
+### T4.4 (Quiz attempt + autograde) — 2026-08-14
+- Endpoints: `GET /quizzes/for-class/:classId` (student list, membership + gated/no-lesson),
+  `GET /quizzes/:id/attempt?classId` (QuizStudentDetail — KHÔNG isCorrect/correctAnswer),
+  `POST /quizzes/:id/attempts` (nộp + CHẤM 1 lần — tránh dangling attempt, enforce attemptsAllowed),
+  `GET /quiz-attempts/:id` (ownership hoặc quiz.result.read scoped, controller `quiz-attempts.controller.ts`).
+- Chấm server-side (`gradeQuestion`): choice = exact-set-match option isCorrect; text = normalize
+  (trim+lowercase+gộp space) == correctAnswer. Điểm câu = points nếu đúng, 0 nếu sai. score = Σ (Decimal 2dp).
+  Lưu QuizAnswer + attempt(submitted) + LessonProgress (đạt passScore + gated → completed) trong 1 transaction.
+  selectedOptionIds lọc chỉ option hợp lệ (chống rác client). KHÔNG tin điểm client.
+- QuizService thêm inject RbacService (getAttempt scope theo lớp, giống coding.getSubmission). 21 unit test.
+- Full e2e smoke xanh: gated quiz → for-class → attempt (no leak) → submit → score 5/5, per-answer isCorrect →
+  view attempt → nộp lần 2 (attemptsAllowed=1) 403 → lesson completed. Regression: đề + kết quả KHÔNG lộ đáp án.
+
+### T4.2/T4.3 (Quiz seed + backend authoring) — 2026-08-14
 
 ### T4.2/T4.3 (Quiz seed + backend authoring) — 2026-08-14
 - **Seed** `quiz.*` (6 perm) vào seed.cjs: 36 permission / 106 liên kết. student=submit+result.read,
