@@ -11,6 +11,18 @@ P4 gồm T4.0–T4.7: contracts + schema + seed + authoring + attempt/autograde 
 `pnpm validate` xanh **16/16** (api **129 test**, web 4), live e2e authoring + full student flow (Teach + Learn quiz) xanh.
 **Bước kế: P5 Gradebook & Certificate** (chưa breakdown task). Lưu ý: main mới merge local, cần `git push origin main` khi muốn đồng bộ remote.
 
+### Full Nocturne re-skin (toàn bộ trang) — 2026-08-15
+- Theo yêu cầu user (trước P5): áp Nocturne cho MỌI màn (không chỉ quiz). Commit `806f3a8` trên branch
+  `claude/p4-quiz-fe-nocturne-7759f7` — **CHƯA merge main**.
+- `nocturne.css`: bật ground TOÀN CỤC (`body` dark + `h1..h6` Inter + `a` accent) → màn mới không cần bọc
+  `.nocturne-surface`. Thêm helper `.panel/.panel-head/.chip/.nav-active`.
+- Đổi: AppLayout (nav logo + active accent + avatar initials), LoginPage (2-cột banner+mascot-laptop),
+  AdminHome (.panel+.table+tag), TeachHome (tabs→.seg), Teach Courses/Classes/Assignments/Coding,
+  LearnHome (greeting eyebrow + class seg + lesson cards/tags), LearnCoding (Monaco `vs-dark` + tag pills),
+  StudentAssignmentCard. i18n thêm login.banner*/footer + learn.greeting/lessonsHeading.
+- Verify: web typecheck/lint/build xanh (CSS purge còn 21.3kB); browser mọi màn (login/nav/teach 5 tab/learn/
+  admin) render Nocturne, lượt sạch request 200. Không còn màn light-slate.
+
 ### T4.6 (FE Learn quiz) — 2026-08-14
 - `apps/web/src/pages/learn/LearnQuiz.tsx` (Nocturne `.nocturne-surface`, wired vào `LearnHome` sau ClassAssignments,
   trước LearnCoding). List quiz theo lớp (`useQuizzesForClass`) → `QuizWorkspace` (openId pattern): `useQuizAttempt`
