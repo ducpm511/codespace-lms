@@ -12,8 +12,8 @@ P4 gồm T4.0–T4.7: contracts + schema + seed + authoring + attempt/autograde 
 **Bước kế: P5 Gradebook & Certificate** (chưa breakdown task). Lưu ý: main mới merge local, cần `git push origin main` khi muốn đồng bộ remote.
 
 ### Full Nocturne re-skin (toàn bộ trang) — 2026-08-15
-- Theo yêu cầu user (trước P5): áp Nocturne cho MỌI màn (không chỉ quiz). Commit `806f3a8` trên branch
-  `claude/p4-quiz-fe-nocturne-7759f7` — **CHƯA merge main**.
+- Theo yêu cầu user (trước P5): áp Nocturne cho MỌI màn (không chỉ quiz). Commit `806f3a8`, **đã MERGE
+  vào main** (local FF, main ở `88f43d5`, chưa push origin).
 - `nocturne.css`: bật ground TOÀN CỤC (`body` dark + `h1..h6` Inter + `a` accent) → màn mới không cần bọc
   `.nocturne-surface`. Thêm helper `.panel/.panel-head/.chip/.nav-active`.
 - Đổi: AppLayout (nav logo + active accent + avatar initials), LoginPage (2-cột banner+mascot-laptop),
