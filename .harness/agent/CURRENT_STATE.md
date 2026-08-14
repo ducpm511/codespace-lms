@@ -6,7 +6,26 @@ Updated: 2026-08-14
 
 ## Project Stage
 
-**P0 ✅ + P1 ✅ + P2 ✅ + P3 ✅ DONE. Phase P3 (Coding & Runner) hoàn tất T3.0–T3.9. Bước kế: P4 Quiz.**
+**P0–P3 ✅ DONE. Phase P4 (Quiz) đang chạy: T4.0 (contracts) + T4.1 (schema+migration) ✅.**
+Branch `claude/codespace-p4-quiz` (tách từ main sau P3 merge PR #1). Còn T4.2 seed perms → T4.3 backend
+authoring → T4.4 attempt/autograde → T4.5/T4.6 FE Teach/Learn → T4.7 verify. Breakdown + autograde rules +
+invariant (không lộ isCorrect/correctAnswer khi làm bài) ở ACTIVE_TASKS.md §P4.
+
+### T4.0/T4.1 (Quiz contracts + schema) — 2026-08-14
+- **Contracts** `packages/contracts/src/quiz.ts`: `QuizSummary`; student-facing `QuizStudentDetail`/
+  `StudentQuizQuestionDto`/`StudentQuizOptionDto` (KHÔNG isCorrect/correctAnswer); author `QuizAuthorDetail`/
+  `AuthorQuizQuestionDto`/`AuthorQuizOptionDto` (CÓ isCorrect + correctAnswer); attempt `QuizAttemptDto` +
+  `QuizAnswerResultDto`; requests Create/Update/UpsertQuestion(+Option)/Start/Submit. Perm keys `quiz.*`
+  (read/create/update/delete/submit/result.read) trong rbac.ts. Export ở index.ts.
+- **Schema** `p4_quiz` migration áp DB (5433): `Quiz`(passScore/attemptsAllowed/shuffle*), `Question`
+  (type enum, points Decimal, correctAnswer? author-only), `QuestionOption`(isCorrect author-only),
+  `QuizAttempt`(status enum, score Decimal), `QuizAnswer`(selectedOptionIds Json, textAnswer, awardedPoints,
+  isCorrect). Back-relations User/Course/Lesson/Class. KHÔNG hard-delete attempt/answer.
+- **GOTCHA**: `prisma generate` bị EPERM khi API dev đang chạy (khóa `query_engine-windows.dll.node`) —
+  TẮT API trước khi generate/migrate.
+
+### P3 (Coding & Runner) — DONE, merge main qua PR #1
+**P0 ✅ + P1 ✅ + P2 ✅ + P3 ✅ DONE. Phase P3 (Coding & Runner) hoàn tất T3.0–T3.9. Đã merge main.**
 P3: ADR runner (T3.0), contracts `coding.ts` + `coding.*` perms (T3.1), schema + migration (T3.2),
 backend `coding` authoring (T3.3), seed coding (T3.6), runner adapter + queue (T3.4), submit/autograde
 (T3.5), FE Teach (T3.7), **FE Learn coding (T3.8): Monaco + Pyodide self-host + submit/polling** + **verify

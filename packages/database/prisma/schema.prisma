@@ -51,6 +51,10 @@ model User {
   codingProblemsCreated CodingProblem[]    @relation("CodingProblemCreatedBy")
   codingSubmissions     CodingSubmission[]
 
+  // P4 (Quiz)
+  quizzesCreated Quiz[]        @relation("QuizCreatedBy")
+  quizAttempts   QuizAttempt[]
+
   @@map("users")
 }
 
@@ -176,6 +180,7 @@ model Course {
   classCourses   ClassCourse[]
   assignments    Assignment[]
   codingProblems CodingProblem[]
+  quizzes        Quiz[]
 
   @@index([createdById])
   @@map("courses")
@@ -214,6 +219,7 @@ model Lesson {
   progress       LessonProgress[]
   assignments    Assignment[]
   codingProblems CodingProblem[]
+  quizzes        Quiz[]
 
   @@unique([sectionId, order])
   @@index([refId])
@@ -265,6 +271,7 @@ model Class {
   progress          LessonProgress[]
   submissions       Submission[]
   codingSubmissions CodingSubmission[]
+  quizAttempts      QuizAttempt[]
 
   @@index([createdById])
   @@map("classes")
@@ -541,4 +548,128 @@ model TestCaseResult {
   @@unique([submissionId, testCaseId])
   @@index([testCaseId])
   @@map("test_case_results")
+}
+
+// === Quiz — autograded (T4.1) — docs/DESIGN.md §4.6 ===
+
+enum QuizQuestionType {
+  single_choice
+  multiple_choice
+  true_false
+  short_answer
+  code_fill
+}
+
+enum QuizAttemptStatus {
+  in_progress
+  submitted
+  expired
+}
+
+// Quiz. passScore = ngưỡng đạt (Decimal). shuffle* để trộn khi trình bày cho học viên.
+model Quiz {
+  id               String   @id @default(cuid())
+  courseId         String
+  lessonId         String?
+  title            String
+  timeLimitSec     Int?
+  attemptsAllowed  Int      @default(1)
+  passScore        Decimal  @default(0) @db.Decimal(6, 2)
+  shuffleQuestions Boolean  @default(false)
+  shuffleOptions   Boolean  @default(false)
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson    Lesson?       @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  createdBy User          @relation("QuizCreatedBy", fields: [createdById], references: [id])
+  questions Question[]
+  attempts  QuizAttempt[]
+
+  @@index([courseId])
+  @@index([lessonId])
+  @@index([createdById])
+  @@map("quizzes")
+}
+
+// Câu hỏi. correctAnswer dùng cho short_answer/code_fill; choice-based dùng QuestionOption.isCorrect.
+model Question {
+  id            String           @id @default(cuid())
+  quizId        String
+  type          QuizQuestionType @default(single_choice)
+  promptMd      String
+  points        Decimal          @default(1) @db.Decimal(6, 2)
+  correctAnswer String?
+  order         Int
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  quiz    Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options QuestionOption[]
+  answers QuizAnswer[]
+
+  @@unique([quizId, order])
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+// Đáp án lựa chọn. isCorrect KHÔNG BAO GIỜ gửi ra client khi làm bài (invariant P4).
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  textMd     String
+  isCorrect  Boolean  @default(false)
+  order      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, order])
+  @@index([questionId])
+  @@map("quiz_question_options")
+}
+
+// Lượt làm bài. attemptsAllowed + timeLimit enforce ở service. KHÔNG hard-delete (giữ lịch sử điểm).
+model QuizAttempt {
+  id          String            @id @default(cuid())
+  quizId      String
+  userId      String
+  classId     String?
+  status      QuizAttemptStatus @default(in_progress)
+  score       Decimal?          @db.Decimal(6, 2)
+  startedAt   DateTime          @default(now())
+  submittedAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class   Class?       @relation(fields: [classId], references: [id], onDelete: SetNull)
+  answers QuizAnswer[]
+
+  @@index([quizId, userId, classId])
+  @@index([classId])
+  @@index([status])
+  @@map("quiz_attempts")
+}
+
+// Đáp án 1 câu trong 1 lượt. selectedOptionIds = Json (mảng option id). Điểm chấm lại server-side.
+model QuizAnswer {
+  id                String   @id @default(cuid())
+  attemptId         String
+  questionId        String
+  selectedOptionIds Json?
+  textAnswer        String?
+  awardedPoints     Decimal? @db.Decimal(6, 2)
+  isCorrect         Boolean?
+  createdAt         DateTime @default(now())
+
+  attempt  QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+  @@map("quiz_answers")
 }

@@ -9,3 +9,4 @@ export * from './course';
 export * from './class';
 export * from './assignment';
 export * from './coding';
+export * from './quiz';

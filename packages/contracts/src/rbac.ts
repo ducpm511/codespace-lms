@@ -51,6 +51,13 @@ export const PERMISSIONS = {
   CODING_DELETE: 'coding.delete',
   CODING_SUBMIT: 'coding.submit',
   CODING_RESULT_READ: 'coding.result.read',
+  // P4 — Quiz
+  QUIZ_READ: 'quiz.read',
+  QUIZ_CREATE: 'quiz.create',
+  QUIZ_UPDATE: 'quiz.update',
+  QUIZ_DELETE: 'quiz.delete',
+  QUIZ_SUBMIT: 'quiz.submit',
+  QUIZ_RESULT_READ: 'quiz.result.read',
 } as const;
 
 export type PermissionCatalogKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

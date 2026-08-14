@@ -18,61 +18,56 @@ Updated: 2026-08-14
 | **P1** Course & Class | course/section/lesson, class, gate, progress | ✅ Done |
 | **P2** Assessments | assignment + submission + chấm tay | ✅ Done |
 | **P3** Coding & Runner | Pyodide FE + Judge0/Piston + autograde | ✅ Done |
-| **P4** Quiz | quiz engine + autograde | ⬅️ Next |
+| **P4** Quiz | quiz engine + autograde | ⬅️ Active |
 | **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | Not started |
 | **P6** Polish | notification, audit UI, báo cáo | Not started |
 
-Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`. P3 runner có thể phát triển song song sau khi contracts/schema chốt.
+Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
 ---
 
 ## Active Phase
 
-### Phase P3: Coding & Runner (Pyodide FE + server autograde) — ✅ DONE
+### Phase P4: Quiz (engine + autograde) — ⬅️ ACTIVE
 
-Status: ✅ **T3.0–T3.9 hoàn tất.** contracts + schema + backend authoring + seed + runner/queue + submit/autograde + FE Teach + **FE Learn (Monaco + Pyodide) + verify live**. `pnpm validate` xanh 16/16 (api **108 test**), web typecheck+lint+build xanh, **live smoke e2e xanh** (student enrolled + lesson gated: for-class list → Monaco self-host → Pyodide sample 1/1 đạt → submit → score 100 server-side; regression: KHÔNG lộ hidden stdin/expected).
+Status: 🔄 Đang chạy — **T4.0 (contracts) + T4.1 (schema+migration) ✅**. Còn seed + backend authoring +
+attempt/autograde + FE Teach/Learn + verify. Goal (docs/DESIGN.md §4.6, §5.2): quiz nhiều loại câu hỏi
+(single/multiple choice, true/false, short_answer, code_fill); học viên làm bài trong lớp (lesson gated),
+nộp → **chấm tự động server-side**, điểm `Decimal` weighted theo `Question.points`, `passScore` ngưỡng đạt.
 
-**P3 xong. Bước kế: P4 Quiz** (chưa breakdown task).
+**Branch**: `claude/codespace-p4-quiz` (tách từ `main` sau khi P3 merge PR #1).
 
-**Ghi chú tích hợp branch**: T3.4/T3.5/T3.7 từng ở branch `claude/codespace-p3-runner-queue-8a75f8`; đã **fast-forward** vào branch T3.8 (`claude/codespace-t3-8-learn-fe-b4590f`) trước khi làm T3.8. Cả P3 giờ nằm trên một branch, chưa merge `main`.
+**INVARIANT cốt lõi P4** (mirror P3 hidden test): `QuestionOption.isCorrect` + `Question.correctAnswer`
+KHÔNG BAO GIỜ gửi ra client khi làm bài. Student DTO (`QuizStudentDetail`) chỉ có prompt + options text.
+Điểm chấm lại server-side, KHÔNG tin client. KHÔNG hard-delete `QuizAttempt`/`QuizAnswer`.
 
-#### Task Breakdown (P3)
+#### Task Breakdown (P4)
 
 | Task | Scope | Surface | Risk | Order |
 |---|---|---|---|---|
-| ✅ **T3.0** Chốt runner ADR: dùng Piston self-hosted cho MVP, giữ `RunnerService` interface để thêm Judge0; env config, không hardcode endpoint/secret | architecture | docs | High | 1 |
-| ✅ **T3.1** Contracts coding: DTO/problem/testcase/submission/result + permission keys `coding.*`; student DTO chỉ expose sample tests | contracts | contracts | High | 2 |
-| ✅ **T3.2** Schema coding: `CodingProblem`, `TestCase`, `CodingSubmission`, `TestCaseResult` + enum/status/index/migration (áp DB); điểm/weight `Decimal`. **Fix invalid-UTF8 comment** (làm hỏng prisma schema engine) | schema | schema | High | 3 |
-| ✅ **T3.3** Backend coding authoring: CRUD problem/testcase cho GV/admin, PBAC + IDOR; **student `GET :id/attempt` chỉ sample (membership+gate), không lộ hidden/solution**. Smoke live 14/14 | backend | api | High | 4 |
-| ✅ **T3.4** Runner adapter + queue: `RunnerService` interface + Piston adapter (env) + Stub (non-exec dev) + `RunnerModule`; `AutograderService` (chấm all-test, score Decimal weighted, transaction + LessonProgress); `SubmissionQueue` port + Inline/Bull driver (BullMQ Redis 6380) qua `CODE_QUEUE_DRIVER` | backend | api/queue | High | 5 |
-| ✅ **T3.5** Backend submission/autograde: `POST /coding-problems/:id/submissions` (membership+gate, tạo queued + enqueue), `GET /coding-submissions/:id` (ownership hoặc coding.result.read scoped); chấm lại server-side, không tin client; KHÔNG lộ stdin/expected ra client | backend | api | High | 6 |
-| ✅ **T3.6** Seed permission coding cho admin/instructor/TA/student theo least privilege (30 perm / 85 liên kết) | schema | seed | Med | 7 |
-| ✅ **T3.7** FE Teach coding: `features/coding` (api+hooks author CRUD) + trang `TeachCoding` (course picker, tạo problem, list, editor + testcase manager sample/hidden). Tab `coding` trong TeachHome, i18n vi/en. Verified live (login GV → render problem/editor/testcase). Author thấy hidden expected (invariant #2 chỉ chặn surface student) | frontend | web | Med | 8 |
-| ✅ **T3.8** FE Learn coding: `GET /coding-problems/for-class/:classId` (auth+membership, chỉ bài gated/no-lesson, summary không hidden/solution) + `features/coding` student hooks (list/attempt/submit/poll) + `pages/learn/LearnCoding` (Monaco self-host `/monaco/vs`, Pyodide worker self-host `/pyodide/` chạy sample preview, submit + polling `getCodingSubmission` tới terminal, hiển thị score + per-test không lộ expected). Deps: `@monaco-editor/react` + `monaco-editor` + `pyodide` + `vite-plugin-static-copy` (asset local, KHÔNG CDN runtime) | frontend | web | High | 9 |
-| ✅ **T3.9** Verify live: `pnpm validate` xanh 16/16 (api 108 test), web build xanh; live e2e student flow xanh; regression hidden-leak an toàn (DTO không có stdin/expectedStdout; actualStdout chỉ là output học viên) | test | all | High | 10 |
+| ✅ **T4.0** Contracts quiz: `quiz.ts` (QuizSummary + Student/Author detail tách isCorrect, attempt/answer, create/upsert requests) + permission keys `quiz.*` (read/create/update/delete/submit/result.read) | contracts | contracts | Med | 1 |
+| ✅ **T4.1** Schema quiz: `Quiz`, `Question`, `QuestionOption`, `QuizAttempt`, `QuizAnswer` + enum `QuizQuestionType`/`QuizAttemptStatus` + index + migration `p4_quiz` (áp DB). points/passScore/score `Decimal`; `QuestionOption.isCorrect` + `Question.correctAnswer` author-only | schema | schema | High | 2 |
+| **T4.2** Seed permission quiz cho admin/instructor/TA/student (least privilege, mirror coding: student=submit, TA/GV=result.read scoped) | schema | seed | Med | 3 |
+| **T4.3** Backend quiz authoring: CRUD quiz + questions + options (PBAC `quiz.*` + IDOR), author DTO CÓ isCorrect/correctAnswer; validate loại câu hỏi (choice cần options + ≥1 isCorrect; text cần correctAnswer) | backend | api | High | 4 |
+| **T4.4** Backend attempt + autograde: `GET /quizzes/for-class/:classId` (membership, chỉ gated/no-lesson), `GET /quizzes/:id/attempt?classId` (student DTO KHÔNG isCorrect), `POST /quizzes/:id/attempts` (start, enforce attemptsAllowed), `POST /quiz-attempts/:id/submit` (chấm server-side: choice exact-set, text normalized match; score Decimal weighted; lưu QuizAnswer; update attempt + LessonProgress). Ownership + membership+gate | backend | api | High | 5 |
+| **T4.5** FE Teach quiz: `features/quiz` (api+hooks) + trang TeachQuiz (tạo quiz + question/option editor theo loại); tab `quiz` trong TeachHome, i18n vi/en. Không render... (author thấy đáp án — chỉ chặn surface student) | frontend | web | Med | 6 |
+| **T4.6** FE Learn quiz: list quiz theo lớp → làm bài (render câu hỏi KHÔNG đáp án) → submit → xem score + per-question đúng/sai. Wire vào LearnHome | frontend | web | Med | 7 |
+| **T4.7** Verify live: `pnpm validate` + `prisma validate`, smoke e2e (GV tạo quiz → student làm → chấm tự động), regression: KHÔNG lộ isCorrect/correctAnswer ra student surface | test | all | High | 8 |
 
-Dependency: T3.0–T3.6 ✅ -> T3.7/T3.8 (FE) ✅ -> T3.9 (verify) ✅.
+Dependency: T4.0 ✅ -> T4.1 ✅ -> T4.2/T4.3 -> T4.4 -> T4.5/T4.6 -> T4.7.
 
-**Env mới (T3.4/T3.5)** — `.env.example` bị deny-rule nên ghi ở đây, thêm tay khi cấu hình runner thật:
-`CODE_QUEUE_DRIVER=inline|bull` (mặc định inline — chấm đồng bộ, không cần Redis; `bull` cần `REDIS_URL`),
-`CODE_RUNNER_PROVIDER=stub|piston` (mặc định stub — KHÔNG thực thi code, chỉ echo stdin để chạy pipeline dev;
-`piston` cần `CODE_RUNNER_URL`, tùy chọn `CODE_RUNNER_TOKEN`, `CODE_RUNNER_PYTHON_VERSION` mặc định `*`),
-`CODE_RUNNER_STDOUT_LIMIT_BYTES` (mặc định 65536). Prod: `CODE_QUEUE_DRIVER=bull` + `CODE_RUNNER_PROVIDER=piston`.
+#### Autograde rules (T4.4)
+- `single_choice`/`true_false`: đúng khi tập option đã chọn == đúng 1 option isCorrect.
+- `multiple_choice`: đúng khi tập option đã chọn == đúng tập isCorrect (khớp hoàn toàn).
+- `short_answer`/`code_fill`: đúng khi `normalize(textAnswer) == normalize(correctAnswer)` (trim + lowercase);
+  nếu `correctAnswer` null → 0 điểm (chờ chấm tay sau, ngoài MVP).
+- Điểm câu = `points` nếu đúng, 0 nếu sai. `score = Σ awardedPoints` (Decimal, 2dp).
 
-#### Acceptance Criteria (P3)
-
+#### Acceptance Criteria (P4)
 - `pnpm validate` + `npx prisma format && npx prisma validate` pass; migration áp sạch.
-- GV tạo coding problem gắn course/lesson/class, có sample + hidden tests; client student chỉ nhận sample test.
-- Học viên trong lớp, lesson đã mở gate, chạy thử Python bằng Pyodide với sample tests; kết quả preview không ghi điểm.
-- Submit chính thức tạo `CodingSubmission status=queued`, job runner cách ly chấm all tests, lưu `TestCaseResult`, tính `score Decimal` weighted và cập nhật trạng thái.
-- Server không chạy code trong API process; runner cấu hình qua env, không network, giới hạn CPU/RAM/wall-time/stdout theo thiết kế.
-- PBAC/IDOR: instructor/TA chỉ thao tác/chấm lớp phụ trách; student chỉ xem/nộp bài của mình.
-- Không hard-delete submission/result; không lộ hidden testcase/stdout/expected output không phù hợp cho client đang làm bài.
-
-#### Open Decisions / Blockers
-
-- Runner MVP: **đã chốt Piston self-hosted** trong `docs/adr/001-code-runner-piston-mvp.md`; nếu cần multi-language/status/scaling chi tiết hơn thì thêm Judge0 adapter sau.
-- Gradebook/AuditLog tổng hợp đầy đủ vẫn thuộc P5/P6; P3 chỉ ghi score coding và chuẩn bị điểm nối nếu schema hiện có cho phép.
+- GV tạo quiz gắn course/lesson, nhiều loại câu hỏi + đáp án; client student KHÔNG nhận isCorrect/correctAnswer.
+- Học viên trong lớp (lesson gated) làm quiz, nộp → chấm tự động, điểm Decimal weighted, cập nhật trạng thái/tiến độ.
+- attemptsAllowed enforce; không hard-delete attempt/answer; PBAC/IDOR theo lớp như P2/P3.
 
 ---
 
@@ -80,7 +75,8 @@ Dependency: T3.0–T3.6 ✅ -> T3.7/T3.8 (FE) ✅ -> T3.9 (verify) ✅.
 
 - **P0** Done: scaffold monorepo, Prisma/Postgres/Redis, auth JWT + refresh cookie, PBAC, users/rbac CRUD, seed, FE login/admin shell.
 - **P1** Done: course/section/lesson, class/course/member/gate/progress, Teach/Learn FE, PBAC scope theo lớp, lesson gate invariant.
-- **P2** Done: assignment/submission schema + contracts + backend + seed + FE Teach/Learn chấm tay. `pnpm validate` xanh: api 73 test + web 4 test.
+- **P2** Done: assignment/submission schema + contracts + backend + seed + FE Teach/Learn chấm tay.
+- **P3** Done (T3.0–T3.9, merge `main` qua PR #1): contracts + schema coding, backend authoring, seed perms, runner adapter (Piston/Stub) + BullMQ/Inline queue, submit/autograde server-side (Decimal weighted), FE Teach coding, **FE Learn coding (Monaco + Pyodide self-host, no CDN) + submit/polling**. `pnpm validate` xanh 16/16 (api 108 test), live e2e xanh, không lộ hidden test.
 
 ## Verification Commands
 
