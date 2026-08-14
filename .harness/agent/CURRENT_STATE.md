@@ -6,10 +6,22 @@ Updated: 2026-08-14
 
 ## Project Stage
 
-**P0–P3 ✅ DONE. Phase P4 (Quiz) đang chạy: T4.0 (contracts) + T4.1 (schema+migration) ✅.**
-Branch `claude/codespace-p4-quiz` (tách từ main sau P3 merge PR #1). Còn T4.2 seed perms → T4.3 backend
-authoring → T4.4 attempt/autograde → T4.5/T4.6 FE Teach/Learn → T4.7 verify. Breakdown + autograde rules +
-invariant (không lộ isCorrect/correctAnswer khi làm bài) ở ACTIVE_TASKS.md §P4.
+**P0–P3 ✅ DONE. Phase P4 (Quiz) đang chạy: T4.0 contracts + T4.1 schema + T4.2 seed + T4.3 backend authoring ✅.**
+Branch `claude/codespace-p4-quiz` (tách từ main sau P3 merge PR #1). **Kế tiếp T4.4 attempt/autograde** →
+T4.5/T4.6 FE Teach/Learn → T4.7 verify. `pnpm validate` xanh 16/16 (api **119 test**), live smoke authoring
+xanh. Breakdown + autograde rules + invariant (không lộ isCorrect/correctAnswer khi làm bài) ở ACTIVE_TASKS.md §P4.
+
+### T4.2/T4.3 (Quiz seed + backend authoring) — 2026-08-14
+- **Seed** `quiz.*` (6 perm) vào seed.cjs: 36 permission / 106 liên kết. student=submit+result.read,
+  TA=read+result.read, instructor/admin=full authoring. Đã chạy seed áp DB.
+- **Module** `apps/api/src/quiz/` (wired app.module): `QuizController` `/quizzes` CRUD + `:id/questions`
+  upsert/xóa (PBAC `quiz.*`). `QuizService`: create/list/getAuthorDetail/update/remove/upsertQuestion/
+  removeQuestion. Upsert question REPLACE options trong `$transaction` (deleteMany + createMany). Validate
+  loại câu hỏi (choice ≥2 opt + ≥1 đúng; single/true_false đúng 1). Author DTO lộ isCorrect+correctAnswer.
+  DTO nested options `@ValidateNested`+`@Type` (ValidationPipe transform+whitelist). 11 unit test.
+- **Live smoke authoring**: admin tạo quiz + single_choice + short_answer → author detail đủ isCorrect/
+  correctAnswer, list maxScore đúng; single_choice 2 đáp án đúng → 400; field lạ → 400 (whitelist).
+- **GOTCHA lặp lại**: tắt API dev trước khi `prisma generate`/`migrate` (khóa query_engine dll).
 
 ### T4.0/T4.1 (Quiz contracts + schema) — 2026-08-14
 - **Contracts** `packages/contracts/src/quiz.ts`: `QuizSummary`; student-facing `QuizStudentDetail`/

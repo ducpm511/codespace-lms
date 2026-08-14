@@ -30,8 +30,9 @@ Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
 ### Phase P4: Quiz (engine + autograde) — ⬅️ ACTIVE
 
-Status: 🔄 Đang chạy — **T4.0 (contracts) + T4.1 (schema+migration) ✅**. Còn seed + backend authoring +
-attempt/autograde + FE Teach/Learn + verify. Goal (docs/DESIGN.md §4.6, §5.2): quiz nhiều loại câu hỏi
+Status: 🔄 Đang chạy — **T4.0 contracts + T4.1 schema + T4.2 seed + T4.3 backend authoring ✅**. Còn
+T4.4 attempt/autograde + T4.5/T4.6 FE Teach/Learn + T4.7 verify. `pnpm validate` xanh 16/16 (api **119
+test**), live smoke authoring xanh. Goal (docs/DESIGN.md §4.6, §5.2): quiz nhiều loại câu hỏi
 (single/multiple choice, true/false, short_answer, code_fill); học viên làm bài trong lớp (lesson gated),
 nộp → **chấm tự động server-side**, điểm `Decimal` weighted theo `Question.points`, `passScore` ngưỡng đạt.
 
@@ -47,14 +48,14 @@ KHÔNG BAO GIỜ gửi ra client khi làm bài. Student DTO (`QuizStudentDetail`
 |---|---|---|---|---|
 | ✅ **T4.0** Contracts quiz: `quiz.ts` (QuizSummary + Student/Author detail tách isCorrect, attempt/answer, create/upsert requests) + permission keys `quiz.*` (read/create/update/delete/submit/result.read) | contracts | contracts | Med | 1 |
 | ✅ **T4.1** Schema quiz: `Quiz`, `Question`, `QuestionOption`, `QuizAttempt`, `QuizAnswer` + enum `QuizQuestionType`/`QuizAttemptStatus` + index + migration `p4_quiz` (áp DB). points/passScore/score `Decimal`; `QuestionOption.isCorrect` + `Question.correctAnswer` author-only | schema | schema | High | 2 |
-| **T4.2** Seed permission quiz cho admin/instructor/TA/student (least privilege, mirror coding: student=submit, TA/GV=result.read scoped) | schema | seed | Med | 3 |
-| **T4.3** Backend quiz authoring: CRUD quiz + questions + options (PBAC `quiz.*` + IDOR), author DTO CÓ isCorrect/correctAnswer; validate loại câu hỏi (choice cần options + ≥1 isCorrect; text cần correctAnswer) | backend | api | High | 4 |
+| ✅ **T4.2** Seed permission quiz cho admin/instructor/TA/student (mirror coding). Seed: 36 perm / 106 liên kết (student=submit+result.read, TA=read+result.read, instructor/admin=full authoring) | schema | seed | Med | 3 |
+| ✅ **T4.3** Backend quiz authoring module `apps/api/src/quiz/`: CRUD quiz (`/quizzes`) + upsert/xóa question (`:id/questions`) với options lồng (replace trong transaction), PBAC `quiz.*` + IDOR; author DTO CÓ isCorrect/correctAnswer; validate loại câu hỏi (choice ≥2 opt + ≥1 đúng; single/true_false đúng 1 đáp án). 11 unit test + live smoke authoring xanh | backend | api | High | 4 |
 | **T4.4** Backend attempt + autograde: `GET /quizzes/for-class/:classId` (membership, chỉ gated/no-lesson), `GET /quizzes/:id/attempt?classId` (student DTO KHÔNG isCorrect), `POST /quizzes/:id/attempts` (start, enforce attemptsAllowed), `POST /quiz-attempts/:id/submit` (chấm server-side: choice exact-set, text normalized match; score Decimal weighted; lưu QuizAnswer; update attempt + LessonProgress). Ownership + membership+gate | backend | api | High | 5 |
 | **T4.5** FE Teach quiz: `features/quiz` (api+hooks) + trang TeachQuiz (tạo quiz + question/option editor theo loại); tab `quiz` trong TeachHome, i18n vi/en. Không render... (author thấy đáp án — chỉ chặn surface student) | frontend | web | Med | 6 |
 | **T4.6** FE Learn quiz: list quiz theo lớp → làm bài (render câu hỏi KHÔNG đáp án) → submit → xem score + per-question đúng/sai. Wire vào LearnHome | frontend | web | Med | 7 |
 | **T4.7** Verify live: `pnpm validate` + `prisma validate`, smoke e2e (GV tạo quiz → student làm → chấm tự động), regression: KHÔNG lộ isCorrect/correctAnswer ra student surface | test | all | High | 8 |
 
-Dependency: T4.0 ✅ -> T4.1 ✅ -> T4.2/T4.3 -> T4.4 -> T4.5/T4.6 -> T4.7.
+Dependency: T4.0 ✅ -> T4.1 ✅ -> T4.2 ✅ / T4.3 ✅ -> **T4.4 (kế tiếp)** -> T4.5/T4.6 -> T4.7.
 
 #### Autograde rules (T4.4)
 - `single_choice`/`true_false`: đúng khi tập option đã chọn == đúng 1 option isCorrect.
