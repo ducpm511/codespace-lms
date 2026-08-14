@@ -30,9 +30,9 @@ Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`. P3 run
 
 ### Phase P3: Coding & Runner (Pyodide FE + server autograde) — ⬅️ ACTIVE
 
-Status: 🔄 Đang chạy — T3.0–T3.3, T3.6 ✅ (contracts + schema + backend authoring + seed). Còn **T3.4 runner+queue**, **T3.5 submit/autograde**, **T3.7/T3.8 FE**, **T3.9 verify**. `pnpm validate` xanh 16/16 (api 81 test). Goal (docs/DESIGN.md §4.5, §5.2, §6): bài tập lập trình Python, học viên chạy thử bằng Pyodide với sample test trên trình duyệt, nộp chính thức qua server runner cách ly, chấm toàn bộ sample + hidden test và tính điểm `Decimal`.
+Status: 🔄 Đang chạy — T3.0–T3.6 ✅ (contracts + schema + backend authoring + seed + **runner/queue + submit/autograde**). Còn **T3.7/T3.8 FE**, **T3.9 verify**. `pnpm validate` xanh 16/16 (api **105 test**). Goal (docs/DESIGN.md §4.5, §5.2, §6): bài tập lập trình Python, học viên chạy thử bằng Pyodide với sample test trên trình duyệt, nộp chính thức qua server runner cách ly, chấm toàn bộ sample + hidden test và tính điểm `Decimal`.
 
-**Bước kế: T3.4** — runner adapter + BullMQ (chưa có `services/code-runner` hay queue; cần Piston self-hosted theo ADR 001). Đây là phần nặng/rủi ro nhất, nên tách phiên riêng.
+**Bước kế: T3.7/T3.8** — FE Teach coding (author UI) + FE Learn (Monaco + Pyodide worker sample, submit + polling). Runner/queue backend đã sẵn sàng (T3.4/T3.5).
 
 #### Task Breakdown (P3)
 
@@ -42,14 +42,20 @@ Status: 🔄 Đang chạy — T3.0–T3.3, T3.6 ✅ (contracts + schema + backen
 | ✅ **T3.1** Contracts coding: DTO/problem/testcase/submission/result + permission keys `coding.*`; student DTO chỉ expose sample tests | contracts | contracts | High | 2 |
 | ✅ **T3.2** Schema coding: `CodingProblem`, `TestCase`, `CodingSubmission`, `TestCaseResult` + enum/status/index/migration (áp DB); điểm/weight `Decimal`. **Fix invalid-UTF8 comment** (làm hỏng prisma schema engine) | schema | schema | High | 3 |
 | ✅ **T3.3** Backend coding authoring: CRUD problem/testcase cho GV/admin, PBAC + IDOR; **student `GET :id/attempt` chỉ sample (membership+gate), không lộ hidden/solution**. Smoke live 14/14 | backend | api | High | 4 |
-| **T3.4** Runner adapter + queue: `RunnerService` interface, Piston/Judge0 adapter stub/config, BullMQ job processor, timeout/stdout cap/status mapping | backend | api/queue | High | 5 |
-| **T3.5** Backend submission/autograde: submit code, enqueue, chạy all tests server-side, lưu `TestCaseResult`, tính score weighted, update submission/progress; không tin client result | backend | api | High | 6 |
+| ✅ **T3.4** Runner adapter + queue: `RunnerService` interface + Piston adapter (env) + Stub (non-exec dev) + `RunnerModule`; `AutograderService` (chấm all-test, score Decimal weighted, transaction + LessonProgress); `SubmissionQueue` port + Inline/Bull driver (BullMQ Redis 6380) qua `CODE_QUEUE_DRIVER` | backend | api/queue | High | 5 |
+| ✅ **T3.5** Backend submission/autograde: `POST /coding-problems/:id/submissions` (membership+gate, tạo queued + enqueue), `GET /coding-submissions/:id` (ownership hoặc coding.result.read scoped); chấm lại server-side, không tin client; KHÔNG lộ stdin/expected ra client | backend | api | High | 6 |
 | ✅ **T3.6** Seed permission coding cho admin/instructor/TA/student theo least privilege (30 perm / 85 liên kết) | schema | seed | Med | 7 |
 | **T3.7** FE Teach coding: tạo/sửa coding problem + sample/hidden testcase UI; không render hidden expected output cho student surface | frontend | web | Med | 8 |
 | **T3.8** FE Learn coding: Monaco + Pyodide worker chạy sample tests, submit server, polling trạng thái autograde/result | frontend | web | High | 9 |
 | **T3.9** Verify live: docker runner/queue smoke, security regression hidden-test leak, `pnpm validate`, prisma validate | test | all | High | 10 |
 
-Dependency: T3.0 ✅ -> T3.1 ✅ -> T3.2 -> T3.3/T3.4 -> T3.5 -> T3.6 -> T3.7/T3.8 -> T3.9.
+Dependency: T3.0–T3.6 ✅ -> T3.7/T3.8 (FE) -> T3.9 (verify).
+
+**Env mới (T3.4/T3.5)** — `.env.example` bị deny-rule nên ghi ở đây, thêm tay khi cấu hình runner thật:
+`CODE_QUEUE_DRIVER=inline|bull` (mặc định inline — chấm đồng bộ, không cần Redis; `bull` cần `REDIS_URL`),
+`CODE_RUNNER_PROVIDER=stub|piston` (mặc định stub — KHÔNG thực thi code, chỉ echo stdin để chạy pipeline dev;
+`piston` cần `CODE_RUNNER_URL`, tùy chọn `CODE_RUNNER_TOKEN`, `CODE_RUNNER_PYTHON_VERSION` mặc định `*`),
+`CODE_RUNNER_STDOUT_LIMIT_BYTES` (mặc định 65536). Prod: `CODE_QUEUE_DRIVER=bull` + `CODE_RUNNER_PROVIDER=piston`.
 
 #### Acceptance Criteria (P3)
 

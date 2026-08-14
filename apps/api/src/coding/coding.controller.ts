@@ -4,6 +4,7 @@ import type {
   CodingProblemAuthorDetail,
   CodingProblemStudentDetail,
   CodingProblemSummary,
+  CodingSubmissionDto,
   Paginated,
 } from '@lms/contracts';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -17,6 +18,7 @@ import { UpdateCodingProblemDto } from './dto/update-coding-problem.dto';
 import { UpsertTestCaseDto } from './dto/upsert-test-case.dto';
 import { ListCodingProblemsQueryDto } from './dto/list-coding-problems-query.dto';
 import { AttemptQueryDto } from './dto/attempt-query.dto';
+import { SubmitCodingSubmissionDto } from './dto/submit-coding-submission.dto';
 
 @Controller('coding-problems')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -46,6 +48,17 @@ export class CodingController {
     @CurrentUser() user: AuthPrincipal,
   ): Promise<CodingProblemStudentDetail> {
     return this.coding.getStudentDetail(id, q.classId, user.userId);
+  }
+
+  // Nộp bài chính thức (chấm server-side). Không @RequirePermission: quyền = học viên active của lớp,
+  // kiểm membership+gate trong service (giống submissions.submit của P2). Đặt TRƯỚC ':id'.
+  @Post(':id/submissions')
+  submit(
+    @Param('id') id: string,
+    @Body() dto: SubmitCodingSubmissionDto,
+    @CurrentUser() user: AuthPrincipal,
+  ): Promise<CodingSubmissionDto> {
+    return this.coding.submit(id, user.userId, dto);
   }
 
   @Get(':id')

@@ -6,14 +6,30 @@ Updated: 2026-08-13
 
 ## Project Stage
 
-**P0 ✅ + P1 ✅ + P2 ✅ DONE. Phase P3 (Coding & Runner) đang chạy: T3.0–T3.3, T3.6 ✅.**
+**P0 ✅ + P1 ✅ + P2 ✅ DONE. Phase P3 (Coding & Runner) đang chạy: T3.0–T3.6 ✅.**
 P2 xong (assignment/submission + chấm tay). **P3 tới giờ**: ADR runner (T3.0), contracts `coding.ts` +
 `coding.*` perms (T3.1), schema `CodingProblem/TestCase/CodingSubmission/TestCaseResult` + migration áp DB
-(T3.2), **module backend `coding` authoring** (T3.3) + **seed coding** (T3.6). `pnpm validate` xanh 16/16,
-**api 81 test + web**; **smoke live coding 14/14** (invariant không lộ hidden/solution). Postgres+Redis
+(T3.2), **module backend `coding` authoring** (T3.3), **seed coding** (T3.6), **runner adapter + queue**
+(T3.4) + **submit/autograde** (T3.5). `pnpm validate` xanh 16/16, **api 105 test**. Postgres+Redis
 docker (5433/6380).
-**Bước kế: T3.4** (runner adapter + BullMQ queue) → T3.5 (submit/autograde) → T3.7/T3.8 FE → T3.9 verify.
+**Bước kế: T3.7/T3.8 FE** (author UI + Monaco/Pyodide submit+polling) → T3.9 verify live.
 2 fix trong review đã COMMIT: (a) bug scope chấm điểm P2 (`ffee1c7`); (b) invalid-UTF8 schema coding (`4331b70`).
+
+### T3.4/T3.5 (runner + autograde) — 2026-08-14
+- `apps/api/src/coding/runner/`: `RunnerService` interface (input trung lập: language/source/stdin/limits/stdoutCap →
+  verdict ok|tle|mle|re|ce + stdout/stderr). `PistonRunnerAdapter` (env `CODE_RUNNER_URL/TOKEN`, POST `/api/v2/execute`,
+  map SIGKILL→tle). `StubRunnerAdapter` (dev/smoke — **KHÔNG thực thi code**, echo stdin). `RunnerModule` chọn theo
+  `CODE_RUNNER_PROVIDER` (mặc định stub — an toàn, không bao giờ chạy code in-process).
+- `apps/api/src/coding/grading/AutograderService`: chấm **all-test (sample+hidden)** server-side qua runner (NGOÀI
+  transaction), map verdict→TestCaseResultStatus, score = Σ(weight passed)/Σ(weight)*maxScore (**Decimal**, 2dp), lưu
+  `TestCaseResult` upsert + update submission + `LessonProgress` (không hạ cấp completed) trong **CÙNG transaction**.
+- `apps/api/src/coding/queue/`: `SubmissionQueue` port; `InlineSubmissionQueue` (chấm đồng bộ, mặc định, không Redis);
+  `BullSubmissionQueue` (BullMQ, `REDIS_URL`, worker in-process concurrency 2, retry 2×backoff). Driver chọn ở
+  `CodingQueueModule.register()` theo `CODE_QUEUE_DRIVER` (mặc định inline) — chỉ instantiate class được chọn.
+- Endpoint (T3.5): `POST /coding-problems/:id/submissions` (không @RequirePermission — membership+gate trong service,
+  tạo status=queued rồi enqueue) + `GET /coding-submissions/:id` (chủ sở hữu hoặc `coding.result.read` scoped theo
+  `submission.classId` qua RbacService — route không có :classId). DTO submission KHÔNG lộ stdin/expectedStdout.
+- **bullmq@6.1.0** đã cài (`pnpm add`). Env mới xem ACTIVE_TASKS §Env mới. Live smoke để T3.9 (chưa chạy).
 
 ## Tech Stack
 
