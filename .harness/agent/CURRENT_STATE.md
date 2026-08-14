@@ -29,7 +29,12 @@ docker (5433/6380).
 - Endpoint (T3.5): `POST /coding-problems/:id/submissions` (không @RequirePermission — membership+gate trong service,
   tạo status=queued rồi enqueue) + `GET /coding-submissions/:id` (chủ sở hữu hoặc `coding.result.read` scoped theo
   `submission.classId` qua RbacService — route không có :classId). DTO submission KHÔNG lộ stdin/expectedStdout.
-- **bullmq@6.1.0** đã cài (`pnpm add`). Env mới xem ACTIVE_TASKS §Env mới. Live smoke để T3.9 (chưa chạy).
+- **bullmq@6.1.0** đã cài (`pnpm add`). Env mới xem ACTIVE_TASKS §Env mới.
+- **Live smoke e2e ✅ ALL GREEN** (inline+stub, DB 5433): course/section/lesson/problem/testcase(sample+hidden)/
+  class/enroll/gate → student attempt (chỉ sample, không lộ hidden) → submit → autograde: status=failed,
+  **score=25** (weighted 1/(1+3)·100 Decimal), 2 results (sample passed/hidden failed) chấm server-side,
+  owner GET 200 / non-owner GET 403, không lộ stdin/expectedStdout. Boot API OK: DI resolve RunnerModule/
+  CodingQueueModule, routes `POST /coding-problems/:id/submissions` + `GET /coding-submissions/:id` mapped.
 
 ## Tech Stack
 
