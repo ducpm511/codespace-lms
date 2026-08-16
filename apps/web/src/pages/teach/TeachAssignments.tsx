@@ -229,7 +229,7 @@ function SubmissionsGradingPanel({
   return (
     <div className="card gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-base">{t('assignments.submissionsHeading')}</h2>
+        <h2 className="cx-display text-lg">{t('assignments.submissionsHeading')}</h2>
         <span className="text-muted text-xs">{items.length}</span>
       </div>
 

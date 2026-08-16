@@ -1,70 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Editor from '@monaco-editor/react';
-import type { CodingProblemSummary, CodingSubmissionDto } from '@lms/contracts';
+import type { CodingSubmissionDto } from '@lms/contracts';
 import '../../lib/monaco-setup';
-import {
-  useCodingAttempt,
-  useCodingProblemsForClass,
-  useCodingSubmission,
-  useSubmitCoding,
-} from '../../features/coding/hooks';
+import { useCodingAttempt, useCodingSubmission, useSubmitCoding } from '../../features/coding/hooks';
 import { useSampleRunner, type SampleRunResult } from '../../features/coding/useSampleRunner';
 
 const TERMINAL = new Set(['passed', 'failed', 'error']);
 
-export function LearnCoding({ classId }: { classId: string }): JSX.Element {
-  const { t } = useTranslation();
-  const problems = useCodingProblemsForClass(classId);
-  const [openId, setOpenId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setOpenId(null);
-  }, [classId]);
-
-  if (openId) {
-    return <CodingWorkspace key={openId} problemId={openId} classId={classId} onBack={() => setOpenId(null)} />;
-  }
-
-  return (
-    <div className="nocturne-surface space-y-3 rounded-lg p-4">
-      <h2 className="text-base">{t('coding.heading')}</h2>
-      {problems.isLoading && <p className="text-muted text-xs">{t('common.loading')}</p>}
-      {problems.isError && <p className="text-xs text-red-400">{t('common.error')}</p>}
-      {problems.data && problems.data.length === 0 && (
-        <p className="text-muted text-sm">{t('coding.noProblems')}</p>
-      )}
-      {problems.data && problems.data.length > 0 && (
-        <ul className="space-y-2">
-          {problems.data.map((p) => (
-            <ProblemRow key={p.id} problem={p} onOpen={() => setOpenId(p.id)} />
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function ProblemRow({ problem, onOpen }: { problem: CodingProblemSummary; onOpen: () => void }): JSX.Element {
-  const { t } = useTranslation();
-  return (
-    <li className="card flex-row flex-wrap items-center justify-between gap-3">
-      <div className="min-w-0">
-        <p className="card-title truncate">{problem.title}</p>
-        <p className="card-meta">
-          {t('coding.difficultyLabel')}: {t(`coding.diff_${problem.difficulty}`, { defaultValue: problem.difficulty })}
-          {' · '}
-          {t('coding.maxScore')}: {problem.maxScore}
-        </p>
-      </div>
-      <button onClick={onOpen} className="btn btn-primary shrink-0">
-        {t('coding.open')}
-      </button>
-    </li>
-  );
-}
-
-function CodingWorkspace({
+/** Không gian làm bài lập trình (mở từ hub Bài tập — openId pattern). Giữ Monaco + Pyodide, chỉ re-skin chrome. */
+export function LearnCodingWorkspace({
   problemId,
   classId,
   onBack,
@@ -112,26 +57,69 @@ function CodingWorkspace({
   const samplePassed = sampleResults?.filter((r) => r.passed).length ?? 0;
 
   return (
-    <div className="nocturne-surface space-y-4 rounded-lg p-4">
-      <button onClick={onBack} className="btn btn-ghost">
-        {t('coding.back')}
+    <div className="space-y-4">
+      <button onClick={onBack} className="btn btn-ghost cx-press self-start">
+        <i className="ph ph-arrow-left" aria-hidden /> {t('coding.backList')}
       </button>
 
       {attempt.isLoading && <p className="text-muted text-sm">{t('common.loading')}</p>}
       {attempt.isError && <p className="text-sm text-red-400">{t('common.error')}</p>}
 
       {attempt.data && (
-        <>
-          <div>
-            <h2 className="text-lg">{attempt.data.title}</h2>
-            <p className="text-muted whitespace-pre-wrap text-sm">{attempt.data.statementMd}</p>
+        <div className="grid gap-5 lg:grid-cols-2">
+          {/* Cột trái: đề + test mẫu + trạng thái */}
+          <div className="space-y-4">
+            <div>
+              <h1 className="cx-display text-2xl">{attempt.data.title}</h1>
+              <p className="text-muted mt-1 whitespace-pre-wrap text-sm">{attempt.data.statementMd}</p>
+            </div>
+
+            {attempt.data.sampleTests.length > 0 && (
+              <div className="card" style={{ borderRadius: 'var(--radius-lg)' }}>
+                <p className="cx-display" style={{ fontSize: 15 }}>{t('coding.sampleTests')}</p>
+                <ul className="space-y-1.5">
+                  {attempt.data.sampleTests.map((s, i) => (
+                    <li key={i} className="chip grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted">{t('coding.stdin')}</span>
+                        <pre className="mt-0.5 overflow-x-auto whitespace-pre-wrap">{s.stdin || '∅'}</pre>
+                      </div>
+                      <div>
+                        <span className="text-muted">{t('coding.expectedStdout')}</span>
+                        <pre className="mt-0.5 overflow-x-auto whitespace-pre-wrap">{s.expectedStdout || '∅'}</pre>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <SamplePreview
+              results={sampleResults}
+              total={attempt.data.sampleTests.length}
+              passed={samplePassed}
+              error={runnerError}
+            />
+            <SubmissionResult isGrading={isGrading} submission={sub} />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium">{t('coding.sourceCode')}</label>
-            <div className="overflow-hidden rounded-md" style={{ border: '1px solid var(--color-divider)' }}>
+          {/* Cột phải: editor Monaco với chrome sticker + actions */}
+          <div className="space-y-3">
+            <div
+              className="overflow-hidden"
+              style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-divider)' }}
+            >
+              <div
+                className="flex items-center gap-2 px-3 py-2"
+                style={{ background: '#0f111a', borderBottom: '1px solid var(--color-divider)' }}
+              >
+                <span className="h-3 w-3 rounded-full" style={{ background: 'var(--cx-coral)' }} />
+                <span className="h-3 w-3 rounded-full" style={{ background: 'var(--cx-amber)' }} />
+                <span className="h-3 w-3 rounded-full" style={{ background: 'var(--cx-teal)' }} />
+                <span className="text-muted ml-2 font-mono text-xs">solution.py</span>
+              </div>
               <Editor
-                height="360px"
+                height="380px"
                 language="python"
                 theme="vs-dark"
                 value={code}
@@ -146,27 +134,20 @@ function CodingWorkspace({
                 }}
               />
             </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={onRun} disabled={running} className="btn btn-secondary cx-press !rounded-full">
+                <i className="ph ph-play" aria-hidden />
+                {running ? t('coding.running') : t('coding.run')}
+              </button>
+              <button onClick={onSubmit} disabled={submit.isPending || isGrading} className="btn btn-primary cx-press">
+                <i className="ph ph-check-circle" aria-hidden />
+                {submit.isPending ? t('coding.submitting') : t('coding.submit')}
+              </button>
+            </div>
+            <p className="text-muted text-xs">{t('coding.previewNote')}</p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={onRun} disabled={running} className="btn btn-secondary">
-              {running ? t('coding.running') : t('coding.run')}
-            </button>
-            <button onClick={onSubmit} disabled={submit.isPending || isGrading} className="btn btn-primary">
-              {submit.isPending ? t('coding.submitting') : t('coding.submit')}
-            </button>
-          </div>
-          <p className="text-muted text-xs">{t('coding.previewNote')}</p>
-
-          <SamplePreview
-            results={sampleResults}
-            total={attempt.data.sampleTests.length}
-            passed={samplePassed}
-            error={runnerError}
-          />
-
-          <SubmissionResult isGrading={isGrading} submission={sub} />
-        </>
+        </div>
       )}
     </div>
   );
@@ -187,12 +168,34 @@ function SamplePreview({
   if (error) {
     return <p className="text-sm text-red-400">{t('coding.runnerError')}</p>;
   }
-  if (!results) return null;
+  if (!results) {
+    // Trạng thái chờ — mascot huh
+    return (
+      <div className="card flex-row items-center gap-3" style={{ borderRadius: 'var(--radius-lg)' }}>
+        <img src="/brand/mascot-huh.png" alt="" className="cx-bob h-[52px] w-[52px] shrink-0" />
+        <p className="text-muted text-sm">{t('coding.idleHint')}</p>
+      </div>
+    );
+  }
+  const allPassed = passed === total && total > 0;
   return (
-    <div className="card gap-2">
-      <p className="text-sm font-medium">
-        {t('coding.samplePreviewHeading')} · {t('coding.samplePassed', { passed, total })}
-      </p>
+    <div
+      className="card gap-2"
+      style={{
+        borderRadius: 'var(--radius-lg)',
+        animation: 'cx-pop 0.3s ease',
+        background: allPassed
+          ? 'linear-gradient(120deg, color-mix(in srgb, var(--cx-teal) 18%, var(--color-surface)), var(--color-surface))'
+          : undefined,
+        border: allPassed ? '1px solid color-mix(in srgb, var(--cx-teal) 40%, transparent)' : undefined,
+      }}
+    >
+      <div className="flex items-center gap-2">
+        {allPassed && <img src="/brand/mascot-hearts.png" alt="" className="cx-bob h-[40px] w-[40px] shrink-0" />}
+        <p className="cx-display" style={{ fontSize: 15 }}>
+          {t('coding.samplePreviewHeading')} · {t('coding.samplePassed', { passed, total })}
+        </p>
+      </div>
       <ul className="space-y-2">
         {results.map((r) => (
           <li key={r.order} className="chip text-xs">
@@ -229,14 +232,24 @@ function SubmissionResult({
   return (
     <div
       className="card gap-2"
-      style={passed ? { background: 'var(--color-accent-900)', boxShadow: 'inset 0 0 0 1px var(--color-accent-700)' } : undefined}
+      style={{
+        borderRadius: 'var(--radius-lg)',
+        ...(passed
+          ? {
+              background: 'linear-gradient(120deg, color-mix(in srgb, var(--cx-teal) 22%, var(--color-surface)), var(--color-surface))',
+              border: '1px solid color-mix(in srgb, var(--cx-teal) 40%, transparent)',
+              animation: 'cx-pop 0.3s ease',
+            }
+          : {}),
+      }}
     >
-      <p className="text-sm font-medium">{t('coding.yourResult')}</p>
+      <p className="cx-display" style={{ fontSize: 15 }}>{t('coding.yourResult')}</p>
       {isGrading && !submission ? (
         <p className="text-sm" style={{ color: 'var(--color-accent-300)' }}>{t('coding.grading')}</p>
       ) : submission ? (
         <>
           <div className="flex items-center gap-3 text-sm">
+            {passed && <img src="/brand/mascot-hearts.png" alt="" className="cx-bob h-[44px] w-[44px] shrink-0" />}
             <StatusPill
               ok={submission.status === 'passed'}
               neutral={submission.status === 'queued' || submission.status === 'running'}

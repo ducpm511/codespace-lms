@@ -10,6 +10,12 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+const AREA_ICON: Record<string, string> = {
+  learn: 'ph-graduation-cap',
+  teach: 'ph-chalkboard-teacher',
+  admin: 'ph-shield-check',
+};
+
 export function AppLayout(): JSX.Element {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -26,48 +32,69 @@ export function AppLayout(): JSX.Element {
   return (
     <div className="min-h-screen">
       <header
-        className="border-b"
-        style={{ background: 'var(--color-surface)', borderColor: 'var(--color-divider)' }}
+        className="sticky top-0 z-40 border-b"
+        style={{
+          background: 'color-mix(in srgb, var(--color-surface) 82%, transparent)',
+          borderColor: 'var(--color-divider)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        }}
       >
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
-          <div className="flex items-center gap-6">
-            <img src="/brand/logo-horizontal-white.png" alt={t('app.name')} className="h-[26px] w-auto" />
-            <nav className="flex gap-1">
-              {areas.map((area) => (
-                <NavLink
-                  key={area}
-                  to={`/${area}`}
-                  className={({ isActive }) =>
-                    `rounded-md px-3 py-1.5 text-sm ${
-                      isActive ? 'nav-active' : 'text-[var(--color-text)]/75 hover:bg-white/5'
-                    }`
-                  }
-                >
-                  {t(`nav.${area}`)}
-                </NavLink>
-              ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
+          <img src="/brand/logo-horizontal-white.png" alt={t('app.name')} className="h-[26px] w-auto" />
+          <nav className="mr-auto flex items-center gap-1">
+            {areas.map((area) => (
+              <NavLink
+                key={area}
+                to={`/${area}`}
+                className={({ isActive }) =>
+                  `btn cx-press gap-1.5 ${isActive ? 'nav-active !rounded-full' : ''}`
+                }
+                style={({ isActive }) =>
+                  isActive ? undefined : { color: 'color-mix(in srgb, var(--color-text) 75%, transparent)' }
+                }
+              >
+                <i className={`ph ${AREA_ICON[area] ?? 'ph-circle'} text-base`} aria-hidden />
+                <span className="hidden sm:inline">{t(`nav.${area}`)}</span>
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2.5">
+            {/* Streak pill — UI tĩnh/mock (chưa có API gamification) */}
+            <span
+              className="hidden items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium sm:inline-flex"
+              style={{
+                background: 'color-mix(in srgb, var(--cx-amber) 16%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--cx-amber) 34%, transparent)',
+              }}
+              title={t('nav.streakTitle')}
+            >
+              <i className="ph-fill ph-fire" style={{ color: 'var(--cx-amber)' }} aria-hidden />
+              <span style={{ color: 'var(--cx-amber)' }}>5</span>
+            </span>
+            <button className="btn btn-icon btn-secondary !rounded-full" title={t('nav.notifications')} aria-label={t('nav.notifications')}>
+              <i className="ph ph-bell text-base" aria-hidden />
+            </button>
             {user && (
               <span className="flex items-center gap-2 text-sm">
                 <span
-                  className="flex h-[30px] w-[30px] items-center justify-center rounded-full text-xs font-medium"
-                  style={{ background: 'var(--color-accent-800)', color: 'var(--color-accent-100)' }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
+                  style={{ background: 'linear-gradient(150deg, var(--cx-purple), var(--cx-coral))' }}
                   title={displayName}
                 >
                   {initials(displayName)}
                 </span>
-                <span className="hidden text-[var(--color-text)]/75 sm:inline">{displayName}</span>
+                <span className="hidden max-w-[10rem] truncate text-[var(--color-text)]/80 md:inline">{displayName}</span>
               </span>
             )}
-            <button onClick={onLogout} disabled={logout.isPending} className="btn btn-secondary">
+            <button onClick={onLogout} disabled={logout.isPending} className="btn btn-secondary !rounded-full">
               {t('nav.logout')}
             </button>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-8">
         <Outlet />
       </main>
     </div>

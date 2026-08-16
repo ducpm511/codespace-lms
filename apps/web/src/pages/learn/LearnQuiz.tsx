@@ -1,82 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   QuizAttemptDto,
   QuizAnswerResultDto,
   QuizStudentDetail,
-  QuizSummary,
   StudentQuizQuestionDto,
   SubmitQuizAnswerInput,
 } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
-import { useQuizAttempt, useQuizzesForClass, useSubmitQuizAttempt } from '../../features/quiz/hooks';
+import { useQuizAttempt, useSubmitQuizAttempt } from '../../features/quiz/hooks';
 
 interface LocalAnswer {
   selectedOptionIds: string[];
   textAnswer: string;
 }
 
-export function LearnQuiz({ classId }: { classId: string }): JSX.Element {
-  const { t } = useTranslation();
-  const quizzes = useQuizzesForClass(classId);
-  const [openId, setOpenId] = useState<string | null>(null);
-
-  // Đổi lớp → đóng bài đang mở.
-  useEffect(() => {
-    setOpenId(null);
-  }, [classId]);
-
-  if (openId) {
-    return (
-      <QuizWorkspace
-        key={openId}
-        quizId={openId}
-        classId={classId}
-        onBack={() => setOpenId(null)}
-      />
-    );
-  }
-
-  return (
-    <div className="nocturne-surface space-y-3 rounded-lg p-4">
-      <h2>{t('quiz.heading')}</h2>
-      {quizzes.isLoading && <p className="text-muted text-sm">{t('common.loading')}</p>}
-      {quizzes.isError && <p className="text-sm text-red-400">{t('common.error')}</p>}
-      {quizzes.data && quizzes.data.length === 0 && (
-        <p className="text-muted text-sm">{t('quiz.noProblems')}</p>
-      )}
-      {quizzes.data && quizzes.data.length > 0 && (
-        <ul className="space-y-2">
-          {quizzes.data.map((q) => (
-            <QuizRow key={q.id} quiz={q} onOpen={() => setOpenId(q.id)} />
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function QuizRow({ quiz, onOpen }: { quiz: QuizSummary; onOpen: () => void }): JSX.Element {
-  const { t } = useTranslation();
-  return (
-    <li className="card flex-row flex-wrap items-center justify-between gap-3">
-      <div className="min-w-0">
-        <p className="card-title truncate">{quiz.title}</p>
-        <p className="card-meta flex-wrap">
-          <span>{t('quiz.questionCount', { count: quiz.questionCount })}</span>
-          <span>· {t('quiz.maxScore')} {quiz.maxScore}</span>
-          <span>· {t('quiz.passScore')} {quiz.passScore}</span>
-          <span>· {t('quiz.attempts')} {quiz.attemptsAllowed}</span>
-        </p>
-      </div>
-      <button className="btn btn-primary shrink-0" onClick={onOpen}>
-        {t('quiz.open')}
-      </button>
-    </li>
-  );
-}
-
-function QuizWorkspace({
+/**
+ * Không gian làm bài trắc nghiệm (mở từ hub Bài tập của LearnHome — openId pattern).
+ * INVARIANT: chỉ hiện đúng/sai SAU KHI nộp, từ QuizAttemptDto.answers[] (không có option đúng
+ * thực sự nếu HV chọn sai → không lộ đáp án chưa biết). Khi đang làm KHÔNG hiện bất kỳ đánh dấu nào.
+ */
+export function LearnQuizWorkspace({
   quizId,
   classId,
   onBack,
@@ -136,9 +80,9 @@ function QuizWorkspace({
   const exhausted = submit.error instanceof ApiError && submit.error.status === 403;
 
   return (
-    <div className="nocturne-surface space-y-4 rounded-lg p-4">
-      <button className="btn btn-ghost" onClick={onBack}>
-        {t('quiz.back')}
+    <div className="mx-auto max-w-[640px] space-y-5">
+      <button className="btn btn-ghost cx-press self-start" onClick={onBack}>
+        <i className="ph ph-arrow-left" aria-hidden /> {t('quiz.backList')}
       </button>
 
       {attempt.isLoading && <p className="text-muted text-sm">{t('common.loading')}</p>}
@@ -171,14 +115,15 @@ function QuizWorkspace({
               ))}
 
               <div className="flex items-center gap-3">
-                <button type="submit" className="btn btn-primary" disabled={submit.isPending}>
+                <button type="submit" className="btn btn-primary btn-block cx-press" disabled={submit.isPending}>
+                  <i className="ph ph-paper-plane-tilt" aria-hidden />
                   {submit.isPending ? t('quiz.submitting') : t('quiz.submit')}
                 </button>
-                {exhausted && <span className="text-sm text-red-400">{t('quiz.attemptsExhausted')}</span>}
-                {submit.isError && !exhausted && (
-                  <span className="text-sm text-red-400">{t('common.error')}</span>
-                )}
               </div>
+              {exhausted && <span className="text-sm text-red-400">{t('quiz.attemptsExhausted')}</span>}
+              {submit.isError && !exhausted && (
+                <span className="text-sm text-red-400">{t('common.error')}</span>
+              )}
             </form>
           )}
         </>
@@ -191,7 +136,7 @@ function QuizHeader({ detail }: { detail: QuizStudentDetail }): JSX.Element {
   const { t } = useTranslation();
   return (
     <div>
-      <h2>{detail.title}</h2>
+      <h1 className="cx-display text-2xl">{detail.title}</h1>
       <p className="card-meta mt-1 flex-wrap">
         <span>{t('quiz.questionCount', { count: detail.questionCount })}</span>
         <span>· {t('quiz.maxScore')} {detail.maxScore}</span>
@@ -221,15 +166,15 @@ function QuestionInput({
   const multi = question.type === 'multiple_choice';
 
   return (
-    <div className="rounded-md p-3" style={{ background: 'var(--color-neutral-900)' }}>
-      <p className="whitespace-pre-wrap text-sm">
+    <div className="card" style={{ borderRadius: 'var(--radius-lg)' }}>
+      <p className="cx-display whitespace-pre-wrap" style={{ fontSize: 16 }}>
         <span className="text-muted mr-1">{index + 1}.</span>
         {question.promptMd}
         <span className="text-muted ml-2 text-xs">({t('quiz.points', { points: question.points })})</span>
       </p>
 
       {question.options.length > 0 ? (
-        <div className="mt-2 space-y-1.5">
+        <div className="mt-1 space-y-1.5">
           {question.options.map((o) =>
             multi ? (
               <label key={o.id} className="checkbox">
@@ -257,7 +202,7 @@ function QuestionInput({
         </div>
       ) : question.type === 'code_fill' ? (
         <textarea
-          className="input mt-2 font-mono"
+          className="input mt-1 font-mono"
           rows={3}
           value={answer.textAnswer}
           onChange={(e) => onText(e.target.value)}
@@ -265,7 +210,7 @@ function QuestionInput({
         />
       ) : (
         <input
-          className="input mt-2"
+          className="input mt-1"
           value={answer.textAnswer}
           onChange={(e) => onText(e.target.value)}
           placeholder={t('quiz.answerPlaceholder')}
@@ -292,58 +237,84 @@ function QuizResult({
     (result.answers ?? []).forEach((a) => m.set(a.questionId, a));
     return m;
   }, [result.answers]);
+  const correctCount = (result.answers ?? []).filter((a) => a.isCorrect).length;
 
   return (
     <div className="space-y-4">
       <div
         className="card flex-row items-center gap-4"
         style={{
-          background: passed ? 'var(--color-accent-900)' : 'var(--color-surface)',
-          boxShadow: passed ? 'inset 0 0 0 1px var(--color-accent-700)' : undefined,
+          animation: 'cx-pop 0.3s ease',
+          borderRadius: 'var(--cx-radius)',
+          background: passed
+            ? 'linear-gradient(120deg, color-mix(in srgb, var(--cx-teal) 22%, var(--color-surface)), var(--color-surface))'
+            : 'var(--color-surface)',
+          border: passed ? '1px solid color-mix(in srgb, var(--cx-teal) 40%, transparent)' : '1px solid var(--color-divider)',
+          padding: 'var(--space-6)',
         }}
       >
         <img
           src={passed ? '/brand/mascot-hearts.png' : '/brand/mascot-grumpy.png'}
           alt=""
-          className="h-16 w-16 shrink-0"
+          className="cx-bob h-[58px] w-[58px] shrink-0"
         />
-        <div>
-          <p className="card-title">
-            {t('quiz.yourScore')}: {score} / {result.maxScore}
+        <div className="min-w-0">
+          <p className="cx-display" style={{ fontSize: 18 }}>
+            {t('quiz.resultSummary', { correct: correctCount, total: detail.questionCount, score })}
           </p>
-          <span className={passed ? 'tag tag-accent' : 'tag tag-neutral'}>
+          <span className={passed ? 'tag tag-accent' : 'tag tag-neutral'} style={{ marginTop: 4, display: 'inline-flex' }}>
             {passed ? t('quiz.passed') : t('quiz.failed')}
           </span>
         </div>
       </div>
 
-      {/* Per-question đúng/sai — KHÔNG lộ đáp án đúng (invariant). */}
+      {/* Per-question: đánh dấu pick của HV (đúng→check accent, sai→x neutral). KHÔNG lộ đáp án chưa biết. */}
       <ol className="space-y-2">
         {detail.questions.map((q, idx) => {
           const ans = byQuestion.get(q.id);
           const answered = !!ans;
           const correct = ans?.isCorrect ?? false;
+          const picks = new Set(ans?.selectedOptionIds ?? []);
           return (
-            <li
-              key={q.id}
-              className="rounded-md p-3"
-              style={{ background: 'var(--color-neutral-900)' }}
-            >
+            <li key={q.id} className="card" style={{ borderRadius: 'var(--radius-lg)' }}>
               <div className="flex items-start justify-between gap-3">
                 <p className="whitespace-pre-wrap text-sm">
                   <span className="text-muted mr-1">{idx + 1}.</span>
                   {q.promptMd}
                 </p>
-                <span
-                  className={`tag shrink-0 ${correct ? 'tag-accent' : 'tag-neutral'}`}
-                >
-                  {!answered
-                    ? t('quiz.unanswered')
-                    : correct
-                      ? t('quiz.answerCorrect')
-                      : t('quiz.answerWrong')}
+                <span className={`tag shrink-0 ${correct ? 'tag-accent' : 'tag-neutral'}`}>
+                  {!answered ? t('quiz.unanswered') : correct ? t('quiz.answerCorrect') : t('quiz.answerWrong')}
                 </span>
               </div>
+
+              {q.options.length > 0 && (
+                <ul className="mt-1 space-y-1">
+                  {q.options.map((o) => {
+                    const picked = picks.has(o.id);
+                    return (
+                      <li key={o.id} className="flex items-center gap-2 text-sm">
+                        {picked ? (
+                          correct ? (
+                            <i className="ph-fill ph-check-circle" style={{ color: 'var(--color-accent-300)' }} aria-hidden />
+                          ) : (
+                            <i className="ph-fill ph-x-circle" style={{ color: 'var(--color-neutral-500)' }} aria-hidden />
+                          )
+                        ) : (
+                          <i className="ph ph-circle" style={{ color: 'var(--color-neutral-700)' }} aria-hidden />
+                        )}
+                        <span className={picked ? '' : 'text-muted'}>{o.textMd}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              {q.options.length === 0 && ans?.textAnswer && (
+                <p className="card-meta mt-1">
+                  <i className="ph ph-text-aa" aria-hidden /> {ans.textAnswer}
+                </p>
+              )}
+
               <p className="card-meta mt-1">
                 {t('quiz.points', { points: ans?.awardedPoints ?? 0 })} / {q.points}
               </p>
@@ -352,8 +323,8 @@ function QuizResult({
         })}
       </ol>
 
-      <button className="btn btn-secondary" onClick={onRetake}>
-        {t('quiz.retake')}
+      <button className="btn btn-secondary cx-press" onClick={onRetake}>
+        <i className="ph ph-arrow-counter-clockwise" aria-hidden /> {t('quiz.retake')}
       </button>
     </div>
   );

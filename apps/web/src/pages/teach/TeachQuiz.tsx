@@ -279,7 +279,7 @@ function QuizEditor({
       <div className="card gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="truncate">{q.title}</h2>
+            <h2 className="cx-display truncate text-xl">{q.title}</h2>
             <p className="card-meta mt-1 flex-wrap">
               <span>{t('quiz.questionCount', { count: q.questionCount })}</span>
               <span>· {t('quiz.maxScore')} {q.maxScore}</span>
@@ -288,7 +288,15 @@ function QuizEditor({
               {q.timeLimitSec ? <span>· {Math.round(q.timeLimitSec / 60)}′</span> : null}
             </p>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Publish toggle — PLACEHOLDER: Quiz model chưa có field `published` (việc BE). Disabled. */}
+            <span className="flex items-center gap-1.5" title={t('common.comingSoon')}>
+              <span className="text-muted text-xs">{t('quiz.draft')}</span>
+              <label className="cx-toggle">
+                <input type="checkbox" checked={false} disabled readOnly />
+                <span className="cx-toggle-thumb" />
+              </label>
+            </span>
             <button className="btn btn-secondary" onClick={() => setSettingsOpen(true)}>
               {t('quiz.settings')}
             </button>

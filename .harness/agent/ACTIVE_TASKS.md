@@ -26,6 +26,15 @@ Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
 ---
 
+## Playful redesign (apps/web) — ✅ DONE (branch, chờ merge)
+
+Branch `claude/playful-redesign-web-f80264` (2026-08-16). Áp bộ design "Playful redesign" (gamified) lên toàn
+app trên nền Nocturne: playful layer (Baloo 2 + Phosphor + category tokens + cx-* utils + cx-toggle), LearnHome
+IA mới (hero gamified MOCK + chương collapse + hub bài tập + lesson detail), quiz result annotation, Teach/Admin
+re-skin. `pnpm validate` 16/16, i18n 309/309 parity, live smoke mọi màn xanh, invariant quiz KHÔNG lộ đáp án khi
+làm (verified). Nợ BE: `Quiz.published`, comment API, gamification streak/XP/badge/level (đang mock). Chi tiết →
+`CURRENT_STATE.md §Playful/gamified redesign`. Chờ user quyết định merge main.
+
 ## Active Phase
 
 ### Phase P4: Quiz (engine + autograde) — ✅ DONE (chờ merge main)

@@ -11,6 +11,36 @@ P4 gồm T4.0–T4.7: contracts + schema + seed + authoring + attempt/autograde 
 `pnpm validate` xanh **16/16** (api **129 test**, web 4), live e2e authoring + full student flow (Teach + Learn quiz) xanh.
 **Bước kế: P5 Gradebook & Certificate** (chưa breakdown task). Lưu ý: main mới merge local, cần `git push origin main` khi muốn đồng bộ remote.
 
+### Playful/gamified redesign (apps/web toàn bộ) — 2026-08-16
+- Áp bộ design handoff MỚI "Playful redesign" (`apps/web/design_handoff_lms_ui/`, README "The playful layer")
+  LÊN TRÊN nền Nocturne flat. Đây là refresh **styling + layout + IA**, GIỮ NGUYÊN hooks/routing/i18n keys.
+- **Nền playful** (`src/styles/nocturne.css`, append cuối): category tokens `--cx-purple/amber/teal/coral/blue`
+  + `--cx-radius:22px`; body ambient radial-glow; font **Baloo 2** (`.cx-display`, thêm vào Google Fonts import);
+  pill primary buttons (999px); motion utils `.cx-tile/.cx-lift/.cx-press/.cx-float/.cx-bob/.cx-shooting-star/
+  .cx-blob/.cx-dots` + `@keyframes cx-pop/float/bob/shoot` (gate sau `prefers-reduced-motion`); `.cx-toggle`
+  switch 34×20 (label>input+`.cx-toggle-thumb`, dùng `:has`). **Phosphor icons**: cài `@phosphor-icons/web`
+  (import `/regular`+`/fill` ở `main.tsx`), dùng `<i className="ph|ph-fill ph-*">`.
+- **Màn đổi**: AppLayout (sticky+blur nav, tab pill có icon, streak pill mock, avatar gradient purple→coral);
+  LoginPage (shooting stars + blobs + mascot-laptop `.cx-float` + rocket); **LearnHome IA MỚI** (greeting hero
+  stats+level ring+mascot — gamification MOCK; class seg; celebration banner; continue card % thật; "Bài học"
+  GROUP THEO CHƯƠNG collapse + "Xem thêm N bài" [`collapsedChapters`/`expandedChapters` theo sectionTitle];
+  "Bài tập" HUB gộp quiz+coding + filter seg; lesson detail view openId — media theo type + placeholder
+  content/discussion [my-lessons API chưa trả body]); LearnQuiz (result `.cx-pop` + mascot + đánh dấu pick
+  đúng→`ph-check-circle` accent-300 / sai→`ph-x-circle`); LearnCoding (chrome sticker traffic-lights, giữ Monaco/
+  Pyodide); TeachHome (h1 cx-display + tab icon); TeachClasses (class card icon tile + gate `.cx-toggle`);
+  TeachQuiz (publish `.cx-toggle` **PLACEHOLDER disabled** — Quiz chưa có field `published`, việc BE); Admin
+  (toolbar search client-side + table).
+- **Refactor**: `LearnQuiz.tsx`→export `LearnQuizWorkspace`, `LearnCoding.tsx`→export `LearnCodingWorkspace`
+  (LearnHome tự sở hữu list/hub). Bỏ section ClassAssignments cũ khỏi Learn (đúng IA mới, xoá luôn nợ 403 /assignments).
+- **INVARIANT giữ**: verified live payload `GET /quizzes/:id/attempt` KHÔNG có isCorrect/correctAnswer; UI khi
+  đang làm 0 annotation; chỉ hiện đúng/sai sau nộp từ `QuizAttemptDto.answers[]`.
+- **Verify**: web typecheck/lint(0 error, 1 warning cũ)/build xanh; **`pnpm validate` 16/16**; i18n parity vi/en
+  **309/309**; live smoke MỌI màn (login/nav/Learn hero+chapter+hub+lesson-detail+quiz nộp 2/2/Teach 5 tab/Admin
+  search) render Baloo 2 + Phosphor + cx-toggle đúng. **Nợ BE ghi nhận**: Quiz.published (publish toggle),
+  discussion/comment API, gamification streak/XP/badge/level (đang MOCK tĩnh). CSS bundle 152kB (gzip 29.7kB) do
+  Phosphor web-font ship full icon CSS — cân nhắc `@phosphor-icons/react` tree-shake nếu cần giảm.
+- **Branch**: `claude/playful-redesign-web-f80264`. Chưa merge main (chờ user quyết định).
+
 ### Full Nocturne re-skin (toàn bộ trang) — 2026-08-15
 - Theo yêu cầu user (trước P5): áp Nocturne cho MỌI màn (không chỉ quiz). Commit `806f3a8`, **đã MERGE
   vào main** (local FF, main ở `88f43d5`, chưa push origin).

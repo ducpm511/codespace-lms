@@ -33,19 +33,34 @@ export function TeachClasses(): JSX.Element {
           {classes.data?.items.length === 0 && (
             <p className="text-muted px-3 py-4 text-sm">{t('classes.empty')}</p>
           )}
-          <ul>
-            {classes.data?.items.map((c) => (
-              <li key={c.id}>
-                <button
-                  onClick={() => setSelected(c.id)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-white/5"
-                  style={selected === c.id ? { background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' } : undefined}
-                >
-                  <span className="truncate">{c.name}</span>
-                  <span className="text-muted text-xs">{c.code}</span>
-                </button>
-              </li>
-            ))}
+          <ul className="space-y-1 p-2">
+            {classes.data?.items.map((c) => {
+              const active = selected === c.id;
+              return (
+                <li key={c.id}>
+                  <button
+                    onClick={() => setSelected(c.id)}
+                    className="cx-lift flex w-full items-center gap-2.5 rounded-2xl px-2.5 py-2 text-left"
+                    style={
+                      active
+                        ? { background: 'var(--color-accent-900)', boxShadow: 'inset 0 0 0 1px var(--color-accent-700)' }
+                        : undefined
+                    }
+                  >
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                      style={{ background: 'color-mix(in srgb, var(--cx-purple) 22%, transparent)', color: 'var(--cx-purple)' }}
+                    >
+                      <i className="ph-fill ph-users-three" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm" style={active ? { color: 'var(--color-accent-100)' } : undefined}>{c.name}</span>
+                      <span className="text-muted block truncate text-xs">{c.code}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
@@ -105,10 +120,10 @@ function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="card">
+      <div className="card" style={{ borderRadius: 'var(--radius-lg)' }}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg">{c.name}</h2>
+            <h2 className="cx-display text-xl">{c.name}</h2>
             <p className="text-muted text-xs">{c.code}</p>
           </div>
           <span className="tag tag-outline">{t('classes.ongoing', { defaultValue: 'Đang diễn ra' })}</span>
@@ -297,20 +312,10 @@ function GateToggle({
   onChange: (v: boolean) => void;
 }): JSX.Element {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      disabled={disabled}
-      onClick={() => onChange(!on)}
-      className="relative inline-flex h-5 w-[34px] shrink-0 items-center rounded-full transition-colors disabled:opacity-50"
-      style={{ background: on ? 'var(--color-accent)' : 'var(--color-neutral-700)' }}
-    >
-      <span
-        className="inline-block h-4 w-4 rounded-full bg-white transition-transform"
-        style={{ transform: on ? 'translateX(15px)' : 'translateX(1px)' }}
-      />
-    </button>
+    <label className="cx-toggle" aria-label={on ? 'Đang mở' : 'Đang khóa'}>
+      <input type="checkbox" checked={on} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span className="cx-toggle-thumb" />
+    </label>
   );
 }
 
