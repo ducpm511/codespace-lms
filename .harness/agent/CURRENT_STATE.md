@@ -9,7 +9,23 @@ Updated: 2026-08-16
 **P0–P5 ✅ DONE. Phase P5 (Gradebook & Certificate) đã HOÀN THÀNH T5.0–T5.7.**
 P5 gồm: contracts `grade.ts`/`certificate.ts` + schema `p5_grade_certificate` (GradeItem, GradeEntry, CertificateTemplate, Certificate, AuditLog) + seed permissions (40 permission / 5 role / 122 liên kết) + backend `grading` (tổng hợp tự động từ assignment, quiz, coding) + backend `certificates` (issue, revoke, AuditLog cùng transaction) + public verification `/verify/:code` (NO PII) + FE Teach (sổ điểm + cấp/thu hồi chứng chỉ) + FE Learn (xem điểm tích lũy & chứng chỉ cá nhân).
 `pnpm validate` xanh **16/16** (api **140 test**, web 4 test), web build xanh.
-**Bước kế: P6 Polish & Notification**.
+**Bước kế: P6 Polish & Notification**. Main local ở `939a791`, **CHƯA push origin**.
+
+### P5 review & hardening (2026-08-16) — sau 2 vòng review
+- Review INVARIANTS P5 phát hiện + ĐÃ VÁ (commit `a8d4f51` + `939a791`):
+  - **H1** issue chứng chỉ: bắt buộc `classId`, gate **hoàn thành ≥80%** (đếm `LessonProgress` chỉ bài THUỘC
+    course đó) + **finalScore ≥60%** lấy từ gradebook thật (bỏ default bịa 85).
+  - **H2** sổ điểm quiz: `maxScore` = Σ `Question.points` (trước hardcode 100 → sai % weighted).
+  - **H3** `GET gradebook` giờ **READ-ONLY** (không upsert); phần ghi tách sang `recomputeClassGradebook` +
+    endpoint **`POST /classes/:classId/gradebook/recompute`** (staff). Học viên `my-gradebook` chỉ đọc, không
+    kích hoạt ghi cho cả lớp. `certificates.issue()` gọi recompute để finalScore tươi. FE Teach gọi recompute khi mở sổ.
+  - **H4** quyền riêng tư: bỏ `grade.read`/`certificate.read` khỏi role **student** (seed); `getClassGradebook`
+    kiểm caller là admin/scoped-grade.read/instructor|ta của lớp (không còn bỏ qua `currentUser`).
+  - **M1** revoke: bỏ `@RequirePermission` global (route không có `:classId`) → service tự scope theo `cert.classId`.
+  - **M2** `serialNo`/`verificationCode` dùng `crypto.randomBytes` + retry P2002 (thay `Math.random`).
+  - **M3** FE `VerifyCertificate.tsx` chuyển sang token Nocturne/`cx-*`.
+- Còn lại (nợ nhỏ, không chặn — xem `ACTIVE_TASKS.md §Nợ kỹ thuật`): L2 verify lộ thừa `finalScore`; L3
+  `createTemplate` dùng chung quyền issue; PDF chứng chỉ chưa sinh (`pdfFileId` null).
 
 ### Playful/gamified redesign (apps/web toàn bộ) — 2026-08-16
 - Áp bộ design handoff MỚI "Playful redesign" (`apps/web/design_handoff_lms_ui/`, README "The playful layer")
