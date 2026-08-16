@@ -117,16 +117,16 @@ export class CertificatesService {
     }
 
     // 6) Validate completion criteria (§5.3): lesson completion rate >= 80% & finalScore >= passScore (60%)
-    let totalLessons = 0;
-    for (const sec of course.sections) {
-      totalLessons += sec.lessons.length;
-    }
+    // Chỉ tính bài học THUỘC khóa này (tránh đếm nhầm bài của course khác trong cùng lớp)
+    const courseLessonIds = course.sections.flatMap((sec) => sec.lessons.map((l) => l.id));
+    const totalLessons = courseLessonIds.length;
 
     if (totalLessons > 0) {
       const completedCount = await this.prisma.lessonProgress.count({
         where: {
           userId: dto.userId,
           classId: dto.classId,
+          lessonId: { in: courseLessonIds },
           status: 'completed',
         },
       });
@@ -138,8 +138,8 @@ export class CertificatesService {
       }
     }
 
-    // Calculate actual finalScore from Gradebook
-    const gradebook = await this.grading.getClassGradebook(dto.classId, currentUser);
+    // Tính finalScore từ sổ điểm — recompute (GHI) vì issue là thao tác write, cần dữ liệu mới nhất
+    const gradebook = await this.grading.recomputeClassGradebook(dto.classId, currentUser);
     const userRow = gradebook.rows.find((r) => r.userId === dto.userId);
 
     if (!userRow) {

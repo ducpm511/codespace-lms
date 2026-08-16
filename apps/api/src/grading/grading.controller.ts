@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
 import { PERMISSIONS, type ClassGradebookDto, type StudentOwnGradebookDto } from '@lms/contracts';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -19,6 +19,18 @@ export class GradingController {
     @CurrentUser() currentUser: AuthUser,
   ): Promise<ClassGradebookDto> {
     return this.gradingService.getClassGradebook(classId, currentUser);
+  }
+
+  /** Staff tổng hợp lại sổ điểm (GHI DB) — tách khỏi GET để read không side-effect (fix H3). */
+  @Post(':classId/gradebook/recompute')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission(PERMISSIONS.GRADE_READ)
+  recomputeClassGradebook(
+    @Param('classId') classId: string,
+    @CurrentUser() currentUser: AuthUser,
+  ): Promise<ClassGradebookDto> {
+    return this.gradingService.recomputeClassGradebook(classId, currentUser);
   }
 
   @Get(':classId/my-gradebook')

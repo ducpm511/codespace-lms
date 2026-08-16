@@ -27,12 +27,14 @@ function makeRbac() {
 }
 
 function makeGrading() {
+  const gradebook = {
+    classId: 'c1',
+    items: [],
+    rows: [{ userId: 'u1', totalWeightedScore: 92 }],
+  };
   return {
-    getClassGradebook: jest.fn().mockResolvedValue({
-      classId: 'c1',
-      items: [],
-      rows: [{ userId: 'u1', totalWeightedScore: 92 }],
-    }),
+    getClassGradebook: jest.fn().mockResolvedValue(gradebook),
+    recomputeClassGradebook: jest.fn().mockResolvedValue(gradebook),
   };
 }
 

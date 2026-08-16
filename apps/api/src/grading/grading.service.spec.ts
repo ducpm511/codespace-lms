@@ -16,6 +16,7 @@ function makePrisma() {
     },
     gradeItem: {
       upsert: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     gradeEntry: {
       upsert: jest.fn(),
@@ -63,7 +64,7 @@ describe('GradingService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('tổng hợp sổ điểm từ assignment, quiz, coding', async () => {
+    it('recompute tổng hợp sổ điểm từ assignment, quiz, coding', async () => {
       prisma.class.findUnique.mockResolvedValue({
         id: 'c1',
         courses: [
@@ -101,7 +102,7 @@ describe('GradingService', () => {
         { gradeItemId: 'gi3', userId: 'u1', score: '100' },
       ]);
 
-      const res = await service.getClassGradebook('c1', dummyUser);
+      const res = await service.recomputeClassGradebook('c1', dummyUser);
       expect(res.classId).toBe('c1');
       expect(res.items.length).toBe(3);
       expect(res.rows.length).toBe(1);

@@ -43,24 +43,41 @@ export class GradingService {
     private readonly rbac: RbacService,
   ) {}
 
+  /**
+   * Đọc sổ điểm lớp — READ-ONLY, KHÔNG ghi DB (fix review H3: GET không side-effect).
+   * Dữ liệu do `recomputeClassGradebook` tổng hợp trước đó (khi staff mở sổ điểm / cấp chứng chỉ).
+   */
   async getClassGradebook(classId: string, currentUser?: AuthUser): Promise<ClassGradebookDto> {
-    // Defense-in-depth permission check if currentUser is provided
-    if (currentUser) {
-      const isSuperAdmin = currentUser.roles?.includes('super_admin');
-      const isAdmin = currentUser.roles?.includes('admin');
-      if (!isSuperAdmin && !isAdmin) {
-        const eff = await this.rbac.getEffectivePermissions(currentUser.id);
-        const canRead = this.rbac.hasPermission(eff, PERMISSIONS.GRADE_READ, classId);
-        if (!canRead) {
-          const member = await this.prisma.classMember.findUnique({
-            where: { classId_userId: { classId, userId: currentUser.id } },
-          });
-          if (!member || (member.roleInClass !== 'instructor' && member.roleInClass !== 'ta')) {
-            throw new ForbiddenException('Bạn không có quyền xem sổ điểm của lớp này');
-          }
-        }
-      }
+    await this.assertCanReadGradebook(classId, currentUser);
+
+    const cls = await this.prisma.class.findUnique({
+      where: { id: classId },
+      include: {
+        members: {
+          where: { status: 'active' },
+          include: { user: { select: { id: true, fullName: true, email: true } } },
+        },
+      },
+    });
+    if (!cls) {
+      throw new NotFoundException('Lớp học không tồn tại');
     }
+
+    const gradeItems = await this.prisma.gradeItem.findMany({ where: { classId } });
+    return this.buildGradebook(
+      classId,
+      cls.members,
+      gradeItems.map((gi) => ({ ...gi, sourceType: gi.sourceType as 'assignment' | 'quiz' | 'coding' })),
+    );
+  }
+
+  /**
+   * Tổng hợp lại sổ điểm từ Submission/QuizAttempt/CodingSubmission (GHI DB — upsert
+   * GradeItem/GradeEntry) rồi trả kết quả mới. Chỉ staff của lớp gọi (assertCanReadGradebook).
+   * Tách khỏi GET để read không còn side-effect và học viên không kích hoạt ghi cho cả lớp.
+   */
+  async recomputeClassGradebook(classId: string, currentUser?: AuthUser): Promise<ClassGradebookDto> {
+    await this.assertCanReadGradebook(classId, currentUser);
 
     const cls = await this.prisma.class.findUnique({
       where: { id: classId },
@@ -70,11 +87,7 @@ export class GradingService {
             course: {
               include: {
                 assignments: true,
-                quizzes: {
-                  include: {
-                    questions: { select: { points: true } },
-                  },
-                },
+                quizzes: { include: { questions: { select: { points: true } } } },
                 codingProblems: true,
               },
             },
@@ -86,30 +99,73 @@ export class GradingService {
         },
       },
     });
-
     if (!cls) {
       throw new NotFoundException('Lớp học không tồn tại');
     }
 
-    // 1) Sync GradeItems from Assignments, Quizzes, CodingProblems
     const gradeItems = await this.syncGradeItemsForClass(cls);
-
-    // 2) Sync GradeEntries for active members
     const memberIds = cls.members.map((m) => m.userId);
     await this.syncGradeEntriesForClass(classId, gradeItems, memberIds);
 
-    // 3) Fetch all GradeEntries for this class
-    const gradeItemIds = gradeItems.map((gi) => gi.id);
-    const entries = await this.prisma.gradeEntry.findMany({
-      where: { gradeItemId: { in: gradeItemIds } },
+    return this.buildGradebook(classId, cls.members, gradeItems);
+  }
+
+  async getStudentOwnGradebook(classId: string, currentUser: AuthUser): Promise<StudentOwnGradebookDto> {
+    // Validate active member
+    const member = await this.prisma.classMember.findUnique({
+      where: { classId_userId: { classId, userId: currentUser.id } },
     });
 
-    // Map entries by userId -> gradeItemId -> score
-    const userGradesMap = new Map<string, Record<string, number | null>>();
-    for (const memberId of memberIds) {
-      userGradesMap.set(memberId, {});
+    if (!member || member.status !== 'active') {
+      throw new ForbiddenException('Bạn không phải học viên active của lớp này');
     }
 
+    // Read-only: học viên xem điểm đã được staff/issue tổng hợp; KHÔNG tự kích hoạt ghi cho cả lớp.
+    const fullGradebook = await this.getClassGradebook(classId);
+    const myRow = fullGradebook.rows.find((r) => r.userId === currentUser.id);
+
+    return {
+      classId,
+      items: fullGradebook.items,
+      grades: myRow?.grades || {},
+      totalWeightedScore: myRow?.totalWeightedScore || 0,
+      completionRate: myRow?.completionRate || 0,
+    };
+  }
+
+  /** Kiểm quyền đọc sổ điểm lớp: admin/super_admin, grade.read scope lớp, hoặc instructor/ta của lớp. */
+  private async assertCanReadGradebook(classId: string, currentUser?: AuthUser): Promise<void> {
+    if (!currentUser) return; // gọi nội bộ (student own / issue) — nơi gọi đã tự kiểm quyền
+    const isSuperAdmin = currentUser.roles?.includes('super_admin');
+    const isAdmin = currentUser.roles?.includes('admin');
+    if (isSuperAdmin || isAdmin) return;
+
+    const eff = await this.rbac.getEffectivePermissions(currentUser.id);
+    if (this.rbac.hasPermission(eff, PERMISSIONS.GRADE_READ, classId)) return;
+
+    const member = await this.prisma.classMember.findUnique({
+      where: { classId_userId: { classId, userId: currentUser.id } },
+    });
+    if (!member || (member.roleInClass !== 'instructor' && member.roleInClass !== 'ta')) {
+      throw new ForbiddenException('Bạn không có quyền xem sổ điểm của lớp này');
+    }
+  }
+
+  /** Dựng DTO sổ điểm từ members + gradeItems (đọc GradeEntry hiện có). KHÔNG ghi DB. */
+  private async buildGradebook(
+    classId: string,
+    members: Array<{ userId: string; user: { fullName: string; email: string } }>,
+    gradeItems: SyncedGradeItem[],
+  ): Promise<ClassGradebookDto> {
+    const gradeItemIds = gradeItems.map((gi) => gi.id);
+    const entries = gradeItemIds.length
+      ? await this.prisma.gradeEntry.findMany({ where: { gradeItemId: { in: gradeItemIds } } })
+      : [];
+
+    const userGradesMap = new Map<string, Record<string, number | null>>();
+    for (const m of members) {
+      userGradesMap.set(m.userId, {});
+    }
     for (const entry of entries) {
       const uMap = userGradesMap.get(entry.userId);
       if (uMap) {
@@ -117,11 +173,9 @@ export class GradingService {
       }
     }
 
-    // 4) Compute StudentGradebookRow per member
-    const rows: StudentGradebookRow[] = cls.members.map((m) => {
+    const rows: StudentGradebookRow[] = members.map((m) => {
       const grades = userGradesMap.get(m.userId) || {};
       const { totalWeightedScore, completionRate } = this.calculateSummary(gradeItems, grades);
-
       return {
         userId: m.userId,
         userFullName: m.user.fullName,
@@ -142,33 +196,7 @@ export class GradingService {
       maxScore: Number(item.maxScore),
     }));
 
-    return {
-      classId,
-      items: itemDtos,
-      rows,
-    };
-  }
-
-  async getStudentOwnGradebook(classId: string, currentUser: AuthUser): Promise<StudentOwnGradebookDto> {
-    // Validate active member
-    const member = await this.prisma.classMember.findUnique({
-      where: { classId_userId: { classId, userId: currentUser.id } },
-    });
-
-    if (!member || member.status !== 'active') {
-      throw new ForbiddenException('Bạn không phải học viên active của lớp này');
-    }
-
-    const fullGradebook = await this.getClassGradebook(classId); // skip staff check for internal student fetch
-    const myRow = fullGradebook.rows.find((r) => r.userId === currentUser.id);
-
-    return {
-      classId,
-      items: fullGradebook.items,
-      grades: myRow?.grades || {},
-      totalWeightedScore: myRow?.totalWeightedScore || 0,
-      completionRate: myRow?.completionRate || 0,
-    };
+    return { classId, items: itemDtos, rows };
   }
 
   private async syncGradeItemsForClass(cls: ClassWithCourses): Promise<SyncedGradeItem[]> {

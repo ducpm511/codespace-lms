@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { getClassGradebook, getStudentOwnGradebook } from './api';
+import { recomputeClassGradebook, getStudentOwnGradebook } from './api';
 
+// Staff mở sổ điểm lớp → recompute (POST, GHI) để luôn thấy điểm mới nhất. Read GET thuần
+// (getClassGradebook) vẫn có sẵn cho nơi chỉ cần đọc mà không muốn tổng hợp lại.
 export function useClassGradebook(classId: string | null) {
   return useQuery({
     queryKey: ['classGradebook', classId],
-    queryFn: () => getClassGradebook(classId!),
+    queryFn: () => recomputeClassGradebook(classId!),
     enabled: Boolean(classId),
+    refetchOnWindowFocus: false,
   });
 }
 
