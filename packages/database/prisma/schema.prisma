@@ -55,6 +55,12 @@ model User {
   quizzesCreated Quiz[]        @relation("QuizCreatedBy")
   quizAttempts   QuizAttempt[]
 
+  // P5 (Gradebook & Certificate)
+  gradeEntries       GradeEntry[]
+  certificates       Certificate[] @relation("CertificateForUser")
+  certificatesIssued Certificate[] @relation("CertificateIssuedBy")
+  auditLogs          AuditLog[]    @relation("AuditLogActor")
+
   @@map("users")
 }
 
@@ -182,6 +188,9 @@ model Course {
   codingProblems CodingProblem[]
   quizzes        Quiz[]
 
+  // P5 (Gradebook & Certificate)
+  certificates Certificate[]
+
   @@index([createdById])
   @@map("courses")
 }
@@ -272,6 +281,10 @@ model Class {
   submissions       Submission[]
   codingSubmissions CodingSubmission[]
   quizAttempts      QuizAttempt[]
+
+  // P5 (Gradebook & Certificate)
+  gradeItems   GradeItem[]
+  certificates Certificate[]
 
   @@index([createdById])
   @@map("classes")
@@ -672,4 +685,113 @@ model QuizAnswer {
   @@unique([attemptId, questionId])
   @@index([questionId])
   @@map("quiz_answers")
+}
+
+// === Gradebook & Certificate (T5.1) — docs/DESIGN.md §4.7 ===
+
+enum GradeSourceType {
+  assignment
+  quiz
+  coding
+}
+
+// Sổ điểm: Định nghĩa các cột điểm trong một lớp
+model GradeItem {
+  id         String          @id @default(cuid())
+  classId    String
+  sourceType GradeSourceType
+  sourceId   String
+  title      String
+  weight     Decimal         @default(1) @db.Decimal(6, 2)
+  maxScore   Decimal         @default(100) @db.Decimal(6, 2)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  class   Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  entries GradeEntry[]
+
+  @@unique([classId, sourceType, sourceId])
+  @@index([classId])
+  @@map("grade_items")
+}
+
+// "View vật chất" của sổ điểm — tổng hợp tự động từ Submission/QuizAttempt/CodingSubmission
+model GradeEntry {
+  id          String   @id @default(cuid())
+  gradeItemId String
+  userId      String
+  score       Decimal  @db.Decimal(6, 2)
+  computedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  gradeItem GradeItem @relation(fields: [gradeItemId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gradeItemId, userId])
+  @@index([userId])
+  @@map("grade_entries")
+}
+
+// Template thiết kế chứng chỉ
+model CertificateTemplate {
+  id               String   @id @default(cuid())
+  name             String
+  backgroundFileId String?
+  layoutJson       Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  certificates Certificate[]
+
+  @@map("certificate_templates")
+}
+
+// Chứng chỉ đã cấp cho học viên. KHÔNG hard-delete (chỉ soft-delete / revoke).
+model Certificate {
+  id               String    @id @default(cuid())
+  userId           String
+  classId          String?
+  courseId         String
+  templateId       String
+  serialNo         String    @unique
+  verificationCode String    @unique
+  finalScore       Decimal   @db.Decimal(6, 2)
+  issuedAt         DateTime  @default(now())
+  issuedById       String
+  pdfFileId        String?
+  revokedAt        DateTime?
+  revokedReason    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user     User                @relation("CertificateForUser", fields: [userId], references: [id], onDelete: Cascade)
+  class    Class?              @relation(fields: [classId], references: [id], onDelete: SetNull)
+  course   Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  template CertificateTemplate @relation(fields: [templateId], references: [id])
+  issuedBy User                @relation("CertificateIssuedBy", fields: [issuedById], references: [id])
+
+  @@unique([userId, courseId, classId])
+  @@index([userId])
+  @@index([courseId])
+  @@index([classId])
+  @@map("certificates")
+}
+
+// Nhật ký kiểm toán hệ thống. Ghi CÙNG transaction với thao tác domain.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String
+  metaJson  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  actor User? @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
 }

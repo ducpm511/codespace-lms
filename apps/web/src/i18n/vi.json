@@ -116,7 +116,8 @@
     "tab_classes": "Lớp học",
     "tab_assignments": "Bài tập & Chấm điểm",
     "tab_coding": "Bài lập trình",
-    "tab_quiz": "Trắc nghiệm"
+    "tab_quiz": "Trắc nghiệm",
+    "tab_gradebook": "Sổ điểm & Chứng chỉ"
   },
   "quiz": {
     "heading": "Bài trắc nghiệm",

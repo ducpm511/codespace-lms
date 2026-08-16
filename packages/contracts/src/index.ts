@@ -10,3 +10,5 @@ export * from './class';
 export * from './assignment';
 export * from './coding';
 export * from './quiz';
+export * from './grade';
+export * from './certificate';

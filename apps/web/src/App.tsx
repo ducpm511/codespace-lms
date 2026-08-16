@@ -7,12 +7,14 @@ import { LoginPage } from './pages/LoginPage';
 import { AdminHome } from './pages/AdminHome';
 import { TeachHome } from './pages/TeachHome';
 import { LearnHome } from './pages/LearnHome';
+import { VerifyCertificate } from './pages/VerifyCertificate';
 import { AREA_ROLES } from './lib/roles';
 
 export function App(): JSX.Element {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/verify/:code" element={<VerifyCertificate />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>

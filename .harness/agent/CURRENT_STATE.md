@@ -2,14 +2,14 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-08-14
+Updated: 2026-08-16
 
 ## Project Stage
 
-**P0–P4 ✅ DONE. Phase P4 (Quiz) đã MERGE vào `main` (local FF, CHƯA push origin) — `main` ở `88df26e`.**
-P4 gồm T4.0–T4.7: contracts + schema + seed + authoring + attempt/autograde + FE Teach quiz + FE Learn quiz + nền Nocturne.
-`pnpm validate` xanh **16/16** (api **129 test**, web 4), live e2e authoring + full student flow (Teach + Learn quiz) xanh.
-**Bước kế: P5 Gradebook & Certificate** (chưa breakdown task). Lưu ý: main mới merge local, cần `git push origin main` khi muốn đồng bộ remote.
+**P0–P5 ✅ DONE. Phase P5 (Gradebook & Certificate) đã HOÀN THÀNH T5.0–T5.7.**
+P5 gồm: contracts `grade.ts`/`certificate.ts` + schema `p5_grade_certificate` (GradeItem, GradeEntry, CertificateTemplate, Certificate, AuditLog) + seed permissions (40 permission / 5 role / 122 liên kết) + backend `grading` (tổng hợp tự động từ assignment, quiz, coding) + backend `certificates` (issue, revoke, AuditLog cùng transaction) + public verification `/verify/:code` (NO PII) + FE Teach (sổ điểm + cấp/thu hồi chứng chỉ) + FE Learn (xem điểm tích lũy & chứng chỉ cá nhân).
+`pnpm validate` xanh **16/16** (api **140 test**, web 4 test), web build xanh.
+**Bước kế: P6 Polish & Notification**.
 
 ### Playful/gamified redesign (apps/web toàn bộ) — 2026-08-16
 - Áp bộ design handoff MỚI "Playful redesign" (`apps/web/design_handoff_lms_ui/`, README "The playful layer")

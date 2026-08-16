@@ -19,33 +19,32 @@ Updated: 2026-08-14
 | **P2** Assessments | assignment + submission + chấm tay | ✅ Done |
 | **P3** Coding & Runner | Pyodide FE + Judge0/Piston + autograde | ✅ Done |
 | **P4** Quiz | quiz engine + autograde | ✅ Done (merged main local) |
-| **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | ⬅️ Next |
-| **P6** Polish | notification, audit UI, báo cáo | Not started |
+| **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | ✅ Done (T5.0–T5.7) |
+| **P6** Polish | notification, audit UI, báo cáo | ⬅️ Next |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
 ---
 
-## Playful redesign (apps/web) — ✅ DONE (branch, chờ merge)
-
-Branch `claude/playful-redesign-web-f80264` (2026-08-16). Áp bộ design "Playful redesign" (gamified) lên toàn
-app trên nền Nocturne: playful layer (Baloo 2 + Phosphor + category tokens + cx-* utils + cx-toggle), LearnHome
-IA mới (hero gamified MOCK + chương collapse + hub bài tập + lesson detail), quiz result annotation, Teach/Admin
-re-skin. `pnpm validate` 16/16, i18n 309/309 parity, live smoke mọi màn xanh, invariant quiz KHÔNG lộ đáp án khi
-làm (verified). Nợ BE: `Quiz.published`, comment API, gamification streak/XP/badge/level (đang mock). Chi tiết →
-`CURRENT_STATE.md §Playful/gamified redesign`. Chờ user quyết định merge main.
-
 ## Active Phase
 
-### Phase P4: Quiz (engine + autograde) — ✅ DONE (chờ merge main)
+### Phase P5: Gradebook & Certificate — ✅ DONE
 
-Status: ✅ **T4.0–T4.7 hoàn tất.** contracts + schema + seed + backend authoring + attempt/autograde + **FE Teach quiz + FE Learn quiz + nền Nocturne**.
-`pnpm validate` xanh **16/16** (api **129 test**, web 4 test), web typecheck/lint/build xanh, live e2e authoring + full student flow (Teach tạo quiz + Learn làm bài chấm server-side 4/4) xanh, regression KHÔNG lộ isCorrect/correctAnswer. **Chờ user quyết định merge main** (như P3 qua PR). Goal (docs/DESIGN.md
-§4.6, §5.2): quiz nhiều loại câu hỏi
-(single/multiple choice, true/false, short_answer, code_fill); học viên làm bài trong lớp (lesson gated),
-nộp → **chấm tự động server-side**, điểm `Decimal` weighted theo `Question.points`, `passScore` ngưỡng đạt.
+Status: ✅ **T5.0–T5.7 hoàn tất.** contracts + schema `p5_grade_certificate` + seed permissions + backend `grading` (tổng hợp sổ điểm từ 3 nguồn: assignment, quiz, coding) + backend `certificates` (issue + revoke + AuditLog trong 1 transaction) + public verification `/verify/:code` (zero PII) + FE Teach (sổ điểm + cấp/thu hồi chứng chỉ) + FE Learn (xem điểm tích lũy + chứng chỉ của mình).
+`pnpm validate` xanh **16/16** (api **140 test**, web 4 test), web build xanh.
 
-**Branch**: `claude/codespace-p4-quiz` (tách từ `main` sau khi P3 merge PR #1).
+#### Task Breakdown (P5)
+
+| Task | Scope | Surface | Risk | Order |
+|---|---|---|---|---|
+| ✅ **T5.0** Contracts `grade.ts` + `certificate.ts` + PERMISSIONS (`grade.read`, `certificate.read/issue/revoke`) | contracts | contracts | Low | 1 |
+| ✅ **T5.1** Schema + migration `p5_grade_certificate` (`GradeItem`, `GradeEntry`, `CertificateTemplate`, `Certificate`, `AuditLog`) | schema | schema | Med | 2 |
+| ✅ **T5.2** Seed permission (40 permission / 5 role / 122 liên kết) cho admin/instructor/TA/student | schema | seed | Low | 3 |
+| ✅ **T5.3** Backend `apps/api/src/grading/`: `GradingService` tổng hợp GradeEntry từ Submission+QuizAttempt+CodingSubmission, `GET /classes/:classId/gradebook` + `GET /classes/:classId/my-gradebook` | backend | api | High | 4 |
+| ✅ **T5.4** Backend `apps/api/src/certificates/`: issue, revoke + AuditLog cùng transaction, public `GET /verify/:code` (NO PII) | backend | api | High | 5 |
+| ✅ **T5.5** FE Teach: `TeachGradebook.tsx` sổ điểm lớp + modal cấp/thu hồi chứng chỉ | frontend | web | Med | 6 |
+| ✅ **T5.6** FE Learn/Public: `StudentGradebookSection.tsx` xem điểm/chứng chỉ cá nhân + trang công khai `VerifyCertificate.tsx` | frontend | web | Med | 7 |
+| ✅ **T5.7** Verify live: `pnpm validate` xanh 16/16 (api 140 test + web 4 test), full build pass | test | all | High | 8 |
 
 **INVARIANT cốt lõi P4** (mirror P3 hidden test): `QuestionOption.isCorrect` + `Question.correctAnswer`
 KHÔNG BAO GIỜ gửi ra client khi làm bài. Student DTO (`QuizStudentDetail`) chỉ có prompt + options text.

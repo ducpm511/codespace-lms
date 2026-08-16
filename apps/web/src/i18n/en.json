@@ -116,7 +116,8 @@
     "tab_classes": "Classes",
     "tab_assignments": "Assignments & Grading",
     "tab_coding": "Coding",
-    "tab_quiz": "Quiz"
+    "tab_quiz": "Quiz",
+    "tab_gradebook": "Gradebook & Certificates"
   },
   "quiz": {
     "heading": "Quizzes",

@@ -51,6 +51,11 @@ const PERMISSION_DEFS = [
   { key: PERMISSIONS.QUIZ_DELETE, description: 'Xóa quiz' },
   { key: PERMISSIONS.QUIZ_SUBMIT, description: 'Làm/nộp quiz chấm tự động' },
   { key: PERMISSIONS.QUIZ_RESULT_READ, description: 'Xem kết quả quiz của lớp' },
+  // P5 — Gradebook & Certificate
+  { key: PERMISSIONS.GRADE_READ, description: 'Xem sổ điểm của lớp' },
+  { key: PERMISSIONS.CERTIFICATE_READ, description: 'Xem chứng chỉ' },
+  { key: PERMISSIONS.CERTIFICATE_ISSUE, description: 'Cấp chứng chỉ cho học viên' },
+  { key: PERMISSIONS.CERTIFICATE_REVOKE, description: 'Thu hồi chứng chỉ' },
 ];
 
 // 5 role hệ thống (isSystem = true → không cho xóa).
@@ -62,8 +67,7 @@ const ROLE_DEFS = [
   { key: 'student', name: 'Học viên', description: 'Học bài, làm bài, xem điểm & chứng chỉ' },
 ];
 
-// Ma trận role → permission. P2 (T2.4): thêm assignment.*/submission.read/grade.write cho admin,
-// instructor và teaching_assistant (chấm bài + xem bài nộp scope-lớp).
+// Ma trận role → permission. P5 (T5.2): thêm grade.*/certificate.* cho admin, instructor, TA, student.
 const ALL = Object.values(PERMISSIONS);
 const ROLE_PERMISSIONS = {
   super_admin: ALL,
@@ -80,6 +84,7 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.CODING_DELETE, PERMISSIONS.CODING_SUBMIT, PERMISSIONS.CODING_RESULT_READ,
     PERMISSIONS.QUIZ_READ, PERMISSIONS.QUIZ_CREATE, PERMISSIONS.QUIZ_UPDATE,
     PERMISSIONS.QUIZ_DELETE, PERMISSIONS.QUIZ_SUBMIT, PERMISSIONS.QUIZ_RESULT_READ,
+    PERMISSIONS.GRADE_READ, PERMISSIONS.CERTIFICATE_READ, PERMISSIONS.CERTIFICATE_ISSUE, PERMISSIONS.CERTIFICATE_REVOKE,
   ],
   instructor: [
     PERMISSIONS.COURSE_READ, PERMISSIONS.COURSE_CREATE, PERMISSIONS.COURSE_UPDATE,
@@ -87,21 +92,23 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.CLASS_READ, PERMISSIONS.CLASS_CREATE, PERMISSIONS.CLASS_UPDATE, PERMISSIONS.CLASS_MANAGE,
     PERMISSIONS.ASSIGNMENT_READ, PERMISSIONS.ASSIGNMENT_CREATE, PERMISSIONS.ASSIGNMENT_UPDATE,
     PERMISSIONS.ASSIGNMENT_DELETE, PERMISSIONS.SUBMISSION_READ, PERMISSIONS.GRADE_WRITE,
-    // coding + quiz authoring + xem kết quả (không submit như học viên)
     PERMISSIONS.CODING_READ, PERMISSIONS.CODING_CREATE, PERMISSIONS.CODING_UPDATE,
     PERMISSIONS.CODING_DELETE, PERMISSIONS.CODING_RESULT_READ,
     PERMISSIONS.QUIZ_READ, PERMISSIONS.QUIZ_CREATE, PERMISSIONS.QUIZ_UPDATE,
     PERMISSIONS.QUIZ_DELETE, PERMISSIONS.QUIZ_RESULT_READ,
+    PERMISSIONS.GRADE_READ, PERMISSIONS.CERTIFICATE_READ, PERMISSIONS.CERTIFICATE_ISSUE, PERMISSIONS.CERTIFICATE_REVOKE,
   ],
   teaching_assistant: [
     PERMISSIONS.ASSIGNMENT_READ, PERMISSIONS.SUBMISSION_READ, PERMISSIONS.GRADE_WRITE,
     PERMISSIONS.CODING_READ, PERMISSIONS.CODING_RESULT_READ,
     PERMISSIONS.QUIZ_READ, PERMISSIONS.QUIZ_RESULT_READ,
+    PERMISSIONS.GRADE_READ, PERMISSIONS.CERTIFICATE_READ,
   ],
-  // học viên: nộp code/quiz + xem kết quả của mình (xem đề qua route membership, không cần *.read)
+  // học viên: nộp code/quiz + xem kết quả + sổ điểm/chứng chỉ của mình
   student: [
     PERMISSIONS.CODING_SUBMIT, PERMISSIONS.CODING_RESULT_READ,
     PERMISSIONS.QUIZ_SUBMIT, PERMISSIONS.QUIZ_RESULT_READ,
+    PERMISSIONS.GRADE_READ, PERMISSIONS.CERTIFICATE_READ,
   ],
 };
 

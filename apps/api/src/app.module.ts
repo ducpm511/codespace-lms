@@ -10,6 +10,8 @@ import { AssignmentsModule } from './assignments/assignments.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { CodingModule } from './coding/coding.module';
 import { QuizModule } from './quiz/quiz.module';
+import { GradingModule } from './grading/grading.module';
+import { CertificatesModule } from './certificates/certificates.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -26,6 +28,8 @@ import { HealthController } from './health/health.controller';
     SubmissionsModule,
     CodingModule,
     QuizModule,
+    GradingModule,
+    CertificatesModule,
   ],
   controllers: [HealthController],
   providers: [],

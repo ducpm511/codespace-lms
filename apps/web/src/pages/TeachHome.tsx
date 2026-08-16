@@ -5,16 +5,18 @@ import { TeachClasses } from './teach/TeachClasses';
 import { TeachAssignments } from './teach/TeachAssignments';
 import { TeachCoding } from './teach/TeachCoding';
 import { TeachQuiz } from './teach/TeachQuiz';
+import { TeachGradebook } from './teach/TeachGradebook';
 
-type Tab = 'courses' | 'classes' | 'assignments' | 'coding' | 'quiz';
+type Tab = 'courses' | 'classes' | 'assignments' | 'coding' | 'quiz' | 'gradebook';
 
-const TABS: Tab[] = ['courses', 'classes', 'assignments', 'coding', 'quiz'];
+const TABS: Tab[] = ['courses', 'classes', 'assignments', 'coding', 'quiz', 'gradebook'];
 const TAB_ICON: Record<Tab, string> = {
   courses: 'ph-books',
   classes: 'ph-users-three',
   assignments: 'ph-clipboard-text',
   coding: 'ph-code',
   quiz: 'ph-check-square-offset',
+  gradebook: 'ph-trophy',
 };
 
 export function TeachHome(): JSX.Element {
@@ -53,6 +55,7 @@ export function TeachHome(): JSX.Element {
       {tab === 'assignments' && <TeachAssignments />}
       {tab === 'coding' && <TeachCoding />}
       {tab === 'quiz' && <TeachQuiz />}
+      {tab === 'gradebook' && <TeachGradebook />}
     </section>
   );
 }

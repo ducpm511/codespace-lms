@@ -7,6 +7,7 @@ import { useQuizzesForClass } from '../features/quiz/hooks';
 import { useCodingProblemsForClass } from '../features/coding/hooks';
 import { LearnQuizWorkspace } from './learn/LearnQuiz';
 import { LearnCodingWorkspace } from './learn/LearnCoding';
+import { StudentGradebookSection } from './learn/StudentGradebookSection';
 
 /* ── Lesson type → icon + category color ─────────────────────────────────── */
 const LESSON_META: Record<string, { icon: string; color: string }> = {
@@ -161,6 +162,7 @@ export function LearnHome(): JSX.Element {
           <ContinueCard lessons={lessons.data ?? []} onOpen={openLesson} />
           <LessonsByChapter lessons={lessons.data ?? []} loading={lessons.isLoading} onOpen={openLesson} />
           <ExercisesHub exercises={exercises} lessonById={lessonById} onOpenQuiz={openQuiz} onOpenCoding={openCoding} />
+          <StudentGradebookSection classId={classId} />
         </>
       )}
     </section>
