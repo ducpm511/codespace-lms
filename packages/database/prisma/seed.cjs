@@ -104,11 +104,10 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.QUIZ_READ, PERMISSIONS.QUIZ_RESULT_READ,
     PERMISSIONS.GRADE_READ, PERMISSIONS.CERTIFICATE_READ,
   ],
-  // học viên: nộp code/quiz + xem kết quả + sổ điểm/chứng chỉ của mình
+  // học viên: nộp code/quiz + xem kết quả của mình (sổ điểm lớp/chứng chỉ dùng endpoint riêng chặn theo membership)
   student: [
     PERMISSIONS.CODING_SUBMIT, PERMISSIONS.CODING_RESULT_READ,
     PERMISSIONS.QUIZ_SUBMIT, PERMISSIONS.QUIZ_RESULT_READ,
-    PERMISSIONS.GRADE_READ, PERMISSIONS.CERTIFICATE_READ,
   ],
 };
 

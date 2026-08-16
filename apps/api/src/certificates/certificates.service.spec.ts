@@ -13,6 +13,7 @@ function makePrisma() {
     course: { findUnique: jest.fn() },
     certificateTemplate: { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn() },
     certificate: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn() },
+    lessonProgress: { count: jest.fn() },
     auditLog: { create: jest.fn() },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
@@ -56,26 +57,27 @@ describe('CertificatesService', () => {
     it('404 khi học viên không tồn tại', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       await expect(
-        service.issue({ userId: 'ghost', courseId: 'cr1', templateId: 't1' }, dummyAdmin),
+        service.issue({ userId: 'ghost', courseId: 'cr1', classId: 'c1', templateId: 't1' }, dummyAdmin),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('409 khi học viên đã được cấp chứng chỉ cho khóa', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'u1' });
-      prisma.course.findUnique.mockResolvedValue({ id: 'cr1' });
+      prisma.course.findUnique.mockResolvedValue({ id: 'cr1', sections: [] });
       prisma.certificateTemplate.findUnique.mockResolvedValue({ id: 't1' });
       prisma.certificate.findFirst.mockResolvedValue({ id: 'cert1', revokedAt: null });
 
       await expect(
-        service.issue({ userId: 'u1', courseId: 'cr1', templateId: 't1' }, dummyAdmin),
+        service.issue({ userId: 'u1', courseId: 'cr1', classId: 'c1', templateId: 't1' }, dummyAdmin),
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('cấp chứng chỉ thành công và ghi AuditLog trong cùng transaction', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'u1', fullName: 'Học Viên A' });
-      prisma.course.findUnique.mockResolvedValue({ id: 'cr1', title: 'Python Cơ Bản' });
+      prisma.course.findUnique.mockResolvedValue({ id: 'cr1', title: 'Python Cơ Bản', sections: [] });
       prisma.certificateTemplate.findUnique.mockResolvedValue({ id: 't1', name: 'Standard' });
       prisma.certificate.findFirst.mockResolvedValue(null);
+      prisma.lessonProgress.count.mockResolvedValue(0);
 
       const mockCertCreated = {
         id: 'cert-100',

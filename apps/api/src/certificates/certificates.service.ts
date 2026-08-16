@@ -4,7 +4,9 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { Prisma } from '@lms/database';
 import {
   PERMISSIONS,
@@ -20,6 +22,33 @@ import type { IssueCertificateDto } from './dto/issue-certificate.dto';
 import type { RevokeCertificateDto } from './dto/revoke-certificate.dto';
 import type { CreateCertificateTemplateDto } from './dto/create-template.dto';
 
+interface CertWithRelations {
+  id: string;
+  userId: string;
+  classId?: string | null;
+  courseId: string;
+  templateId: string;
+  serialNo: string;
+  verificationCode: string;
+  finalScore: Prisma.Decimal | number;
+  issuedAt: Date;
+  issuedById: string;
+  pdfFileId?: string | null;
+  revokedAt?: Date | null;
+  revokedReason?: string | null;
+  user?: { fullName: string };
+  course?: { title: string };
+  issuedBy?: { fullName: string };
+}
+
+interface TemplateRecord {
+  id: string;
+  name: string;
+  backgroundFileId?: string | null;
+  layoutJson?: Prisma.JsonValue;
+  createdAt: Date;
+}
+
 @Injectable()
 export class CertificatesService {
   constructor(
@@ -29,8 +58,14 @@ export class CertificatesService {
   ) {}
 
   async issue(dto: IssueCertificateDto, currentUser: AuthUser): Promise<CertificateDto> {
+    if (!dto.classId) {
+      throw new BadRequestException('Vui lòng chỉ định lớp học để cấp chứng chỉ');
+    }
+
     // 1) Scope permission check
-    if (dto.classId) {
+    const isSuperAdmin = currentUser.roles?.includes('super_admin');
+    const isAdmin = currentUser.roles?.includes('admin');
+    if (!isSuperAdmin && !isAdmin) {
       const eff = await this.rbac.getEffectivePermissions(currentUser.id);
       const canIssue = this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_ISSUE, dto.classId);
       if (!canIssue) {
@@ -38,19 +73,28 @@ export class CertificatesService {
       }
     }
 
-    // 2) Check if user exists
+    // 2) Check targetUser
     const targetUser = await this.prisma.user.findUnique({ where: { id: dto.userId } });
     if (!targetUser) {
       throw new NotFoundException('Học viên không tồn tại');
     }
 
-    // 3) Check if course exists
-    const course = await this.prisma.course.findUnique({ where: { id: dto.courseId } });
+    // 3) Check course & fetch sections/lessons for completion rate check
+    const course = await this.prisma.course.findUnique({
+      where: { id: dto.courseId },
+      include: {
+        sections: {
+          include: {
+            lessons: true,
+          },
+        },
+      },
+    });
     if (!course) {
       throw new NotFoundException('Khóa học không tồn tại');
     }
 
-    // 4) Check template exists
+    // 4) Check template
     const template = await this.prisma.certificateTemplate.findUnique({ where: { id: dto.templateId } });
     if (!template) {
       throw new NotFoundException('Mẫu chứng chỉ không tồn tại');
@@ -61,7 +105,7 @@ export class CertificatesService {
       where: {
         userId: dto.userId,
         courseId: dto.courseId,
-        classId: dto.classId ?? null,
+        classId: dto.classId,
       },
     });
 
@@ -72,50 +116,98 @@ export class CertificatesService {
       throw new ConflictException('Học viên đã được cấp chứng chỉ cho khóa học này');
     }
 
-    // 6) Calculate finalScore from Gradebook / entries
-    let finalScore = 85; // default pass score
-    if (dto.classId) {
-      const gradebook = await this.grading.getClassGradebook(dto.classId, currentUser);
-      const userRow = gradebook.rows.find((r) => r.userId === dto.userId);
-      if (userRow) {
-        finalScore = userRow.totalWeightedScore;
+    // 6) Validate completion criteria (§5.3): lesson completion rate >= 80% & finalScore >= passScore (60%)
+    let totalLessons = 0;
+    for (const sec of course.sections) {
+      totalLessons += sec.lessons.length;
+    }
+
+    if (totalLessons > 0) {
+      const completedCount = await this.prisma.lessonProgress.count({
+        where: {
+          userId: dto.userId,
+          classId: dto.classId,
+          status: 'completed',
+        },
+      });
+      const completionRate = Math.round((completedCount / totalLessons) * 100);
+      if (completionRate < 80) {
+        throw new UnprocessableEntityException(
+          `Học viên chưa hoàn thành đủ số bài học (${completionRate}% / 80% tối thiểu)`,
+        );
       }
     }
 
-    // 7) Generate unique serialNo & verificationCode
-    const serialNo = `CS-CERT-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    const verificationCode = `VC-${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 6)}`.toLowerCase();
+    // Calculate actual finalScore from Gradebook
+    const gradebook = await this.grading.getClassGradebook(dto.classId, currentUser);
+    const userRow = gradebook.rows.find((r) => r.userId === dto.userId);
 
-    // 8) Save Certificate and AuditLog in SAME transaction
-    const [cert] = await this.prisma.$transaction([
-      this.prisma.certificate.create({
-        data: {
-          userId: dto.userId,
-          courseId: dto.courseId,
-          classId: dto.classId ?? null,
-          templateId: dto.templateId,
-          serialNo,
-          verificationCode,
-          finalScore: new Prisma.Decimal(finalScore),
-          issuedById: currentUser.id,
-          issuedAt: new Date(),
-        },
-        include: {
-          user: { select: { fullName: true } },
-          course: { select: { title: true } },
-          issuedBy: { select: { fullName: true } },
-        },
-      }),
-      this.prisma.auditLog.create({
-        data: {
-          actorId: currentUser.id,
-          action: 'certificate.issue',
-          entity: 'Certificate',
-          entityId: serialNo,
-          metaJson: { userId: dto.userId, courseId: dto.courseId, classId: dto.classId, serialNo },
-        },
-      }),
-    ]);
+    if (!userRow) {
+      throw new BadRequestException('Học viên không nằm trong danh sách lớp học này');
+    }
+
+    const finalScore = userRow.totalWeightedScore;
+    const passScore = 60; // minimum pass score threshold
+    if (finalScore < passScore) {
+      throw new UnprocessableEntityException(
+        `Điểm tổng kết của học viên (${finalScore}%) chưa đạt ngưỡng tối thiểu (${passScore}%) để cấp chứng chỉ`,
+      );
+    }
+
+    // 7) Generate cryptographically secure serialNo & verificationCode (M2 fix with retry)
+    let attempts = 0;
+    let cert: CertWithRelations | null = null;
+
+    while (attempts < 3) {
+      attempts++;
+      const year = new Date().getFullYear();
+      const serialNo = `CS-CERT-${year}-${randomBytes(4).toString('hex').toUpperCase()}`;
+      const verificationCode = `VC-${randomBytes(12).toString('hex')}`;
+
+      try {
+        const [created] = await this.prisma.$transaction([
+          this.prisma.certificate.create({
+            data: {
+              userId: dto.userId,
+              courseId: dto.courseId,
+              classId: dto.classId,
+              templateId: dto.templateId,
+              serialNo,
+              verificationCode,
+              finalScore: new Prisma.Decimal(finalScore),
+              issuedById: currentUser.id,
+              issuedAt: new Date(),
+            },
+            include: {
+              user: { select: { fullName: true } },
+              course: { select: { title: true } },
+              issuedBy: { select: { fullName: true } },
+            },
+          }),
+          this.prisma.auditLog.create({
+            data: {
+              actorId: currentUser.id,
+              action: 'certificate.issue',
+              entity: 'Certificate',
+              entityId: serialNo,
+              metaJson: { userId: dto.userId, courseId: dto.courseId, classId: dto.classId, serialNo, finalScore },
+            },
+          }),
+        ]);
+
+        cert = created;
+        break;
+      } catch (err: unknown) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002' && attempts < 3) {
+          continue; // retry code generation on unique collision
+        }
+        throw err;
+      }
+    }
+
+    if (!cert) {
+      throw new BadRequestException('Tạo chứng chỉ không thành công');
+    }
 
     return toCertificateDto(cert);
   }
@@ -138,12 +230,17 @@ export class CertificatesService {
       throw new BadRequestException('Chứng chỉ này đã bị thu hồi trước đó');
     }
 
-    // Scope check
-    if (cert.classId) {
+    // M1 fix: Scope check in service for cert.classId or global admin
+    const isSuperAdmin = currentUser.roles?.includes('super_admin');
+    const isAdmin = currentUser.roles?.includes('admin');
+    if (!isSuperAdmin && !isAdmin) {
       const eff = await this.rbac.getEffectivePermissions(currentUser.id);
-      const canRevoke = this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_REVOKE, cert.classId);
+      const canRevoke = cert.classId
+        ? this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_REVOKE, cert.classId)
+        : this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_REVOKE);
+
       if (!canRevoke) {
-        throw new ForbiddenException('Không có quyền thu hồi chứng chỉ cho lớp này');
+        throw new ForbiddenException('Không có quyền thu hồi chứng chỉ này');
       }
     }
 
@@ -178,7 +275,7 @@ export class CertificatesService {
     const cert = await this.prisma.certificate.findUnique({
       where: { verificationCode: code },
       include: {
-        user: { select: { fullName: true } }, // ONLY display name, NO email / PII
+        user: { select: { fullName: true } }, // ONLY display name, ZERO PII
         course: { select: { title: true } },
       },
     });
@@ -213,10 +310,14 @@ export class CertificatesService {
   }
 
   async listForClass(classId: string, currentUser: AuthUser): Promise<CertificateDto[]> {
-    const eff = await this.rbac.getEffectivePermissions(currentUser.id);
-    const canRead = this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ, classId);
-    if (!canRead) {
-      throw new ForbiddenException('Không có quyền xem danh sách chứng chỉ của lớp này');
+    const isSuperAdmin = currentUser.roles?.includes('super_admin');
+    const isAdmin = currentUser.roles?.includes('admin');
+    if (!isSuperAdmin && !isAdmin) {
+      const eff = await this.rbac.getEffectivePermissions(currentUser.id);
+      const canRead = this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ, classId);
+      if (!canRead) {
+        throw new ForbiddenException('Không có quyền xem danh sách chứng chỉ của lớp này');
+      }
     }
 
     const certs = await this.prisma.certificate.findMany({
@@ -249,33 +350,6 @@ export class CertificatesService {
     });
     return toTemplateDto(created);
   }
-}
-
-interface CertWithRelations {
-  id: string;
-  userId: string;
-  classId?: string | null;
-  courseId: string;
-  templateId: string;
-  serialNo: string;
-  verificationCode: string;
-  finalScore: Prisma.Decimal | number;
-  issuedAt: Date;
-  issuedById: string;
-  pdfFileId?: string | null;
-  revokedAt?: Date | null;
-  revokedReason?: string | null;
-  user?: { fullName: string };
-  course?: { title: string };
-  issuedBy?: { fullName: string };
-}
-
-interface TemplateRecord {
-  id: string;
-  name: string;
-  backgroundFileId?: string | null;
-  layoutJson?: Prisma.JsonValue;
-  createdAt: Date;
 }
 
 function toCertificateDto(cert: CertWithRelations): CertificateDto {

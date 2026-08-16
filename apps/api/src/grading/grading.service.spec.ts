@@ -2,6 +2,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { AuthUser } from '@lms/contracts';
 import { GradingService } from './grading.service';
 import type { PrismaService } from '../prisma/prisma.service';
+import type { RbacService } from '../rbac/rbac.service';
 
 const dummyUser: AuthUser = { id: 'u1', email: 'u1@test.com', fullName: 'User 1', status: 'active', roles: [], permissions: [] };
 
@@ -33,13 +34,25 @@ function makePrisma() {
   };
 }
 
+function makeRbac() {
+  return {
+    getEffectivePermissions: jest.fn().mockResolvedValue([]),
+    hasPermission: jest.fn().mockReturnValue(true),
+  };
+}
+
 describe('GradingService', () => {
   let prisma: ReturnType<typeof makePrisma>;
+  let rbac: ReturnType<typeof makeRbac>;
   let service: GradingService;
 
   beforeEach(() => {
     prisma = makePrisma();
-    service = new GradingService(prisma as unknown as PrismaService);
+    rbac = makeRbac();
+    service = new GradingService(
+      prisma as unknown as PrismaService,
+      rbac as unknown as RbacService,
+    );
   });
 
   describe('getClassGradebook', () => {
@@ -57,7 +70,7 @@ describe('GradingService', () => {
           {
             course: {
               assignments: [{ id: 'a1', title: 'BT1', maxScore: '100' }],
-              quizzes: [{ id: 'q1', title: 'Quiz1' }],
+              quizzes: [{ id: 'q1', title: 'Quiz1', questions: [{ points: '100' }] }],
               codingProblems: [{ id: 'cp1', title: 'Code1', maxScore: '100' }],
             },
           },

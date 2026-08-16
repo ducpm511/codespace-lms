@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@lms/database';
 import {
+  PERMISSIONS,
   type AuthUser,
   type ClassGradebookDto,
   type GradeItemDto,
@@ -8,13 +9,18 @@ import {
   type StudentOwnGradebookDto,
 } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
+import { RbacService } from '../rbac/rbac.service';
 
 interface ClassWithCourses {
   id: string;
   courses: Array<{
     course: {
       assignments: Array<{ id: string; title: string; maxScore: Prisma.Decimal }>;
-      quizzes: Array<{ id: string; title: string }>;
+      quizzes: Array<{
+        id: string;
+        title: string;
+        questions: Array<{ points: Prisma.Decimal }>;
+      }>;
       codingProblems: Array<{ id: string; title: string; maxScore: Prisma.Decimal }>;
     };
   }>;
@@ -32,9 +38,30 @@ interface SyncedGradeItem {
 
 @Injectable()
 export class GradingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rbac: RbacService,
+  ) {}
 
-  async getClassGradebook(classId: string, _currentUser?: AuthUser): Promise<ClassGradebookDto> {
+  async getClassGradebook(classId: string, currentUser?: AuthUser): Promise<ClassGradebookDto> {
+    // Defense-in-depth permission check if currentUser is provided
+    if (currentUser) {
+      const isSuperAdmin = currentUser.roles?.includes('super_admin');
+      const isAdmin = currentUser.roles?.includes('admin');
+      if (!isSuperAdmin && !isAdmin) {
+        const eff = await this.rbac.getEffectivePermissions(currentUser.id);
+        const canRead = this.rbac.hasPermission(eff, PERMISSIONS.GRADE_READ, classId);
+        if (!canRead) {
+          const member = await this.prisma.classMember.findUnique({
+            where: { classId_userId: { classId, userId: currentUser.id } },
+          });
+          if (!member || (member.roleInClass !== 'instructor' && member.roleInClass !== 'ta')) {
+            throw new ForbiddenException('Bạn không có quyền xem sổ điểm của lớp này');
+          }
+        }
+      }
+    }
+
     const cls = await this.prisma.class.findUnique({
       where: { id: classId },
       include: {
@@ -43,7 +70,11 @@ export class GradingService {
             course: {
               include: {
                 assignments: true,
-                quizzes: true,
+                quizzes: {
+                  include: {
+                    questions: { select: { points: true } },
+                  },
+                },
                 codingProblems: true,
               },
             },
@@ -128,7 +159,7 @@ export class GradingService {
       throw new ForbiddenException('Bạn không phải học viên active của lớp này');
     }
 
-    const fullGradebook = await this.getClassGradebook(classId, currentUser);
+    const fullGradebook = await this.getClassGradebook(classId); // skip staff check for internal student fetch
     const myRow = fullGradebook.rows.find((r) => r.userId === currentUser.id);
 
     return {
@@ -159,11 +190,13 @@ export class GradingService {
         });
       }
       for (const q of c.quizzes) {
+        // Calculate actual maxScore from sum of question points (H2 fix)
+        const qMax = q.questions.reduce((acc, curr) => acc + Number(curr.points), 0);
         itemsToUpsert.push({
           sourceType: 'quiz',
           sourceId: q.id,
           title: q.title,
-          maxScore: 100,
+          maxScore: qMax > 0 ? qMax : 100,
         });
       }
       for (const cp of c.codingProblems) {

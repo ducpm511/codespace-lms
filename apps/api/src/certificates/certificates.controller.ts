@@ -24,8 +24,7 @@ export class CertificatesController {
   }
 
   @Post(':id/revoke')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermission(PERMISSIONS.CERTIFICATE_REVOKE)
+  @UseGuards(JwtAuthGuard)
   revoke(
     @Param('id') id: string,
     @Body() dto: RevokeCertificateDto,
