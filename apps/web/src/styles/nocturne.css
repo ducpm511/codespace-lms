@@ -3,7 +3,7 @@
    Scope-safe: KHÔNG áp reset typography toàn cục (body/h1..h6/p/a/img) để tránh
    restyle các màn light-slate hiện có. Ground tối + heading của Nocturne được bọc
    trong `.nocturne-surface` — các màn mới (quiz) render bên trong scope này. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Baloo+2:wght@500;600;700&display=swap');
 
 :root {
   --color-bg: #161826;
@@ -387,3 +387,129 @@ select.input { cursor: pointer; }
 }
 .dialog-body { font-size: 14px; opacity: 0.85; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PLAYFUL LAYER (additive to Nocturne — project-local, không phải token Nocturne)
+   Nguồn: design_handoff_lms_ui/CodeSpace-LMS-design.html <style>. GIỮ nguyên giá trị.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* — Category color system (chỉ dùng tint mờ làm nền icon + inset border card) — */
+:root {
+  --cx-purple: var(--color-accent); /* #9184d9 — lessons / continue / primary */
+  --cx-amber: #f0a94e;              /* streak / assignments hub */
+  --cx-teal: #55cdb3;               /* coding / progress / success */
+  --cx-coral: #ef7d92;              /* quizzes / celebration */
+  --cx-blue: #6db2f0;               /* reading lessons / discussion */
+  --cx-radius: 22px;                /* "sticker" card radius (hero + primary tiles) */
+}
+
+/* — App-wide ambient ground: hai radial glow rất mờ trên nền tối — */
+body {
+  background:
+    radial-gradient(1100px 620px at 12% -12%, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent),
+    radial-gradient(900px 520px at 100% 0%, color-mix(in srgb, var(--cx-teal) 8%, transparent), transparent),
+    var(--color-bg);
+  background-attachment: fixed;
+}
+
+/* — Display font (headings / card titles / stat numbers) — */
+.cx-display {
+  font-family: 'Baloo 2', var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* — Pill-shaped primary buttons + chips (friendlier override của 8px Nocturne) — */
+.btn.btn-primary { border-radius: 999px; }
+.cx-chip-btn { border-radius: 999px; }
+
+/* — Micro-interactions (hover/press: ngắn, intentful — không gate reduced-motion) — */
+.cx-tile { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.cx-tile:hover { transform: translateY(-3px); }
+.cx-lift { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.cx-lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.cx-press:active { transform: scale(0.97); }
+
+/* — Celebration / result pop-in (giữ cả khi reduced-motion: ngắn + có chủ đích) — */
+@keyframes cx-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* — Idle loops (mascot + décor) — gate sau prefers-reduced-motion bên dưới — */
+@keyframes cx-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(-1.5deg); }
+}
+@keyframes cx-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes cx-shoot {
+  0% { transform: translate(0, 0); opacity: 0; }
+  6% { opacity: 1; }
+  22% { opacity: 0; }
+  100% { transform: translate(-220px, 150px); opacity: 0; }
+}
+.cx-float { animation: cx-float 5s ease-in-out infinite; }
+.cx-bob { animation: cx-bob 3.2s ease-in-out infinite; }
+
+/* — Login banner shooting-star streaks — */
+.cx-shooting-star {
+  position: absolute;
+  width: 90px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(to left, var(--color-neutral-100), transparent);
+  transform: rotate(35deg);
+  animation: cx-shoot 4.5s ease-in infinite;
+}
+
+/* — Décor textures — */
+.cx-dots {
+  background-image: radial-gradient(color-mix(in srgb, var(--color-text) 12%, transparent) 1.4px, transparent 1.4px);
+  background-size: 20px 20px;
+}
+.cx-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(48px);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* — Toggle switch (34×20 pill, thumb 16px) — dùng cho lesson gate + publish quiz — */
+.cx-toggle {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--color-neutral-700);
+  cursor: pointer;
+  transition: background .16s ease;
+}
+.cx-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cx-toggle .cx-toggle-thumb {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .16s ease;
+}
+.cx-toggle:has(input:checked) { background: var(--color-accent); }
+.cx-toggle:has(input:checked) .cx-toggle-thumb { transform: translateX(14px); }
+.cx-toggle:has(input:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.cx-toggle:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+
+/* — Phosphor icon baseline: canh giữa theo dòng chữ — */
+.ph, .ph-fill, .ph-bold, .ph-duotone, .ph-light, .ph-thin { line-height: 1; }
+
+/* — Reduced motion: tắt các loop nền, giữ hover/press/pop ngắn — */
+@media (prefers-reduced-motion: reduce) {
+  .cx-float, .cx-bob, .cx-shooting-star { animation: none !important; }
+}
