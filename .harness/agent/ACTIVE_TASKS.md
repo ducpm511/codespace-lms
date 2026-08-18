@@ -21,6 +21,7 @@ Updated: 2026-08-16
 | **P4** Quiz | quiz engine + autograde | ✅ Done |
 | **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | ✅ Done (T5.0–T5.7 + review fixes) |
 | **P6** Polish & Gamification | notification, audit UI, báo cáo lớp, gamification thật, PDF cert, tech debt cleanup | ✅ Done (T6.1–T6.6 + D1–D5) |
+| **P7** Lesson Activities | bài học đa hoạt động: markdown/pdf slide/video/quiz/coding/assignment | ⬅️ Next (chi tiết `HANDOFF_P7.md`) |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -30,6 +31,16 @@ Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified
 ---
 
 ## Active Phase
+
+### Phase P7: Lesson Activities — ⬅️ NEXT (chưa bắt đầu)
+
+Bài học chuyển từ "đơn nội dung" → **container activity có thứ tự**: markdown (react-markdown) / pdf slide
+(upload) / video (link nhúng) / quiz / coding / assignment. **Lý do**: user test thấy chưa thêm được nội dung
+bài học — model `Lesson.contentMd/videoUrl` + backend persist đã có, nhưng form FE chỉ gửi `title` và DTO đọc về
+không trả nội dung. **Quyết định đã chốt**: video = link nhúng (không upload), markdown = react-markdown, PDF =
+upload qua StorageAdapter. **Full plan + prompt sẵn-để-dán → `.harness/agent/HANDOFF_P7.md`** (T7.0–T7.6).
+
+---
 
 ### Phase P6: Polish & Gamification — ✅ HOÀN THÀNH (2026-08-17)
 
