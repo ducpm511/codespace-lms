@@ -2,11 +2,33 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-08-17
+Updated: 2026-08-19
 
 ## Project Stage
 
-**P0–P6 ✅ ALL PHASES DONE (100% COMPLETE). Toàn bộ hệ thống LMS CodeSpace đã hoàn tất.**
+**P0–P7 ✅ ALL PHASES DONE.**
+
+### P7 Lesson Activities (2026-08-19) — branch `claude/handoff-p7-implementation-456432`, chưa merge main
+- Bài học = **container activity có thứ tự** (markdown / pdf / video / quiz / coding / assignment).
+  Đóng gốc bug user báo: FE trước chỉ gửi `title`, DTO đọc về không trả nội dung.
+- Model `LessonActivity` + migration `p7_lesson_activities` (kèm data migration backfill từ
+  `Lesson.contentMd/videoUrl` — DB dev 0 bản ghi legacy). `File.fileName` mới.
+- Module `files` MỚI: `POST /files` (PDF, allowlist mime + **magic bytes** + 20MB ở multer lẫn service,
+  storageKey server sinh) + `GET /files/:id` guard owner/`course.update`/member lớp có gate mở.
+- `courses/lesson-activities.service.ts`: CRUD + reorder 2 pha (dải âm, né `@@unique([lessonId, order])`),
+  IDOR course→section→lesson; gắn ref sẽ set `lessonId` cho engine để gate áp đúng; student đọc qua `my-lessons`.
+- FE: `LessonActivityBuilder` (Teach) + render activities trong `LessonDetail` (Learn) + `.cx-prose` trong
+  nocturne.css. `apiUpload` / `apiFetchObjectUrl` trong `lib/api` (iframe không gửi được Bearer → dùng blob URL).
+- Bonus: `GET /assignments/for-class/:classId` (student-scope) — student không có `assignment.read`.
+- **Verify**: `pnpm validate` 16/16 (api **174 test / 20 suite**), i18n parity **350/350**, prisma format+validate.
+  Live: XSS markdown render thành text (không chạy script); video ngoài allowlist + `evil-youtube.com` → 400;
+  upload PNG / PDF giả mime → 400; trước gate my-lessons rỗng + file 403; ngoài lớp 403; HV POST activity/files 403;
+  quiz draft → refId/refTitle null. GV soạn + đảo thứ tự + xoá OK; HV xem đủ 6 loại đúng thứ tự.
+- **⚠️ Phát hiện lỗi bảo mật P5 (KHÔNG do P7)** — xem `ACTIVE_TASKS.md §Nợ CHẶN`: `certificates`/`grading` đọc
+  `currentUser.id` trong khi `@CurrentUser()` trả `{ userId }` → `getEffectivePermissions(undefined)` trả quyền
+  của MỌI role; `listMine` lộ toàn bộ chứng chỉ; revoke/pdf IDOR mở; `my-gradebook` 500. Cần vá riêng.
+
+### P0–P6 (trước đó)
 - **P6 Polish & Gamification** đã hoàn tất:
   - **In-app Notifications**: Schema + contracts + module + triggers tự động trong cùng `$transaction` (`gate.opened`, `submission.graded`, `certificate.issued`, `certificate.revoked`, `badge.awarded`) + FE NotificationBell popover dropdown có unread badge và đọc tất cả.
   - **Real Gamification (ADR 002)**: Level, XP events, Streak liên tiếp, hệ thống huy hiệu (6 initial badges) được tính toán thật từ hoạt động học tập (lesson, quiz pass, coding pass) + FE `GreetingHero` và Streak pill liên kết API thật `/gamification/me`.
@@ -362,8 +384,18 @@ theo phạm vi lớp** (`UserRole.classId` / `ClassMember.roleInClass`). Mọi r
 
 ## Current Phase
 
-**P1 — Course & Class ✅ DONE (6/6).** Kế tiếp: **P2 — Assessments** (assignment + submission + chấm
-tay). Chi tiết & task breakdown → `.harness/agent/ACTIVE_TASKS.md`.
+**P7 — Lesson Activities ✅ DONE (T7.0–T7.6).** Kế tiếp ưu tiên: **vá lỗi bảo mật P5**
+(`ACTIVE_TASKS.md §Nợ CHẶN` — `currentUser.id` undefined ở certificates/grading). Chi tiết & task breakdown →
+`.harness/agent/ACTIVE_TASKS.md`.
+
+### Gotchas môi trường thêm ở P7
+- Chạy trong **git worktree**: `pnpm db:up` sẽ FAIL (`docker compose` dùng tên project theo thư mục nhưng
+  container `lms-postgres`/`lms-redis` đã tồn tại từ worktree chính) → dùng `docker start lms-postgres lms-redis`.
+- `prisma generate` (trong `pnpm validate` → `@lms/database build`) **EPERM** khi API dev đang chạy — TẮT API
+  trước khi validate: `netstat -ano | grep :3000` → `taskkill //PID <pid> //F`.
+- `admin@codespace.vn` KHÔNG dùng được mật khẩu `Admin123!` trên DB dev hiện tại. Fixture P7 đã thêm 2 học viên
+  test: `p7member@codespace.vn` (member lớp có gate) / `p7outsider@codespace.vn` (ngoài lớp), mật khẩu `Learn123!`.
+- Screenshot của Browser pane timeout khi pane ẩn → dùng `get_page_text`/`read_page`/`javascript_tool`.
 
 ## Verification Commands
 

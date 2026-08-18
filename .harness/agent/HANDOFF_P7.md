@@ -1,5 +1,9 @@
 # HANDOFF — P7: Lesson Activities (bài học đa hoạt động)
 
+> ✅ **ĐÃ THỰC HIỆN XONG (2026-08-19)** — commit `42fa6ed` (backend T7.0–T7.3) + `ece35d2` (FE T7.4–T7.5)
+> trên branch `claude/handoff-p7-implementation-456432`. Kết quả + gotcha mới ghi ở
+> `.harness/agent/CURRENT_STATE.md §P7` và `ACTIVE_TASKS.md`. File này giữ lại làm hồ sơ kế hoạch gốc.
+
 > Prompt sẵn-để-dán cho session mới. Copy khối trong ``` vào session P7.
 > Bối cảnh: user test thấy KHÔNG thêm được nội dung bài học. Nguyên nhân gốc: model + backend đã có
 > `Lesson.contentMd/videoUrl/estimatedMinutes` và persist, NHƯNG (a) form FE tạo/sửa lesson chỉ gửi `title`;

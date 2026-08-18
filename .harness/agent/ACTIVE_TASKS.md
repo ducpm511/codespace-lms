@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-08-16
+Updated: 2026-08-19
 
 ## Quy ước đặt tên
 
@@ -21,7 +21,7 @@ Updated: 2026-08-16
 | **P4** Quiz | quiz engine + autograde | ✅ Done |
 | **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | ✅ Done (T5.0–T5.7 + review fixes) |
 | **P6** Polish & Gamification | notification, audit UI, báo cáo lớp, gamification thật, PDF cert, tech debt cleanup | ✅ Done (T6.1–T6.6 + D1–D5) |
-| **P7** Lesson Activities | bài học đa hoạt động: markdown/pdf slide/video/quiz/coding/assignment | ⬅️ Next (chi tiết `HANDOFF_P7.md`) |
+| **P7** Lesson Activities | bài học đa hoạt động: markdown/pdf slide/video/quiz/coding/assignment | ✅ Done (T7.0–T7.6) |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -32,13 +32,38 @@ Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified
 
 ## Active Phase
 
-### Phase P7: Lesson Activities — ⬅️ NEXT (chưa bắt đầu)
+### Phase P7: Lesson Activities — ✅ HOÀN THÀNH (2026-08-19)
 
-Bài học chuyển từ "đơn nội dung" → **container activity có thứ tự**: markdown (react-markdown) / pdf slide
-(upload) / video (link nhúng) / quiz / coding / assignment. **Lý do**: user test thấy chưa thêm được nội dung
-bài học — model `Lesson.contentMd/videoUrl` + backend persist đã có, nhưng form FE chỉ gửi `title` và DTO đọc về
-không trả nội dung. **Quyết định đã chốt**: video = link nhúng (không upload), markdown = react-markdown, PDF =
-upload qua StorageAdapter. **Full plan + prompt sẵn-để-dán → `.harness/agent/HANDOFF_P7.md`** (T7.0–T7.6).
+Bài học đã chuyển từ "đơn nội dung" → **container activity có thứ tự**. Gốc bug user báo (không thêm được
+nội dung bài học) đã đóng: form FE giờ soạn được đủ 6 loại và `my-lessons` trả nội dung về.
+
+- **T7.0 contracts** `packages/contracts/src/lesson-activity.ts`: `LessonActivityTypeValue` (markdown/pdf/video/
+  quiz/coding/assignment) + `LessonActivityDto` (author) / `StudentLessonActivityDto` (student, có `refAvailable`)
+  + Create/Update/Reorder request + `FileUploadResponse` + hằng dùng chung `VIDEO_EMBED_HOSTS`,
+  `MAX_UPLOAD_BYTES` (20MB), `ALLOWED_UPLOAD_MIMES`. `MyLessonDto.activities`, `LessonDetail`,
+  `LessonSummary.activityCount`. `contentMd`/`videoUrl` cũ GIỮ làm legacy fallback.
+- **T7.1 schema** migration `p7_lesson_activities`: `LessonActivity(lessonId, order, type, title?, contentMd?,
+  fileId?, videoUrl?, refId?)` `@@unique([lessonId, order])` + `File.fileName`. Kèm **data migration** backfill
+  activity markdown/video từ `Lesson.contentMd/videoUrl` (DB dev: 0 bản ghi — đúng như chẩn đoán gốc bug).
+- **T7.2 module `files`**: `POST /files` multipart (`FileInterceptor`, `course.update`) — allowlist mime PDF +
+  **magic bytes `%PDF-`** + giới hạn 20MB ở CẢ multer lẫn service, `storageKey` do server sinh (`randomUUID`),
+  tên gốc chỉ để hiển thị. `GET /files/:id` stream private, guard: owner / `course.update` global /
+  thành viên active của lớp có gate ĐANG MỞ / instructor·TA của lớp đã gán khóa.
+- **T7.3 activities backend** (`courses/lesson-activities.service.ts`): CRUD + **reorder 2 pha qua dải âm**
+  (tránh đụng `@@unique`), IDOR course→section→lesson, validate theo loại (mỗi loại chỉ giữ cột của mình;
+  ref phải thuộc đúng khóa). Gắn activity ref sẽ set `lessonId` cho Quiz/CodingProblem/Assignment để luật gate
+  áp đúng bài; xoá activity KHÔNG xoá engine phía sau. Student đọc qua `my-lessons` (`listForStudent`).
+- **T7.4 FE Teach**: `LessonActivityBuilder` (nút "Nội dung" trong TeachCourses) — list sắp xếp được, xem trước,
+  sửa/xoá, editor con theo loại + upload PDF + picker quiz/coding/assignment.
+- **T7.5 FE Learn**: `LessonDetail` render activities theo `order`; markdown react-markdown, PDF iframe blob URL,
+  video iframe sandbox + allowlist, quiz/coding mở workspace cũ, assignment nhúng `StudentAssignmentCard`.
+- **Bonus**: `GET /assignments/for-class/:classId` (student-scope, membership + gate) — student không có
+  `assignment.read` nên không dùng được `GET /assignments`.
+
+**INVARIANT verify (live)**: XSS markdown (`<img onerror>` + `<script>`) render thành TEXT, không chạy;
+video ngoài allowlist + host giả tiền tố (`evil-youtube.com`) → 400; upload PNG và PDF-giả-mime → 400;
+trước gate `my-lessons` rỗng + `GET /files/:id` 403; người ngoài lớp 403; học viên POST activity/`/files` 403;
+quiz `published=false` → `refId`/`refTitle` = null + `refAvailable=false`.
 
 ---
 
@@ -55,6 +80,27 @@ upload qua StorageAdapter. **Full plan + prompt sẵn-để-dán → `.harness/a
 - **D3 (Separate Template Permission)**: Thêm quyền `certificate.template.manage` (`CERTIFICATE_TEMPLATE_MANAGE`) tách biệt với quyền cấp phát chứng chỉ.
 - **D4 (Real Gamification ADR 002)**: Schema (`XpEvent`, `UserStreak`, `Badge`, `UserBadge`) + tính Level/XP/Streak pure function + tự động trao huy hiệu + trigger XP khi hoàn thành bài học (50 XP), pass quiz (100 XP), pass coding (100 XP) trong cùng transaction + FE `GreetingHero` và Streak pill hiển thị dữ liệu thật từ `/gamification/me`.
 - **D5 (Lesson Discussion / Comments)**: Schema (`LessonComment`) + CommentsModule (`GET/POST /lessons/:id/comments?classId=`) + FE `LessonCommentsSection` tích hợp trong `LearnHome > LessonDetail`.
+
+---
+
+## 🔴 Nợ CHẶN — lỗi bảo mật P5 phát hiện khi làm P7 (2026-08-19, CHƯA vá)
+
+`@CurrentUser()` trả `AuthPrincipal { userId }`, nhưng `certificates.service.ts` + `grading.service.ts` khai kiểu
+`AuthUser` rồi đọc `currentUser.id`/`currentUser.roles` → **luôn `undefined` lúc chạy**. Hậu quả đã xác nhận
+trên DB dev:
+
+1. `RbacService.getEffectivePermissions(undefined)` → `userRole.findMany({ where: { userId: undefined } })` —
+   Prisma **bỏ qua filter** → trả toàn bộ user_roles → hợp nhất quyền mọi role ≈ super_admin. Mọi kiểm quyền
+   trong `certificates` đều pass.
+2. `certificates.listMine` `where: { userId: undefined }` → trả **MỌI chứng chỉ của mọi học viên**.
+3. `POST /certificates/:id/revoke` (chỉ `JwtAuthGuard`, scope kiểm trong service) → user bất kỳ thu hồi được
+   chứng chỉ người khác. `GET /certificates/:id/pdf` IDOR mở tương tự.
+4. `GET /classes/:classId/my-gradebook` **500** `PrismaClientValidationError` (endpoint hỏng hoàn toàn —
+   quan sát live ở màn Learn).
+
+Sửa: đổi sang `AuthPrincipal` + `currentUser.userId` ở 2 service, bỏ phụ thuộc `currentUser.roles` (thay bằng
+kiểm permission qua `RbacService`), thêm phòng thủ chiều sâu trong `getEffectivePermissions` khi `userId` falsy,
+kèm unit test. **KHÔNG do P7 gây ra** — P7 chỉ tình cờ phát hiện.
 
 ---
 
