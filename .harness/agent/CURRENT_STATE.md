@@ -32,8 +32,15 @@ Updated: 2026-08-19
   phủ đủ — đã đối chiếu seed), `getEffectivePermissions` trả RỖNG khi `userId` falsy (phòng thủ chiều sâu).
   api **180 test** (+6 hồi quy). Live: my-gradebook 200; HV không sở hữu → `/certificates/mine` 0, `:id/pdf` 403,
   `:id/revoke` 403; GV vẫn 200. Chi tiết → `ACTIVE_TASKS.md`.
-- **Nợ mới ghi nhận**: PDF chứng chỉ **500 với tiếng Việt** (`WinAnsi cannot encode "ơ"` — pdf-lib StandardFonts).
-  Cần nhúng font Unicode qua `@pdf-lib/fontkit`. Có từ P6/D1, chưa vá.
+### Vá PDF chứng chỉ tiếng Việt (2026-08-19) — lỗi P6/D1, cũng không do P7
+- Trước: `GET /certificates/:id/pdf` **500** `WinAnsi cannot encode "ơ"` — `pdf-lib` StandardFonts (Helvetica)
+  mã hóa WinAnsi, không có ký tự có dấu. Nhãn tĩnh trong generator từng phải bỏ dấu để né lỗi.
+- Vá: nhúng **Roboto** (Apache-2.0) qua `@pdf-lib/fontkit` + `embedFont(..., { subset: true })`.
+  Font lấy từ npm `roboto-fontface` (định dạng **WOFF** — `@pdf-lib/fontkit` đọc thẳng), nạp bằng
+  `require.resolve` + cache buffer module scope → **không commit binary, không cần copy asset ở `nest build`**.
+  Nhãn tĩnh khôi phục dấu đầy đủ.
+- Verify: api **183 test** (+3), `pnpm validate` 16/16. `fontkit.layout()` cho **0 `.notdef`** trên mọi chuỗi
+  thật (không tofu). Live: 200 `application/pdf` ~18KB cho GV có quyền và chủ sở hữu.
 
 ### P0–P6 (trước đó)
 - **P6 Polish & Gamification** đã hoàn tất:

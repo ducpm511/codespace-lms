@@ -105,13 +105,23 @@ Live sau vá: `my-gradebook` 200; HV không sở hữu `/certificates/mine` = 0 
 `GET /:id/pdf` 403; `POST /:id/revoke` 403; GV vẫn đọc được `/certificates/class/:id` + gradebook (200).
 **KHÔNG do P7 gây ra.**
 
-## 🟡 Nợ MỚI — PDF chứng chỉ chết với tiếng Việt (P6/D1, CHƯA vá)
+## 🖨️ PDF chứng chỉ chết với tiếng Việt (P6/D1) — ✅ ĐÃ VÁ (2026-08-19)
 
-`GET /certificates/:id/pdf` trả **500**: `WinAnsi cannot encode "ơ" (0x01a1)`. `pdf-lib` dùng StandardFonts
-(WinAnsi) không biểu diễn được ký tự có dấu → mọi tên học viên / tiêu đề khóa tiếng Việt đều làm sinh PDF chết.
-Sửa: nhúng font Unicode TTF qua `@pdf-lib/fontkit` (`registerFontkit` + `embedFont(bytes, { subset: true })`),
-để font trong repo + bảo đảm `nest build` copy asset; thêm test sinh PDF với chuỗi có dấu.
-Phát hiện khi verify P7, **không do P7**.
+Trước vá: `GET /certificates/:id/pdf` trả **500** — `WinAnsi cannot encode "ơ" (0x01a1)`. `pdf-lib`
+`StandardFonts` (Helvetica) mã hóa WinAnsi nên mọi tên học viên / tiêu đề khóa có dấu đều làm sinh PDF chết —
+tính năng chứng chỉ PDF thực tế hỏng với dữ liệu tiếng Việt. (Nhãn tĩnh trong generator trước đây đã phải
+**bỏ dấu** để né lỗi: "CHUNG NHAN HOAN THANH…".)
+
+**Đã vá**: nhúng **Roboto** (Apache-2.0, phủ đủ Vietnamese) qua `@pdf-lib/fontkit` —
+`registerFontkit` + `embedFont(bytes, { subset: true })`. Font lấy từ npm `roboto-fontface` (WOFF —
+`@pdf-lib/fontkit` đọc trực tiếp), nạp bằng `require.resolve` + cache buffer ở module scope →
+**không commit binary vào repo, không cần cấu hình copy asset cho `nest build`**. Nhãn tĩnh đã khôi phục
+dấu đầy đủ.
+
+Verify: 3 unit test mới (`certificate-pdf.generator.spec.ts`) — tên/khóa có dấu, dải dấu đầy đủ
+(ơ ư ạ ế ữ Đ ỗ ằ), ASCII thuần. Kiểm glyph bằng `fontkit.layout()`: **0 `.notdef`** trên mọi chuỗi thật
+(không có ô vuông tofu). Live: `GET /certificates/:id/pdf` **200 application/pdf ~18KB** cho cả GV có quyền
+lẫn chủ sở hữu (trước là 500). Phát hiện khi verify P7, **không do P7**.
 
 ---
 

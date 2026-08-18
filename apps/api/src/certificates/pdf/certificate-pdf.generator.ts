@@ -1,4 +1,29 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { readFileSync } from 'fs';
+import { PDFDocument, rgb } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+
+/**
+ * KHÔNG dùng `StandardFonts` (Helvetica…): chúng mã hóa WinAnsi nên ném
+ * `WinAnsi cannot encode "ơ"` với mọi tên/tiêu đề tiếng Việt có dấu.
+ * Nhúng Roboto (Apache-2.0, phủ đủ Vietnamese) qua fontkit thay thế.
+ */
+const FONT_FILES = {
+  regular: 'roboto-fontface/fonts/roboto/Roboto-Regular.woff',
+  bold: 'roboto-fontface/fonts/roboto/Roboto-Bold.woff',
+  italic: 'roboto-fontface/fonts/roboto/Roboto-RegularItalic.woff',
+} as const;
+
+/** Đọc file font 1 lần rồi cache — mỗi lần sinh PDF chỉ nhúng lại buffer đã có. */
+const fontCache = new Map<string, Buffer>();
+function loadFont(key: keyof typeof FONT_FILES): Buffer {
+  const cached = fontCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  const bytes = readFileSync(require.resolve(FONT_FILES[key]));
+  fontCache.set(key, bytes);
+  return bytes;
+}
 
 export interface GenerateCertificatePdfParams {
   studentName: string;
@@ -11,14 +36,16 @@ export interface GenerateCertificatePdfParams {
 
 export async function generateCertificatePdf(params: GenerateCertificatePdfParams): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
 
   // Landscape A4: 842 x 595.28 points
   const page = pdfDoc.addPage([842, 595.28]);
   const { width, height } = page.getSize();
 
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+  // `subset: true` → chỉ nhúng glyph thực dùng, giữ file PDF nhỏ.
+  const fontBold = await pdfDoc.embedFont(loadFont('bold'), { subset: true });
+  const fontRegular = await pdfDoc.embedFont(loadFont('regular'), { subset: true });
+  const fontOblique = await pdfDoc.embedFont(loadFont('italic'), { subset: true });
 
   // Background navy dark ground
   page.drawRectangle({
@@ -80,7 +107,7 @@ export async function generateCertificatePdf(params: GenerateCertificatePdfParam
     color: rgb(0.96, 0.62, 0.04),
   });
 
-  const title = 'CHUNG NHAN HOAN THANH KHOA HOC';
+  const title = 'CHỨNG NHẬN HOÀN THÀNH KHÓA HỌC';
   const titleWidth = fontBold.widthOfTextAtSize(title, 26);
   page.drawText(title, {
     x: (width - titleWidth) / 2,
@@ -101,7 +128,7 @@ export async function generateCertificatePdf(params: GenerateCertificatePdfParam
   });
 
   // Presented To
-  const presentedText = 'Chung nhan trao cho / This is proudly presented to:';
+  const presentedText = 'Chứng nhận trao cho / This is proudly presented to:';
   const presWidth = fontOblique.widthOfTextAtSize(presentedText, 13);
   page.drawText(presentedText, {
     x: (width - presWidth) / 2,
@@ -131,7 +158,7 @@ export async function generateCertificatePdf(params: GenerateCertificatePdfParam
   });
 
   // Course Description
-  const completionText = 'Da hoan thanh khoa hoc / For successfully completing the course:';
+  const completionText = 'Đã hoàn thành khóa học / For successfully completing the course:';
   const compWidth = fontRegular.widthOfTextAtSize(completionText, 13);
   page.drawText(completionText, {
     x: (width - compWidth) / 2,
@@ -158,14 +185,14 @@ export async function generateCertificatePdf(params: GenerateCertificatePdfParam
   const rightX = width - 300;
   const footerY = 80;
 
-  page.drawText(`Ma so / Serial No: ${params.serialNo}`, {
+  page.drawText(`Mã số / Serial No: ${params.serialNo}`, {
     x: leftX,
     y: footerY + 20,
     size: 11,
     font: fontRegular,
     color: rgb(0.7, 0.73, 0.8),
   });
-  page.drawText(`Ma xac thuc / Code: ${params.verificationCode}`, {
+  page.drawText(`Mã xác thực / Code: ${params.verificationCode}`, {
     x: leftX,
     y: footerY,
     size: 11,
@@ -173,14 +200,14 @@ export async function generateCertificatePdf(params: GenerateCertificatePdfParam
     color: rgb(0.7, 0.73, 0.8),
   });
 
-  page.drawText(`Ngay cap / Issue Date: ${dateStr}`, {
+  page.drawText(`Ngày cấp / Issue Date: ${dateStr}`, {
     x: rightX,
     y: footerY + 20,
     size: 11,
     font: fontRegular,
     color: rgb(0.7, 0.73, 0.8),
   });
-  page.drawText(`Xac thuc tai: verify.codespace.vn`, {
+  page.drawText(`Xác thực tại: verify.codespace.vn`, {
     x: rightX,
     y: footerY,
     size: 11,
