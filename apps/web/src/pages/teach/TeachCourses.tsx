@@ -14,6 +14,7 @@ import {
   useUpdateLesson,
   useUpdateSection,
 } from '../../features/courses/hooks';
+import { LessonActivityBuilder } from './LessonActivityBuilder';
 
 export function TeachCourses(): JSX.Element {
   const { t } = useTranslation();
@@ -126,10 +127,24 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
   const [editingSectionTitle, setEditingSectionTitle] = useState('');
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [editingLessonTitle, setEditingLessonTitle] = useState('');
+  // P7 — bài học đang mở trình soạn activity
+  const [openLesson, setOpenLesson] = useState<{ sectionId: string; lessonId: string; title: string } | null>(null);
 
   if (course.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
   if (course.isError || !course.data) return <p className="text-sm text-red-400">{t('common.error')}</p>;
   const c = course.data;
+
+  if (openLesson) {
+    return (
+      <LessonActivityBuilder
+        courseId={courseId}
+        sectionId={openLesson.sectionId}
+        lessonId={openLesson.lessonId}
+        lessonTitle={openLesson.title}
+        onClose={() => setOpenLesson(null)}
+      />
+    );
+  }
 
   return (
     <div className="card gap-4">
@@ -262,8 +277,19 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
                         <span className="text-muted text-xs">
                           {t(`lessonType.${l.type}`, { defaultValue: l.type })}
                         </span>
+                        <span className="tag tag-outline">
+                          <i className="ph ph-stack" aria-hidden /> {l.activityCount ?? 0}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="btn btn-secondary !py-0.5 !px-2 text-xs cx-press"
+                          title={t('activity.builderKicker')}
+                          onClick={() => setOpenLesson({ sectionId: s.id, lessonId: l.id, title: l.title })}
+                        >
+                          <i className="ph ph-stack" aria-hidden /> {t('activity.manage')}
+                        </button>
                         <button
                           type="button"
                           className="text-xs text-slate-400 hover:text-amber-400 p-1"

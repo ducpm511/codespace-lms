@@ -20,6 +20,16 @@ export function useAssignments(courseId?: string) {
   });
 }
 
+export const assignmentsForClassKey = (classId: string) => ['assignments', 'for-class', classId] as const;
+
+export function useAssignmentsForClass(classId: string | null) {
+  return useQuery({
+    queryKey: assignmentsForClassKey(classId ?? '_none'),
+    queryFn: () => api.listAssignmentsForClass(classId as string),
+    enabled: !!classId,
+  });
+}
+
 export function useAssignment(id: string | null) {
   return useQuery({
     queryKey: assignmentKey(id ?? '_none'),

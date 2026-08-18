@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CodingProblemSummary, MyLessonDto, QuizSummary } from '@lms/contracts';
+import type {
+  CodingProblemSummary,
+  MyLessonDto,
+  QuizSummary,
+  StudentLessonActivityDto,
+} from '@lms/contracts';
 import { useMe } from '../features/auth/hooks';
 import { useMyClasses, useMyLessons, useUpdateProgress } from '../features/classes/hooks';
 import { useQuizzesForClass } from '../features/quiz/hooks';
 import { useCodingProblemsForClass } from '../features/coding/hooks';
+import { useAssignmentsForClass } from '../features/assessments/hooks';
+import { StudentAssignmentCard } from '../features/assessments/StudentAssignmentCard';
 import { useMyGamification } from '../features/gamification/useGamification';
 import { LessonCommentsSection } from '../features/comments/LessonCommentsSection';
+import { MarkdownBlock, PdfBlock, VideoBlock } from '../features/lesson-activities/ActivityBlocks';
+import { activityMeta } from '../features/lesson-activities/activityMeta';
 import { LearnQuizWorkspace } from './learn/LearnQuiz';
 import { LearnCodingWorkspace } from './learn/LearnCoding';
 import { StudentGradebookSection } from './learn/StudentGradebookSection';
@@ -558,32 +567,32 @@ function LessonDetail({
         </div>
       </div>
 
-      {/* Media theo loại bài */}
-      {lesson.type === 'video' && (
-        <div
-          className="relative grid place-items-center overflow-hidden"
-          style={{ borderRadius: 'var(--cx-radius)', aspectRatio: '16 / 9', background: 'linear-gradient(155deg, var(--color-neutral-900), var(--color-section))', border: '1px solid var(--color-divider)' }}
-        >
-          <button className="btn btn-icon cx-press" style={{ width: 60, height: 60, borderRadius: '50%', background: 'color-mix(in srgb, #fff 12%, transparent)' }} aria-label={t('learn.play')}>
-            <i className="ph-fill ph-play text-2xl" aria-hidden />
-          </button>
+      {/* Nội dung bài học — danh sách activity theo thứ tự (P7) */}
+      {lesson.activities.length > 0 ? (
+        <ol className="space-y-4">
+          {lesson.activities.map((a) => (
+            <li key={a.id}>
+              <LessonActivityCard
+                activity={a}
+                classId={classId}
+                onOpenQuiz={onOpenQuiz}
+                onOpenCoding={onOpenCoding}
+              />
+            </li>
+          ))}
+        </ol>
+      ) : (
+        // Fallback bài soạn TRƯỚC P7 (chỉ có contentMd/videoUrl trên Lesson).
+        <div className="card" style={{ borderRadius: 'var(--cx-radius)' }}>
+          <p className="card-title cx-display" style={{ fontSize: 15 }}>{t('learn.lessonContent')}</p>
+          {lesson.videoUrl && <VideoBlock videoUrl={lesson.videoUrl} />}
+          {lesson.contentMd ? (
+            <MarkdownBlock content={lesson.contentMd} />
+          ) : (
+            !lesson.videoUrl && <p className="text-muted text-sm">{t('learn.lessonBodyPlaceholder')}</p>
+          )}
         </div>
       )}
-      {lesson.type === 'interactive' && (
-        <div
-          className="card items-center text-center"
-          style={{ borderRadius: 'var(--cx-radius)', background: 'linear-gradient(150deg, color-mix(in srgb, var(--cx-teal) 14%, var(--color-neutral-900)), var(--color-neutral-900))', padding: 'var(--space-8)' }}
-        >
-          <i className="ph-fill ph-cursor-click text-3xl" style={{ color: 'var(--cx-teal)' }} aria-hidden />
-          <p className="text-muted mt-2 text-sm" style={{ maxWidth: 420 }}>{t('learn.interactiveHint')}</p>
-        </div>
-      )}
-
-      {/* Nội dung bài học */}
-      <div className="card" style={{ borderRadius: 'var(--cx-radius)' }}>
-        <p className="card-title cx-display" style={{ fontSize: 15 }}>{t('learn.lessonContent')}</p>
-        <p className="text-muted text-sm">{t('learn.lessonBodyPlaceholder')}</p>
-      </div>
 
       {/* Bài tập của bài học này */}
       {exercises.length > 0 && (
@@ -633,4 +642,100 @@ function LessonDetail({
       <LessonCommentsSection lessonId={lesson.lessonId} classId={classId} />
     </section>
   );
+}
+
+/* ═══════════════ P7 — một activity trong bài học ═══════════════════════════ */
+function LessonActivityCard({
+  activity, classId, onOpenQuiz, onOpenCoding,
+}: {
+  activity: StudentLessonActivityDto;
+  classId: string;
+  onOpenQuiz: (id: string) => void;
+  onOpenCoding: (id: string) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const meta = activityMeta(activity.type);
+  const heading = activity.title || t(`activity.type_${activity.type}`);
+
+  return (
+    <div
+      className="card gap-3"
+      style={{ borderRadius: 'var(--cx-radius)', borderLeft: `3px solid color-mix(in srgb, ${meta.color} 55%, transparent)` }}
+    >
+      <div className="flex items-center gap-3">
+        <IconTile icon={meta.icon} color={meta.color} size={36} />
+        <div className="min-w-0">
+          <p className="card-title cx-display truncate" style={{ fontSize: 15 }}>{heading}</p>
+          <p className="card-meta">{t(`activity.type_${activity.type}`)}</p>
+        </div>
+      </div>
+      <ActivityBody activity={activity} classId={classId} onOpenQuiz={onOpenQuiz} onOpenCoding={onOpenCoding} />
+    </div>
+  );
+}
+
+function ActivityBody({
+  activity, classId, onOpenQuiz, onOpenCoding,
+}: {
+  activity: StudentLessonActivityDto;
+  classId: string;
+  onOpenQuiz: (id: string) => void;
+  onOpenCoding: (id: string) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+
+  if (activity.type === 'markdown') {
+    return activity.contentMd ? <MarkdownBlock content={activity.contentMd} /> : <Empty />;
+  }
+  if (activity.type === 'pdf') {
+    return activity.fileId ? <PdfBlock fileId={activity.fileId} fileName={activity.fileName} /> : <Empty />;
+  }
+  if (activity.type === 'video') {
+    return activity.videoUrl ? <VideoBlock videoUrl={activity.videoUrl} /> : <Empty />;
+  }
+
+  // quiz / coding / assignment — mở workspace engine sẵn có (tự enforce gate + không lộ đáp án).
+  if (!activity.refAvailable || !activity.refId) {
+    return (
+      <p className="text-muted text-sm">
+        <i className="ph ph-lock-simple" aria-hidden /> {t('activity.refLocked')}
+      </p>
+    );
+  }
+  if (activity.type === 'assignment') {
+    return <AssignmentActivity assignmentId={activity.refId} classId={classId} />;
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="card-meta truncate">{activity.refTitle}</p>
+      <button
+        className="btn btn-primary !rounded-full cx-press shrink-0"
+        onClick={() => (activity.type === 'quiz' ? onOpenQuiz(activity.refId as string) : onOpenCoding(activity.refId as string))}
+      >
+        {t('learn.doExercise')} <i className="ph ph-arrow-right" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+/** Bài tập nộp: dùng lại `StudentAssignmentCard` (P2); metadata lấy từ endpoint student-scope. */
+function AssignmentActivity({ assignmentId, classId }: { assignmentId: string; classId: string }): JSX.Element {
+  const { t } = useTranslation();
+  const assignments = useAssignmentsForClass(classId);
+  const assignment = assignments.data?.find((a) => a.id === assignmentId);
+
+  if (assignments.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
+  if (!assignment) {
+    return (
+      <p className="text-muted text-sm">
+        <i className="ph ph-lock-simple" aria-hidden /> {t('activity.refLocked')}
+      </p>
+    );
+  }
+  return <StudentAssignmentCard classId={classId} assignment={assignment} />;
+}
+
+function Empty(): JSX.Element {
+  const { t } = useTranslation();
+  return <p className="text-muted text-sm">{t('activity.emptyBody')}</p>;
 }

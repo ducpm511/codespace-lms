@@ -15,6 +15,11 @@ export function listAssignments(courseId?: string): Promise<Paginated<Assignment
   return apiFetch<Paginated<AssignmentSummary>>(`/assignments${query}`);
 }
 
+/** Student surface (P7): bài tập của lớp — chỉ bài đã mở gate; không cần quyền `assignment.read`. */
+export function listAssignmentsForClass(classId: string): Promise<AssignmentSummary[]> {
+  return apiFetch<AssignmentSummary[]>(`/assignments/for-class/${classId}`);
+}
+
 export function getAssignment(id: string): Promise<AssignmentDetail> {
   return apiFetch<AssignmentDetail>(`/assignments/${id}`);
 }

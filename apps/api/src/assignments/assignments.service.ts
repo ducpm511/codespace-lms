@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { AssignmentDetail, AssignmentSummary, Paginated } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateAssignmentDto } from './dto/create-assignment.dto';
@@ -20,6 +20,38 @@ export class AssignmentsService {
       this.prisma.assignment.count({ where }),
     ]);
     return { items: rows.map(toSummary), total, page, pageSize };
+  }
+
+  /**
+   * Student surface (P7) — bài tập của lớp: chỉ khóa đã gán cho lớp và bài tập KHÔNG gắn lesson
+   * hoặc gắn lesson ĐÃ mở gate (INVARIANT #3). Mirror `CodingService.listForClass` / quiz `for-class`.
+   * Không dùng `assignment.read` (student không có quyền này) — quyền = thành viên active của lớp.
+   */
+  async listForClass(classId: string, userId: string): Promise<AssignmentSummary[]> {
+    const member = await this.prisma.classMember.findUnique({
+      where: { classId_userId: { classId, userId } },
+      select: { status: true },
+    });
+    if (!member || member.status !== 'active') {
+      throw new ForbiddenException('Bạn không phải thành viên của lớp này');
+    }
+
+    const classCourses = await this.prisma.classCourse.findMany({ where: { classId }, select: { courseId: true } });
+    const courseIds = classCourses.map((c) => c.courseId);
+    if (courseIds.length === 0) {
+      return [];
+    }
+
+    const [rows, gates] = await this.prisma.$transaction([
+      this.prisma.assignment.findMany({
+        where: { courseId: { in: courseIds } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.lessonGate.findMany({ where: { classId, isActive: true }, select: { lessonId: true } }),
+    ]);
+
+    const openLessons = new Set(gates.map((g) => g.lessonId));
+    return rows.filter((a) => a.lessonId === null || openLessons.has(a.lessonId)).map(toSummary);
   }
 
   async create(dto: CreateAssignmentDto, createdById: string): Promise<AssignmentDetail> {

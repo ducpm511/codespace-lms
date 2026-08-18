@@ -22,6 +22,18 @@ export class AssignmentsController {
     return this.assignments.list(q.courseId, q.page, q.pageSize);
   }
 
+  /**
+   * Student surface (P7) — đặt TRƯỚC `:id` để không bị nuốt route.
+   * Không `@RequirePermission`: quyền = thành viên active của lớp, kiểm trong service (+ lọc theo gate).
+   */
+  @Get('for-class/:classId')
+  listForClass(
+    @Param('classId') classId: string,
+    @CurrentUser() user: AuthPrincipal,
+  ): Promise<AssignmentSummary[]> {
+    return this.assignments.listForClass(classId, user.userId);
+  }
+
   @Post()
   @RequirePermission(PERMISSIONS.ASSIGNMENT_CREATE)
   create(@Body() dto: CreateAssignmentDto, @CurrentUser() user: AuthPrincipal): Promise<AssignmentDetail> {
