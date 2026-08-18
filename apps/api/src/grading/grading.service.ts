@@ -1,14 +1,13 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@lms/database';
 import {
-  PERMISSIONS,
-  type AuthUser,
-  type ClassGradebookDto,
+  PERMISSIONS,  type ClassGradebookDto,
   type GradeItemDto,
   type StudentGradebookRow,
   type StudentOwnGradebookDto,
 } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthPrincipal } from '../auth/auth.types';
 import { RbacService } from '../rbac/rbac.service';
 
 interface ClassWithCourses {
@@ -47,7 +46,7 @@ export class GradingService {
    * Đọc sổ điểm lớp — READ-ONLY, KHÔNG ghi DB (fix review H3: GET không side-effect).
    * Dữ liệu do `recomputeClassGradebook` tổng hợp trước đó (khi staff mở sổ điểm / cấp chứng chỉ).
    */
-  async getClassGradebook(classId: string, currentUser?: AuthUser): Promise<ClassGradebookDto> {
+  async getClassGradebook(classId: string, currentUser?: AuthPrincipal): Promise<ClassGradebookDto> {
     await this.assertCanReadGradebook(classId, currentUser);
 
     const cls = await this.prisma.class.findUnique({
@@ -76,7 +75,7 @@ export class GradingService {
    * GradeItem/GradeEntry) rồi trả kết quả mới. Chỉ staff của lớp gọi (assertCanReadGradebook).
    * Tách khỏi GET để read không còn side-effect và học viên không kích hoạt ghi cho cả lớp.
    */
-  async recomputeClassGradebook(classId: string, currentUser?: AuthUser): Promise<ClassGradebookDto> {
+  async recomputeClassGradebook(classId: string, currentUser?: AuthPrincipal): Promise<ClassGradebookDto> {
     await this.assertCanReadGradebook(classId, currentUser);
 
     const cls = await this.prisma.class.findUnique({
@@ -110,10 +109,10 @@ export class GradingService {
     return this.buildGradebook(classId, cls.members, gradeItems);
   }
 
-  async getStudentOwnGradebook(classId: string, currentUser: AuthUser): Promise<StudentOwnGradebookDto> {
+  async getStudentOwnGradebook(classId: string, currentUser: AuthPrincipal): Promise<StudentOwnGradebookDto> {
     // Validate active member
     const member = await this.prisma.classMember.findUnique({
-      where: { classId_userId: { classId, userId: currentUser.id } },
+      where: { classId_userId: { classId, userId: currentUser.userId } },
     });
 
     if (!member || member.status !== 'active') {
@@ -122,7 +121,7 @@ export class GradingService {
 
     // Read-only: học viên xem điểm đã được staff/issue tổng hợp; KHÔNG tự kích hoạt ghi cho cả lớp.
     const fullGradebook = await this.getClassGradebook(classId);
-    const myRow = fullGradebook.rows.find((r) => r.userId === currentUser.id);
+    const myRow = fullGradebook.rows.find((r) => r.userId === currentUser.userId);
 
     return {
       classId,
@@ -134,17 +133,16 @@ export class GradingService {
   }
 
   /** Kiểm quyền đọc sổ điểm lớp: admin/super_admin, grade.read scope lớp, hoặc instructor/ta của lớp. */
-  private async assertCanReadGradebook(classId: string, currentUser?: AuthUser): Promise<void> {
+  private async assertCanReadGradebook(classId: string, currentUser?: AuthPrincipal): Promise<void> {
     if (!currentUser) return; // gọi nội bộ (student own / issue) — nơi gọi đã tự kiểm quyền
-    const isSuperAdmin = currentUser.roles?.includes('super_admin');
-    const isAdmin = currentUser.roles?.includes('admin');
-    if (isSuperAdmin || isAdmin) return;
 
-    const eff = await this.rbac.getEffectivePermissions(currentUser.id);
+    // admin/super_admin nhận `grade.read` ở phạm vi GLOBAL nên `hasPermission` đã phủ —
+    // không kiểm role thô (AuthPrincipal chỉ có userId).
+    const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
     if (this.rbac.hasPermission(eff, PERMISSIONS.GRADE_READ, classId)) return;
 
     const member = await this.prisma.classMember.findUnique({
-      where: { classId_userId: { classId, userId: currentUser.id } },
+      where: { classId_userId: { classId, userId: currentUser.userId } },
     });
     if (!member || (member.roleInClass !== 'instructor' && member.roleInClass !== 'ta')) {
       throw new ForbiddenException('Bạn không có quyền xem sổ điểm của lớp này');

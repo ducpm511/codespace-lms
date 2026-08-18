@@ -1,10 +1,10 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import type { AuthUser } from '@lms/contracts';
+import type { AuthPrincipal } from '../auth/auth.types';
 import { GradingService } from './grading.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
 
-const dummyUser: AuthUser = { id: 'u1', email: 'u1@test.com', fullName: 'User 1', status: 'active', roles: [], permissions: [] };
+const dummyUser: AuthPrincipal = { userId: 'u1' };
 
 function makePrisma() {
   return {
@@ -115,7 +115,7 @@ describe('GradingService', () => {
     it('403 khi người dùng không phải học viên active', async () => {
       prisma.classMember.findUnique.mockResolvedValue(null);
       await expect(
-        service.getStudentOwnGradebook('c1', { ...dummyUser, id: 'u-ghost' }),
+        service.getStudentOwnGradebook('c1', { userId: 'u-ghost' }),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });

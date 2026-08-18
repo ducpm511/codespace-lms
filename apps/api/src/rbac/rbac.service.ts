@@ -15,8 +15,18 @@ export interface EffectivePermissions {
 export class RbacService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Nạp toàn bộ role→permission của user, tách theo phạm vi global vs từng lớp. */
+  /**
+   * Nạp toàn bộ role→permission của user, tách theo phạm vi global vs từng lớp.
+   *
+   * PHÒNG THỦ CHIỀU SÂU: `userId` rỗng/undefined trả về quyền RỖNG. Nếu để rơi xuống Prisma,
+   * `where: { userId: undefined }` bị hiểu là "không lọc" → trả MỌI user_role → hợp nhất quyền của
+   * mọi role ≈ super_admin. Một chỗ gọi sai (vd đọc nhầm `currentUser.id` thay vì `.userId`)
+   * KHÔNG được phép biến thành cấp quyền toàn hệ thống.
+   */
   async getEffectivePermissions(userId: string): Promise<EffectivePermissions> {
+    if (!userId) {
+      return { global: new Set<string>(), byClass: new Map<string, Set<string>>() };
+    }
     const userRoles = await this.prisma.userRole.findMany({
       where: { userId },
       include: { role: { include: { permissions: { include: { permission: true } } } } },

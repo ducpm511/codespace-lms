@@ -24,9 +24,16 @@ Updated: 2026-08-19
   Live: XSS markdown render thành text (không chạy script); video ngoài allowlist + `evil-youtube.com` → 400;
   upload PNG / PDF giả mime → 400; trước gate my-lessons rỗng + file 403; ngoài lớp 403; HV POST activity/files 403;
   quiz draft → refId/refTitle null. GV soạn + đảo thứ tự + xoá OK; HV xem đủ 6 loại đúng thứ tự.
-- **⚠️ Phát hiện lỗi bảo mật P5 (KHÔNG do P7)** — xem `ACTIVE_TASKS.md §Nợ CHẶN`: `certificates`/`grading` đọc
-  `currentUser.id` trong khi `@CurrentUser()` trả `{ userId }` → `getEffectivePermissions(undefined)` trả quyền
-  của MỌI role; `listMine` lộ toàn bộ chứng chỉ; revoke/pdf IDOR mở; `my-gradebook` 500. Cần vá riêng.
+### Vá lỗi bảo mật P5 (2026-08-19) — phát hiện khi verify P7, KHÔNG do P7
+- Gốc: `@CurrentUser()` trả `AuthPrincipal { userId }` nhưng `certificates`/`grading` khai kiểu `AuthUser` rồi đọc
+  `currentUser.id`/`.roles` → undefined. `getEffectivePermissions(undefined)` → Prisma bỏ qua filter → trả quyền
+  của **MỌI role** (≈ super_admin); `listMine` lộ toàn bộ chứng chỉ; revoke/pdf IDOR mở; `my-gradebook` 500.
+- Vá: 2 service dùng `AuthPrincipal.userId`, bỏ shortcut role thô (admin nhận quyền GLOBAL nên `hasPermission`
+  phủ đủ — đã đối chiếu seed), `getEffectivePermissions` trả RỖNG khi `userId` falsy (phòng thủ chiều sâu).
+  api **180 test** (+6 hồi quy). Live: my-gradebook 200; HV không sở hữu → `/certificates/mine` 0, `:id/pdf` 403,
+  `:id/revoke` 403; GV vẫn 200. Chi tiết → `ACTIVE_TASKS.md`.
+- **Nợ mới ghi nhận**: PDF chứng chỉ **500 với tiếng Việt** (`WinAnsi cannot encode "ơ"` — pdf-lib StandardFonts).
+  Cần nhúng font Unicode qua `@pdf-lib/fontkit`. Có từ P6/D1, chưa vá.
 
 ### P0–P6 (trước đó)
 - **P6 Polish & Gamification** đã hoàn tất:

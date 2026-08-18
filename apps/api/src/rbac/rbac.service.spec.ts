@@ -27,6 +27,25 @@ describe('RbacService', () => {
       expect([...(eff.byClass.get('class-1') ?? [])].sort()).toEqual(['grade.read', 'grade.write']);
       expect([...(eff.byClass.get('class-2') ?? [])]).toEqual(['grade.write']);
     });
+
+    // Hồi quy: nếu userId rỗng lọt xuống Prisma, `where: { userId: undefined }` bị coi là "không lọc"
+    // → trả MỌI user_role → hợp nhất quyền của mọi role ≈ super_admin (leo thang đặc quyền).
+    it.each([undefined, null, ''])('KHÔNG trả quyền nào khi userId rỗng (%p)', async (bad) => {
+      const prisma = makePrisma([
+        { classId: null, role: { permissions: [rp('certificate.revoke'), rp('user.delete')] } },
+        { classId: 'class-1', role: { permissions: [rp('grade.write')] } },
+      ]);
+      const service = new RbacService(prisma);
+
+      const eff = await service.getEffectivePermissions(bad as unknown as string);
+
+      expect(eff.global.size).toBe(0);
+      expect(eff.byClass.size).toBe(0);
+      expect(service.hasPermission(eff, 'certificate.revoke')).toBe(false);
+      expect(service.hasPermission(eff, 'grade.write', 'class-1')).toBe(false);
+      // và không được chạm DB với filter rỗng
+      expect(prisma.userRole.findMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('hasPermission', () => {

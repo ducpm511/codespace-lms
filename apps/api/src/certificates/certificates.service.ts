@@ -11,13 +11,12 @@ import {
 import { randomBytes } from 'crypto';
 import { Prisma } from '@lms/database';
 import {
-  PERMISSIONS,
-  type AuthUser,
-  type CertificateDto,
+  PERMISSIONS,  type CertificateDto,
   type CertificateTemplateDto,
   type PublicVerificationDto,
 } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthPrincipal } from '../auth/auth.types';
 import { RbacService } from '../rbac/rbac.service';
 import { GradingService } from '../grading/grading.service';
 import { STORAGE_ADAPTER, type StorageAdapter } from '../common/storage/storage.interface';
@@ -62,20 +61,16 @@ export class CertificatesService {
     @Inject(STORAGE_ADAPTER) @Optional() private readonly storage?: StorageAdapter,
   ) {}
 
-  async issue(dto: IssueCertificateDto, currentUser: AuthUser): Promise<CertificateDto> {
+  async issue(dto: IssueCertificateDto, currentUser: AuthPrincipal): Promise<CertificateDto> {
     if (!dto.classId) {
       throw new BadRequestException('Vui lòng chỉ định lớp học để cấp chứng chỉ');
     }
 
-    // 1) Scope permission check
-    const isSuperAdmin = currentUser.roles?.includes('super_admin');
-    const isAdmin = currentUser.roles?.includes('admin');
-    if (!isSuperAdmin && !isAdmin) {
-      const eff = await this.rbac.getEffectivePermissions(currentUser.id);
-      const canIssue = this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_ISSUE, dto.classId);
-      if (!canIssue) {
-        throw new ForbiddenException('Không có quyền cấp chứng chỉ cho lớp này');
-      }
+    // 1) Scope permission check. admin/super_admin nhận quyền ở phạm vi GLOBAL nên `hasPermission`
+    // đã phủ; không kiểm role thô (AuthPrincipal chỉ có userId — xem ghi chú đầu file).
+    const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
+    if (!this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_ISSUE, dto.classId)) {
+      throw new ForbiddenException('Không có quyền cấp chứng chỉ cho lớp này');
     }
 
     // 2) Check targetUser
@@ -180,7 +175,7 @@ export class CertificatesService {
               serialNo,
               verificationCode,
               finalScore: new Prisma.Decimal(finalScore),
-              issuedById: currentUser.id,
+              issuedById: currentUser.userId,
               issuedAt: new Date(),
             },
             include: {
@@ -191,7 +186,7 @@ export class CertificatesService {
           }),
           this.prisma.auditLog.create({
             data: {
-              actorId: currentUser.id,
+              actorId: currentUser.userId,
               action: 'certificate.issue',
               entity: 'Certificate',
               entityId: serialNo,
@@ -266,7 +261,7 @@ export class CertificatesService {
     return toCertificateDto(cert);
   }
 
-  async revoke(id: string, dto: RevokeCertificateDto, currentUser: AuthUser): Promise<CertificateDto> {
+  async revoke(id: string, dto: RevokeCertificateDto, currentUser: AuthPrincipal): Promise<CertificateDto> {
     const cert = await this.prisma.certificate.findUnique({
       where: { id },
       include: {
@@ -284,18 +279,13 @@ export class CertificatesService {
       throw new BadRequestException('Chứng chỉ này đã bị thu hồi trước đó');
     }
 
-    // M1 fix: Scope check in service for cert.classId or global admin
-    const isSuperAdmin = currentUser.roles?.includes('super_admin');
-    const isAdmin = currentUser.roles?.includes('admin');
-    if (!isSuperAdmin && !isAdmin) {
-      const eff = await this.rbac.getEffectivePermissions(currentUser.id);
-      const canRevoke = cert.classId
-        ? this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_REVOKE, cert.classId)
-        : this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_REVOKE);
-
-      if (!canRevoke) {
-        throw new ForbiddenException('Không có quyền thu hồi chứng chỉ này');
-      }
+    // M1 fix: route không có `:classId` nên scope kiểm ở service theo `cert.classId`.
+    const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
+    const canRevoke = cert.classId
+      ? this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_REVOKE, cert.classId)
+      : this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_REVOKE);
+    if (!canRevoke) {
+      throw new ForbiddenException('Không có quyền thu hồi chứng chỉ này');
     }
 
     const [updated] = await this.prisma.$transaction([
@@ -313,7 +303,7 @@ export class CertificatesService {
       }),
       this.prisma.auditLog.create({
         data: {
-          actorId: currentUser.id,
+          actorId: currentUser.userId,
           action: 'certificate.revoke',
           entity: 'Certificate',
           entityId: cert.id,
@@ -358,9 +348,9 @@ export class CertificatesService {
     };
   }
 
-  async listMine(currentUser: AuthUser): Promise<CertificateDto[]> {
+  async listMine(currentUser: AuthPrincipal): Promise<CertificateDto[]> {
     const certs = await this.prisma.certificate.findMany({
-      where: { userId: currentUser.id },
+      where: { userId: currentUser.userId },
       orderBy: { issuedAt: 'desc' },
       include: {
         user: { select: { fullName: true } },
@@ -371,15 +361,10 @@ export class CertificatesService {
     return certs.map(toCertificateDto);
   }
 
-  async listForClass(classId: string, currentUser: AuthUser): Promise<CertificateDto[]> {
-    const isSuperAdmin = currentUser.roles?.includes('super_admin');
-    const isAdmin = currentUser.roles?.includes('admin');
-    if (!isSuperAdmin && !isAdmin) {
-      const eff = await this.rbac.getEffectivePermissions(currentUser.id);
-      const canRead = this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ, classId);
-      if (!canRead) {
-        throw new ForbiddenException('Không có quyền xem danh sách chứng chỉ của lớp này');
-      }
+  async listForClass(classId: string, currentUser: AuthPrincipal): Promise<CertificateDto[]> {
+    const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
+    if (!this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ, classId)) {
+      throw new ForbiddenException('Không có quyền xem danh sách chứng chỉ của lớp này');
     }
 
     const certs = await this.prisma.certificate.findMany({
@@ -413,7 +398,7 @@ export class CertificatesService {
     return toTemplateDto(created);
   }
 
-  async getPdfBuffer(id: string, currentUser: AuthUser): Promise<{ buffer: Buffer; fileName: string }> {
+  async getPdfBuffer(id: string, currentUser: AuthPrincipal): Promise<{ buffer: Buffer; fileName: string }> {
     const cert = await this.prisma.certificate.findUnique({
       where: { id },
       include: {
@@ -425,17 +410,13 @@ export class CertificatesService {
       throw new NotFoundException('Chứng chỉ không tồn tại');
     }
 
-    if (cert.userId !== currentUser.id) {
-      const isSuperAdmin = currentUser.roles?.includes('super_admin');
-      const isAdmin = currentUser.roles?.includes('admin');
-      if (!isSuperAdmin && !isAdmin) {
-        const eff = await this.rbac.getEffectivePermissions(currentUser.id);
-        const canRead = cert.classId
-          ? this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ, cert.classId)
-          : this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ);
-        if (!canRead) {
-          throw new ForbiddenException('Không có quyền tải chứng chỉ này');
-        }
+    if (cert.userId !== currentUser.userId) {
+      const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
+      const canRead = cert.classId
+        ? this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ, cert.classId)
+        : this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ);
+      if (!canRead) {
+        throw new ForbiddenException('Không có quyền tải chứng chỉ này');
       }
     }
 

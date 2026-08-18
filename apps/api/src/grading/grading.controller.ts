@@ -2,7 +2,7 @@ import { Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/commo
 import { PERMISSIONS, type ClassGradebookDto, type StudentOwnGradebookDto } from '@lms/contracts';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import type { AuthUser } from '@lms/contracts';
+import type { AuthPrincipal } from '../auth/auth.types';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { GradingService } from './grading.service';
@@ -16,7 +16,7 @@ export class GradingController {
   @RequirePermission(PERMISSIONS.GRADE_READ)
   getClassGradebook(
     @Param('classId') classId: string,
-    @CurrentUser() currentUser: AuthUser,
+    @CurrentUser() currentUser: AuthPrincipal,
   ): Promise<ClassGradebookDto> {
     return this.gradingService.getClassGradebook(classId, currentUser);
   }
@@ -28,7 +28,7 @@ export class GradingController {
   @RequirePermission(PERMISSIONS.GRADE_READ)
   recomputeClassGradebook(
     @Param('classId') classId: string,
-    @CurrentUser() currentUser: AuthUser,
+    @CurrentUser() currentUser: AuthPrincipal,
   ): Promise<ClassGradebookDto> {
     return this.gradingService.recomputeClassGradebook(classId, currentUser);
   }
@@ -37,7 +37,7 @@ export class GradingController {
   @UseGuards(JwtAuthGuard)
   getStudentOwnGradebook(
     @Param('classId') classId: string,
-    @CurrentUser() currentUser: AuthUser,
+    @CurrentUser() currentUser: AuthPrincipal,
   ): Promise<StudentOwnGradebookDto> {
     return this.gradingService.getStudentOwnGradebook(classId, currentUser);
   }

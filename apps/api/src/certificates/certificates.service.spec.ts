@@ -1,11 +1,11 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import type { AuthUser } from '@lms/contracts';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import type { AuthPrincipal } from '../auth/auth.types';
 import { CertificatesService } from './certificates.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
 import type { GradingService } from '../grading/grading.service';
 
-const dummyAdmin: AuthUser = { id: 'admin1', email: 'admin@codespace.vn', fullName: 'Admin', status: 'active', roles: [], permissions: [] };
+const dummyAdmin: AuthPrincipal = { userId: 'admin1' };
 
 function makePrisma() {
   return {
@@ -160,6 +160,50 @@ describe('CertificatesService', () => {
       const res = await service.revoke('cert-100', { reason: 'Gian lận' }, dummyAdmin);
       expect(res.revokedReason).toBe('Gian lận');
       expect(prisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('403 khi không có quyền revoke (scope theo cert.classId)', async () => {
+      prisma.certificate.findUnique.mockResolvedValue({ id: 'cert-100', classId: 'class-9', revokedAt: null });
+      rbac.hasPermission.mockReturnValue(false);
+
+      await expect(
+        service.revoke('cert-100', { reason: 'Gian lận' }, { userId: 'nguoi-la' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      // Hồi quy: phải tra quyền bằng userId THẬT, không phải undefined
+      expect(rbac.getEffectivePermissions).toHaveBeenCalledWith('nguoi-la');
+      expect(rbac.hasPermission).toHaveBeenCalledWith(expect.anything(), 'certificate.revoke', 'class-9');
+      expect(prisma.certificate.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listMine', () => {
+    it('chỉ lấy chứng chỉ của chính user (lọc theo userId thật, không undefined)', async () => {
+      prisma.certificate.findMany.mockResolvedValue([]);
+
+      await service.listMine({ userId: 'hv-7' });
+
+      expect(prisma.certificate.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: 'hv-7' } }),
+      );
+    });
+  });
+
+  describe('getPdfBuffer (IDOR)', () => {
+    it('403 khi không phải chủ sở hữu và không có certificate.read', async () => {
+      prisma.certificate.findUnique.mockResolvedValue({
+        id: 'cert-1',
+        userId: 'chu-so-huu',
+        classId: 'class-3',
+        user: { fullName: 'A' },
+        course: { title: 'Python' },
+      });
+      rbac.hasPermission.mockReturnValue(false);
+
+      await expect(service.getPdfBuffer('cert-1', { userId: 'ke-tro-mo' })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(rbac.getEffectivePermissions).toHaveBeenCalledWith('ke-tro-mo');
     });
   });
 

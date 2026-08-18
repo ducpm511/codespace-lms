@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
-import { PERMISSIONS, type AuthUser, type CertificateDto, type CertificateTemplateDto } from '@lms/contracts';
+import { PERMISSIONS, type CertificateDto, type CertificateTemplateDto } from '@lms/contracts';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthPrincipal } from '../auth/auth.types';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { CertificatesService } from './certificates.service';
@@ -19,7 +20,7 @@ export class CertificatesController {
   @RequirePermission(PERMISSIONS.CERTIFICATE_ISSUE)
   issue(
     @Body() dto: IssueCertificateDto,
-    @CurrentUser() currentUser: AuthUser,
+    @CurrentUser() currentUser: AuthPrincipal,
   ): Promise<CertificateDto> {
     return this.certificatesService.issue(dto, currentUser);
   }
@@ -29,14 +30,14 @@ export class CertificatesController {
   revoke(
     @Param('id') id: string,
     @Body() dto: RevokeCertificateDto,
-    @CurrentUser() currentUser: AuthUser,
+    @CurrentUser() currentUser: AuthPrincipal,
   ): Promise<CertificateDto> {
     return this.certificatesService.revoke(id, dto, currentUser);
   }
 
   @Get('mine')
   @UseGuards(JwtAuthGuard)
-  listMine(@CurrentUser() currentUser: AuthUser): Promise<CertificateDto[]> {
+  listMine(@CurrentUser() currentUser: AuthPrincipal): Promise<CertificateDto[]> {
     return this.certificatesService.listMine(currentUser);
   }
 
@@ -45,7 +46,7 @@ export class CertificatesController {
   @RequirePermission(PERMISSIONS.CERTIFICATE_READ)
   listForClass(
     @Param('classId') classId: string,
-    @CurrentUser() currentUser: AuthUser,
+    @CurrentUser() currentUser: AuthPrincipal,
   ): Promise<CertificateDto[]> {
     return this.certificatesService.listForClass(classId, currentUser);
   }
@@ -60,7 +61,7 @@ export class CertificatesController {
   @UseGuards(JwtAuthGuard)
   async downloadPdf(
     @Param('id') id: string,
-    @CurrentUser() currentUser: AuthUser,
+    @CurrentUser() currentUser: AuthPrincipal,
     @Res() res: Response,
   ): Promise<void> {
     const { buffer, fileName } = await this.certificatesService.getPdfBuffer(id, currentUser);

@@ -83,11 +83,11 @@ quiz `published=false` → `refId`/`refTitle` = null + `refAvailable=false`.
 
 ---
 
-## 🔴 Nợ CHẶN — lỗi bảo mật P5 phát hiện khi làm P7 (2026-08-19, CHƯA vá)
+## 🛡️ Lỗi bảo mật P5 phát hiện khi làm P7 — ✅ ĐÃ VÁ (2026-08-19)
 
 `@CurrentUser()` trả `AuthPrincipal { userId }`, nhưng `certificates.service.ts` + `grading.service.ts` khai kiểu
 `AuthUser` rồi đọc `currentUser.id`/`currentUser.roles` → **luôn `undefined` lúc chạy**. Hậu quả đã xác nhận
-trên DB dev:
+trên DB dev TRƯỚC khi vá:
 
 1. `RbacService.getEffectivePermissions(undefined)` → `userRole.findMany({ where: { userId: undefined } })` —
    Prisma **bỏ qua filter** → trả toàn bộ user_roles → hợp nhất quyền mọi role ≈ super_admin. Mọi kiểm quyền
@@ -95,12 +95,23 @@ trên DB dev:
 2. `certificates.listMine` `where: { userId: undefined }` → trả **MỌI chứng chỉ của mọi học viên**.
 3. `POST /certificates/:id/revoke` (chỉ `JwtAuthGuard`, scope kiểm trong service) → user bất kỳ thu hồi được
    chứng chỉ người khác. `GET /certificates/:id/pdf` IDOR mở tương tự.
-4. `GET /classes/:classId/my-gradebook` **500** `PrismaClientValidationError` (endpoint hỏng hoàn toàn —
-   quan sát live ở màn Learn).
+4. `GET /classes/:classId/my-gradebook` **500** `PrismaClientValidationError` (endpoint hỏng hoàn toàn).
 
-Sửa: đổi sang `AuthPrincipal` + `currentUser.userId` ở 2 service, bỏ phụ thuộc `currentUser.roles` (thay bằng
-kiểm permission qua `RbacService`), thêm phòng thủ chiều sâu trong `getEffectivePermissions` khi `userId` falsy,
-kèm unit test. **KHÔNG do P7 gây ra** — P7 chỉ tình cờ phát hiện.
+**Đã vá**: `certificates`/`grading` dùng `AuthPrincipal` + `currentUser.userId`; bỏ shortcut `currentUser.roles`
+(admin/super_admin nhận quyền ở phạm vi GLOBAL nên `hasPermission` đã phủ — đối chiếu seed);
+`getEffectivePermissions` trả quyền RỖNG khi `userId` falsy (phòng thủ chiều sâu, không chạm DB).
+Test hồi quy: rbac userId rỗng, revoke 403 + tra đúng userId, `listMine` lọc đúng userId, `getPdfBuffer` IDOR.
+Live sau vá: `my-gradebook` 200; HV không sở hữu `/certificates/mine` = 0 (chủ sở hữu = 1);
+`GET /:id/pdf` 403; `POST /:id/revoke` 403; GV vẫn đọc được `/certificates/class/:id` + gradebook (200).
+**KHÔNG do P7 gây ra.**
+
+## 🟡 Nợ MỚI — PDF chứng chỉ chết với tiếng Việt (P6/D1, CHƯA vá)
+
+`GET /certificates/:id/pdf` trả **500**: `WinAnsi cannot encode "ơ" (0x01a1)`. `pdf-lib` dùng StandardFonts
+(WinAnsi) không biểu diễn được ký tự có dấu → mọi tên học viên / tiêu đề khóa tiếng Việt đều làm sinh PDF chết.
+Sửa: nhúng font Unicode TTF qua `@pdf-lib/fontkit` (`registerFontkit` + `embedFont(bytes, { subset: true })`),
+để font trong repo + bảo đảm `nest build` copy asset; thêm test sinh PDF với chuỗi có dấu.
+Phát hiện khi verify P7, **không do P7**.
 
 ---
 
