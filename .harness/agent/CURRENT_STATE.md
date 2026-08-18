@@ -2,14 +2,32 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-08-16
+Updated: 2026-08-17
 
 ## Project Stage
 
-**P0–P5 ✅ DONE. Phase P5 (Gradebook & Certificate) đã HOÀN THÀNH T5.0–T5.7.**
-P5 gồm: contracts `grade.ts`/`certificate.ts` + schema `p5_grade_certificate` (GradeItem, GradeEntry, CertificateTemplate, Certificate, AuditLog) + seed permissions (40 permission / 5 role / 122 liên kết) + backend `grading` (tổng hợp tự động từ assignment, quiz, coding) + backend `certificates` (issue, revoke, AuditLog cùng transaction) + public verification `/verify/:code` (NO PII) + FE Teach (sổ điểm + cấp/thu hồi chứng chỉ) + FE Learn (xem điểm tích lũy & chứng chỉ cá nhân).
-`pnpm validate` xanh **16/16** (api **140 test**, web 4 test), web build xanh.
-**Bước kế: P6 Polish & Notification**. Main local ở `939a791`, **CHƯA push origin**.
+**P0–P6 ✅ ALL PHASES DONE (100% COMPLETE). Toàn bộ hệ thống LMS CodeSpace đã hoàn tất.**
+- **P6 Polish & Gamification** đã hoàn tất:
+  - **In-app Notifications**: Schema + contracts + module + triggers tự động trong cùng `$transaction` (`gate.opened`, `submission.graded`, `certificate.issued`, `certificate.revoked`, `badge.awarded`) + FE NotificationBell popover dropdown có unread badge và đọc tất cả.
+  - **Real Gamification (ADR 002)**: Level, XP events, Streak liên tiếp, hệ thống huy hiệu (6 initial badges) được tính toán thật từ hoạt động học tập (lesson, quiz pass, coding pass) + FE `GreetingHero` và Streak pill liên kết API thật `/gamification/me`.
+  - **PDF Certificate**: Tích hợp `pdf-lib` sinh file PDF chứng chỉ A4 landscape vàng/teal + lưu trữ qua `StorageAdapter` (`uploads/`) + endpoint tải file PDF `GET /certificates/:id/pdf`.
+  - **Audit Log Viewer**: Endpoint `/audit` lọc theo actor/action/entity/date + Tab Nhật ký hệ thống ở AdminHome + modal JSON viewer.
+  - **Teacher Class Report**: Endpoint `GET /classes/:id/report` + Tab Báo cáo & Thống kê ở TeachClasses (KPIs, phân phối điểm, tiến độ bài học).
+  - **Lesson Discussions**: Module Comments (`GET/POST /lessons/:id/comments?classId=`) + component thảo luận ở `LearnHome > LessonDetail`.
+  - **Teacher Authoring Tools**: Sửa/xóa Section & Lesson trong TeachCourses + Toggle Publish/Draft trắc nghiệm trong TeachQuiz.
+  - **Security & Privacy Fix (D2)**: Gỡ bỏ `finalScore` khỏi QR verification công khai.
+- **Quality Gates**: `pnpm validate` **16/16 tasks PASS** (API **18 test suites, 148 unit tests**; Web **4/4 unit tests** + Vite build production xanh; TypeScript typecheck 0 errors; ESLint 0 errors).
+
+### P6 review & LOW fixes (2026-08-17)
+- Review INVARIANTS P6 — **PASS toàn bộ**: gamification `recordLearningActivityInTx(tx)` trong cùng transaction
+  + XpEvent idempotent (`@@unique`, sourceId ổn định) + GamificationModule wired vào cả 3 module trigger;
+  notification tạo trong tx + scope theo user + markAsRead ownership; audit admin-only (`audit.read`);
+  PDF `getPdfBuffer` chặn IDOR (owner/staff); quiz `for-class` lọc `published:true` (draft không lộ);
+  comments scope membership; verify công khai bỏ `finalScore` (D2); template tách quyền `certificate.template.manage` (D3).
+- **LOW fixes đã vá trong review**: (1) `LocalStorageAdapter` thêm `resolveKey` chặn path-traversal;
+  (2) streak tính mốc "ngày" theo **giờ VN (UTC+7)** thay vì UTC; (3) `uploads/` vào `.gitignore`.
+- Còn ghi nhận (không vá — systemic/infra): report/gradebook service không có defense-in-depth (dựa guard
+  `class.read`/`grade.read`, student đã bị chặn); notification message hardcode tiếng Việt (chưa i18n server-side).
 
 ### P5 review & hardening (2026-08-16) — sau 2 vòng review
 - Review INVARIANTS P5 phát hiện + ĐÃ VÁ (commit `a8d4f51` + `939a791`):

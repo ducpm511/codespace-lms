@@ -266,6 +266,7 @@ function QuizEditor({
 }): JSX.Element {
   const { t } = useTranslation();
   const quiz = useQuiz(quizId);
+  const update = useUpdateQuiz(quizId);
   const del = useDeleteQuiz(courseId);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -289,11 +290,18 @@ function QuizEditor({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {/* Publish toggle — PLACEHOLDER: Quiz model chưa có field `published` (việc BE). Disabled. */}
-            <span className="flex items-center gap-1.5" title={t('common.comingSoon')}>
-              <span className="text-muted text-xs">{t('quiz.draft')}</span>
+            {/* Publish toggle — T6.5 */}
+            <span className="flex items-center gap-1.5" title={q.published ? 'Đang phát hành' : 'Bản nháp'}>
+              <span className="text-muted text-xs">
+                {q.published ? t('quiz.published', { defaultValue: 'Đã phát hành' }) : t('quiz.draft', { defaultValue: 'Bản nháp' })}
+              </span>
               <label className="cx-toggle">
-                <input type="checkbox" checked={false} disabled readOnly />
+                <input
+                  type="checkbox"
+                  checked={q.published ?? false}
+                  disabled={update.isPending}
+                  onChange={(e) => update.mutate({ published: e.target.checked })}
+                />
                 <span className="cx-toggle-thumb" />
               </label>
             </span>

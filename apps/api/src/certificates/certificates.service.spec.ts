@@ -15,6 +15,8 @@ function makePrisma() {
     certificate: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn() },
     lessonProgress: { count: jest.fn() },
     auditLog: { create: jest.fn() },
+    notification: { create: jest.fn() },
+    file: { create: jest.fn() },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
 }

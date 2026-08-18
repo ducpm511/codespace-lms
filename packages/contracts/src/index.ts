@@ -12,3 +12,8 @@ export * from './coding';
 export * from './quiz';
 export * from './grade';
 export * from './certificate';
+export * from './notification';
+export * from './gamification';
+export * from './audit';
+export * from './report';
+export * from './comment';

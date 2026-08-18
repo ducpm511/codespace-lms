@@ -33,11 +33,49 @@ export function useAddSection(courseId: string) {
   });
 }
 
+export function useUpdateSection(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { sectionId: string; body: { title?: string; order?: number } }) =>
+      api.updateSection(courseId, vars.sectionId, vars.body),
+    onSuccess: (data) => qc.setQueryData(courseKey(courseId), data),
+  });
+}
+
+export function useRemoveSection(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sectionId: string) => api.removeSection(courseId, sectionId),
+    onSuccess: (data) => qc.setQueryData(courseKey(courseId), data),
+  });
+}
+
 export function useAddLesson(courseId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { sectionId: string; body: CreateLessonRequest }) =>
       api.addLesson(courseId, vars.sectionId, vars.body),
+    onSuccess: (data) => qc.setQueryData(courseKey(courseId), data),
+  });
+}
+
+export function useUpdateLesson(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      sectionId: string;
+      lessonId: string;
+      body: { title?: string; order?: number; type?: string; durationSec?: number | null };
+    }) => api.updateLesson(courseId, vars.sectionId, vars.lessonId, vars.body),
+    onSuccess: (data) => qc.setQueryData(courseKey(courseId), data),
+  });
+}
+
+export function useRemoveLesson(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { sectionId: string; lessonId: string }) =>
+      api.removeLesson(courseId, vars.sectionId, vars.lessonId),
     onSuccess: (data) => qc.setQueryData(courseKey(courseId), data),
   });
 }

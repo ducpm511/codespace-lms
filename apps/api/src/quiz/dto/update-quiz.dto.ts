@@ -33,4 +33,8 @@ export class UpdateQuizDto implements UpdateQuizRequest {
   @IsOptional()
   @IsBoolean()
   shuffleOptions?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
 }

@@ -42,4 +42,8 @@ export class CreateQuizDto implements CreateQuizRequest {
   @IsOptional()
   @IsBoolean()
   shuffleOptions?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
 }

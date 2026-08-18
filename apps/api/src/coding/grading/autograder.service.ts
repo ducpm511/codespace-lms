@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@lms/database';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RunnerService } from '../runner/runner.types';
+import { GamificationService } from '../../gamification/gamification.service';
 import { mapTestCaseStatus, type TestCaseResultStatus } from './autograder.types';
 
 const DEFAULT_STDOUT_LIMIT_BYTES = 64 * 1024;
@@ -32,6 +33,7 @@ export class AutograderService {
     private readonly prisma: PrismaService,
     private readonly runner: RunnerService,
     config: ConfigService,
+    private readonly gamificationService?: GamificationService,
   ) {
     const raw = Number(config.get<string>('CODE_RUNNER_STDOUT_LIMIT_BYTES'));
     this.stdoutLimitBytes = Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_STDOUT_LIMIT_BYTES;
@@ -95,7 +97,7 @@ export class AutograderService {
   }
 
   private async persist(
-    submission: { id: string; userId: string; classId: string | null; problem: { lessonId: string | null } },
+    submission: { id: string; userId: string; classId: string | null; problem: { id?: string; lessonId: string | null } },
     outcomes: PerTestOutcome[],
     summary: { status: 'passed' | 'failed'; score: Prisma.Decimal; runtimeMs: number | null },
   ): Promise<void> {
@@ -160,6 +162,15 @@ export class AutograderService {
             await tx.lessonProgress.update({ where: key, data: { status: 'in_progress' } });
           }
         }
+      }
+
+      if (summary.status === 'passed' && this.gamificationService) {
+        await this.gamificationService.recordLearningActivityInTx(tx, {
+          userId: submission.userId,
+          source: 'coding_pass',
+          sourceId: submission.problem.id ?? submission.id,
+          xpAmount: 100,
+        });
       }
     });
   }

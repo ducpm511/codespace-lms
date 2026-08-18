@@ -101,6 +101,7 @@
   "admin": {
     "title": "Admin dashboard",
     "usersHeading": "Users",
+    "auditHeading": "Audit Logs",
     "email": "Email",
     "name": "Full name",
     "status": "Status",
@@ -134,6 +135,7 @@
     "selectHint": "Select a quiz to edit, or create a new one.",
     "settings": "Settings",
     "draft": "Draft",
+    "published": "Published",
     "delete": "Delete",
     "confirmDelete": "Delete this quiz? This cannot be undone.",
     "maxScore": "Max score",

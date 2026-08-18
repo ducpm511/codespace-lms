@@ -37,11 +37,14 @@ const withAttemptDetail = {
 } satisfies Prisma.QuizAttemptInclude;
 type AttemptWithDetail = Prisma.QuizAttemptGetPayload<{ include: typeof withAttemptDetail }>;
 
+import { GamificationService } from '../gamification/gamification.service';
+
 @Injectable()
 export class QuizService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rbac: RbacService,
+    private readonly gamificationService?: GamificationService,
   ) {}
 
   // --- Authoring (GV/admin) ---
@@ -79,6 +82,7 @@ export class QuizService {
         passScore: dto.passScore,
         shuffleQuestions: dto.shuffleQuestions,
         shuffleOptions: dto.shuffleOptions,
+        published: dto.published ?? false,
         createdById,
       },
       include: withQuestions,
@@ -106,6 +110,7 @@ export class QuizService {
         passScore: dto.passScore,
         shuffleQuestions: dto.shuffleQuestions,
         shuffleOptions: dto.shuffleOptions,
+        published: dto.published !== undefined ? dto.published : undefined,
       },
     });
     return this.getAuthorDetail(id);
@@ -217,7 +222,7 @@ export class QuizService {
     }
     const [quizzes, gates] = await this.prisma.$transaction([
       this.prisma.quiz.findMany({
-        where: { courseId: { in: courseIds } },
+        where: { courseId: { in: courseIds }, published: true },
         orderBy: { createdAt: 'desc' },
         include: { questions: { select: { points: true } } },
       }),
@@ -303,6 +308,14 @@ export class QuizService {
       }
       if (quiz.lessonId) {
         await this.reflectLessonProgress(tx, userId, quiz.lessonId, dto.classId, passed);
+      }
+      if (passed && this.gamificationService) {
+        await this.gamificationService.recordLearningActivityInTx(tx, {
+          userId,
+          source: 'quiz_pass',
+          sourceId: quizId,
+          xpAmount: 100,
+        });
       }
       return attempt;
     });
@@ -457,6 +470,7 @@ function toSummary(q: {
   passScore: unknown;
   shuffleQuestions: boolean;
   shuffleOptions: boolean;
+  published?: boolean;
   createdAt: Date;
   questions: { points: unknown }[];
 }): QuizSummary {
@@ -471,6 +485,7 @@ function toSummary(q: {
     passScore: Number(q.passScore),
     shuffleQuestions: q.shuffleQuestions,
     shuffleOptions: q.shuffleOptions,
+    published: q.published ?? false,
     questionCount: q.questions.length,
     maxScore: Math.round(maxScore * 100) / 100,
     createdAt: q.createdAt.toISOString(),

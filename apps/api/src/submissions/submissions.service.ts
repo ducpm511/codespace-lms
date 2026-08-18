@@ -212,17 +212,28 @@ export class SubmissionsService {
       throw new BadRequestException(`Điểm chấm (${dto.score}) vượt quá điểm tối đa (${maxScore})`);
     }
 
-    const updated = await this.prisma.submission.update({
-      where: { id },
-      data: {
-        score: new Prisma.Decimal(dto.score),
-        feedbackMd: dto.feedbackMd ?? null,
-        gradedById: currentUser.userId,
-        gradedAt: new Date(),
-        status: 'graded',
-      },
-      include: { user: { select: { email: true, fullName: true } } },
-    });
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.submission.update({
+        where: { id },
+        data: {
+          score: new Prisma.Decimal(dto.score),
+          feedbackMd: dto.feedbackMd ?? null,
+          gradedById: currentUser.userId,
+          gradedAt: new Date(),
+          status: 'graded',
+        },
+        include: { user: { select: { email: true, fullName: true } } },
+      }),
+      this.prisma.notification.create({
+        data: {
+          userId: sub.userId,
+          type: 'submission.graded',
+          title: 'Bài tập của bạn đã được chấm điểm! 📝',
+          message: `Bài nộp của bạn đã được chấm: ${dto.score}/${maxScore} điểm.`,
+          payloadJson: { submissionId: sub.id, score: dto.score, maxScore },
+        },
+      }),
+    ]);
 
     return toSubmissionDto(updated);
   }

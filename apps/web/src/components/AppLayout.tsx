@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLogout, useMe } from '../features/auth/hooks';
+import { useMyGamification } from '../features/gamification/useGamification';
+import { NotificationBell } from '../features/notifications/NotificationBell';
 import { allowedAreas } from '../lib/roles';
 
 function initials(name: string): string {
@@ -20,10 +22,12 @@ export function AppLayout(): JSX.Element {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: user } = useMe();
+  const { data: gamification } = useMyGamification();
   const logout = useLogout();
 
   const areas = user ? allowedAreas(user.roles) : [];
   const displayName = user?.fullName || user?.email || '';
+  const currentStreak = gamification?.streak?.current ?? 0;
 
   const onLogout = () => {
     logout.mutate(undefined, { onSuccess: () => navigate('/login', { replace: true }) });
@@ -61,7 +65,7 @@ export function AppLayout(): JSX.Element {
           </nav>
 
           <div className="flex items-center gap-2.5">
-            {/* Streak pill — UI tĩnh/mock (chưa có API gamification) */}
+            {/* Streak pill — Real gamification */}
             <span
               className="hidden items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium sm:inline-flex"
               style={{
@@ -71,11 +75,9 @@ export function AppLayout(): JSX.Element {
               title={t('nav.streakTitle')}
             >
               <i className="ph-fill ph-fire" style={{ color: 'var(--cx-amber)' }} aria-hidden />
-              <span style={{ color: 'var(--cx-amber)' }}>5</span>
+              <span style={{ color: 'var(--cx-amber)' }}>{currentStreak}</span>
             </span>
-            <button className="btn btn-icon btn-secondary !rounded-full" title={t('nav.notifications')} aria-label={t('nav.notifications')}>
-              <i className="ph ph-bell text-base" aria-hidden />
-            </button>
+            <NotificationBell />
             {user && (
               <span className="flex items-center gap-2 text-sm">
                 <span

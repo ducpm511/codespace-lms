@@ -2,8 +2,10 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
@@ -18,6 +20,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RbacService } from '../rbac/rbac.service';
 import { GradingService } from '../grading/grading.service';
+import { STORAGE_ADAPTER, type StorageAdapter } from '../common/storage/storage.interface';
+import { generateCertificatePdf } from './pdf/certificate-pdf.generator';
 import type { IssueCertificateDto } from './dto/issue-certificate.dto';
 import type { RevokeCertificateDto } from './dto/revoke-certificate.dto';
 import type { CreateCertificateTemplateDto } from './dto/create-template.dto';
@@ -55,6 +59,7 @@ export class CertificatesService {
     private readonly prisma: PrismaService,
     private readonly rbac: RbacService,
     private readonly grading: GradingService,
+    @Inject(STORAGE_ADAPTER) @Optional() private readonly storage?: StorageAdapter,
   ) {}
 
   async issue(dto: IssueCertificateDto, currentUser: AuthUser): Promise<CertificateDto> {
@@ -193,6 +198,15 @@ export class CertificatesService {
               metaJson: { userId: dto.userId, courseId: dto.courseId, classId: dto.classId, serialNo, finalScore },
             },
           }),
+          this.prisma.notification.create({
+            data: {
+              userId: dto.userId,
+              type: 'certificate.issued',
+              title: 'Chúc mừng bạn đã nhận chứng chỉ mới! 🎓',
+              message: `Chứng chỉ khóa học đã được cấp thành công. Mã xác thực: ${verificationCode}`,
+              payloadJson: { serialNo, verificationCode, courseId: dto.courseId, classId: dto.classId },
+            },
+          }),
         ]);
 
         cert = created;
@@ -207,6 +221,46 @@ export class CertificatesService {
 
     if (!cert) {
       throw new BadRequestException('Tạo chứng chỉ không thành công');
+    }
+
+    if (this.storage) {
+      try {
+        const pdfBuffer = await generateCertificatePdf({
+          studentName: cert.user?.fullName ?? 'Hoc vien',
+          courseTitle: cert.course?.title ?? 'Khoa hoc',
+          serialNo: cert.serialNo,
+          verificationCode: cert.verificationCode,
+          issuedAt: cert.issuedAt,
+          finalScore: Number(cert.finalScore),
+        });
+
+        const storageKey = `certificates/${cert.id}.pdf`;
+        await this.storage.put(storageKey, pdfBuffer, 'application/pdf');
+
+        const file = await this.prisma.file.create({
+          data: {
+            ownerId: cert.userId,
+            provider: 'local',
+            storageKey,
+            mime: 'application/pdf',
+            sizeBytes: pdfBuffer.length,
+            visibility: 'private',
+          },
+        });
+
+        const withPdf = await this.prisma.certificate.update({
+          where: { id: cert.id },
+          data: { pdfFileId: file.id },
+          include: {
+            user: { select: { fullName: true } },
+            course: { select: { title: true } },
+            issuedBy: { select: { fullName: true } },
+          },
+        });
+        return toCertificateDto(withPdf);
+      } catch {
+        // PDF generation fallback gracefully
+      }
     }
 
     return toCertificateDto(cert);
@@ -266,6 +320,15 @@ export class CertificatesService {
           metaJson: { reason: dto.reason, serialNo: cert.serialNo },
         },
       }),
+      this.prisma.notification.create({
+        data: {
+          userId: cert.userId,
+          type: 'certificate.revoked',
+          title: 'Thông báo thu hồi chứng chỉ',
+          message: `Chứng chỉ số ${cert.serialNo} đã bị thu hồi. Lý do: ${dto.reason}`,
+          payloadJson: { serialNo: cert.serialNo, reason: dto.reason },
+        },
+      }),
     ]);
 
     return toCertificateDto(updated);
@@ -289,7 +352,6 @@ export class CertificatesService {
       verificationCode: cert.verificationCode,
       studentName: cert.user.fullName,
       courseTitle: cert.course.title,
-      finalScore: Number(cert.finalScore),
       issuedAt: cert.issuedAt.toISOString(),
       status: cert.revokedAt ? 'revoked' : 'valid',
       revokedAt: cert.revokedAt ? cert.revokedAt.toISOString() : null,
@@ -349,6 +411,61 @@ export class CertificatesService {
       },
     });
     return toTemplateDto(created);
+  }
+
+  async getPdfBuffer(id: string, currentUser: AuthUser): Promise<{ buffer: Buffer; fileName: string }> {
+    const cert = await this.prisma.certificate.findUnique({
+      where: { id },
+      include: {
+        user: { select: { fullName: true } },
+        course: { select: { title: true } },
+      },
+    });
+    if (!cert) {
+      throw new NotFoundException('Chứng chỉ không tồn tại');
+    }
+
+    if (cert.userId !== currentUser.id) {
+      const isSuperAdmin = currentUser.roles?.includes('super_admin');
+      const isAdmin = currentUser.roles?.includes('admin');
+      if (!isSuperAdmin && !isAdmin) {
+        const eff = await this.rbac.getEffectivePermissions(currentUser.id);
+        const canRead = cert.classId
+          ? this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ, cert.classId)
+          : this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ);
+        if (!canRead) {
+          throw new ForbiddenException('Không có quyền tải chứng chỉ này');
+        }
+      }
+    }
+
+    let buffer: Buffer | null = null;
+    if (cert.pdfFileId && this.storage) {
+      const file = await this.prisma.file.findUnique({ where: { id: cert.pdfFileId } });
+      if (file) {
+        try {
+          buffer = await this.storage.get(file.storageKey);
+        } catch {
+          buffer = null;
+        }
+      }
+    }
+
+    if (!buffer) {
+      buffer = await generateCertificatePdf({
+        studentName: cert.user?.fullName ?? 'Hoc vien',
+        courseTitle: cert.course?.title ?? 'Khoa hoc',
+        serialNo: cert.serialNo,
+        verificationCode: cert.verificationCode,
+        issuedAt: cert.issuedAt,
+        finalScore: Number(cert.finalScore),
+      });
+    }
+
+    return {
+      buffer,
+      fileName: `certificate-${cert.serialNo}.pdf`,
+    };
   }
 }
 

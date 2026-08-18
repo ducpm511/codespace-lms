@@ -12,12 +12,18 @@ import { CodingModule } from './coding/coding.module';
 import { QuizModule } from './quiz/quiz.module';
 import { GradingModule } from './grading/grading.module';
 import { CertificatesModule } from './certificates/certificates.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { GamificationModule } from './gamification/gamification.module';
+import { AuditModule } from './audit/audit.module';
+import { CommentsModule } from './comments/comments.module';
+import { StorageModule } from './common/storage/storage.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
     // Nạp env: ưu tiên .env root monorepo, rồi .env cục bộ app. Biến shell (nếu có) vẫn thắng.
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }),
+    StorageModule,
     PrismaModule,
     RbacModule,
     AuthModule,
@@ -30,6 +36,10 @@ import { HealthController } from './health/health.controller';
     QuizModule,
     GradingModule,
     CertificatesModule,
+    NotificationsModule,
+    GamificationModule,
+    AuditModule,
+    CommentsModule,
   ],
   controllers: [HealthController],
   providers: [],

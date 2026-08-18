@@ -5,6 +5,8 @@ import { useMe } from '../features/auth/hooks';
 import { useMyClasses, useMyLessons, useUpdateProgress } from '../features/classes/hooks';
 import { useQuizzesForClass } from '../features/quiz/hooks';
 import { useCodingProblemsForClass } from '../features/coding/hooks';
+import { useMyGamification } from '../features/gamification/useGamification';
+import { LessonCommentsSection } from '../features/comments/LessonCommentsSection';
 import { LearnQuizWorkspace } from './learn/LearnQuiz';
 import { LearnCodingWorkspace } from './learn/LearnCoding';
 import { StudentGradebookSection } from './learn/StudentGradebookSection';
@@ -113,12 +115,13 @@ export function LearnHome(): JSX.Element {
   if (view === 'coding' && openProblemId && classId) {
     return <section><LearnCodingWorkspace problemId={openProblemId} classId={classId} onBack={backToList} /></section>;
   }
-  if (view === 'lesson' && openLessonId) {
+  if (view === 'lesson' && openLessonId && classId) {
     const lesson = lessonById.get(openLessonId);
     if (lesson) {
       return (
         <LessonDetail
           lesson={lesson}
+          classId={classId}
           exercises={exercises.filter((e) => e.lessonId === openLessonId)}
           onBack={backToList}
           onComplete={() => onComplete(openLessonId)}
@@ -141,9 +144,8 @@ export function LearnHome(): JSX.Element {
             return (
               <button
                 key={c.id}
+                className={`seg-btn cx-press ${active ? 'seg-active' : ''}`}
                 onClick={() => setClassId(c.id)}
-                className="seg-opt"
-                style={active ? { color: 'var(--color-accent)', boxShadow: 'inset 0 0 0 1px var(--color-accent)' } : undefined}
               >
                 {c.name}
               </button>
@@ -169,19 +171,23 @@ export function LearnHome(): JSX.Element {
   );
 }
 
-/* ═══════════════ Greeting hero (stats + level ring — MOCK gamification) ═════ */
+/* ═══════════════ Greeting hero (stats + level ring — Real gamification) ═════ */
 function GreetingHero({ name }: { name: string }): JSX.Element {
   const { t } = useTranslation();
+  const { data: gamification } = useMyGamification();
   const hour = new Date().getHours();
   const greetKey = hour < 12 ? 'learn.greetingMorning' : hour < 18 ? 'learn.greetingAfternoon' : 'learn.greetingEvening';
 
-  // MOCK: streak / XP / badges / level chưa có API gamification — giá trị placeholder tĩnh.
-  const MOCK = { streak: 5, xp: '1.240', badges: 8, level: 4, ringTurn: 0.78 };
+  const streak = gamification?.streak?.current ?? 0;
+  const xp = gamification?.xp?.total != null ? gamification.xp.total.toLocaleString('vi-VN') : '0';
+  const badgesCount = gamification?.badges?.length ?? 0;
+  const level = gamification?.xp?.level ?? 1;
+  const ringTurn = gamification?.xp?.ringTurn ?? 0;
 
   const stats = [
-    { icon: 'ph-fire', color: 'var(--cx-amber)', value: t('learn.statStreakValue', { count: MOCK.streak }), label: t('learn.statStreak') },
-    { icon: 'ph-star', color: 'var(--cx-teal)', value: MOCK.xp, label: t('learn.statXp') },
-    { icon: 'ph-medal', color: 'var(--cx-coral)', value: String(MOCK.badges), label: t('learn.statBadges') },
+    { icon: 'ph-fire', color: 'var(--cx-amber)', value: t('learn.statStreakValue', { count: streak }), label: t('learn.statStreak') },
+    { icon: 'ph-star', color: 'var(--cx-teal)', value: xp, label: t('learn.statXp') },
+    { icon: 'ph-medal', color: 'var(--cx-coral)', value: String(badgesCount), label: t('learn.statBadges') },
   ];
 
   return (
@@ -221,17 +227,17 @@ function GreetingHero({ name }: { name: string }): JSX.Element {
           </div>
         </div>
 
-        {/* Level ring — mascot cần chỗ nên wrapper có margin phải (gotcha clipping) */}
+        {/* Level ring — mascot cần chỗ nên wrapper có margin phải */}
         <div className="relative shrink-0" style={{ marginRight: 28 }}>
           <div
             className="grid place-items-center rounded-full"
             style={{
               width: 132, height: 132,
-              background: `conic-gradient(var(--cx-teal) 0turn ${MOCK.ringTurn}turn, color-mix(in srgb, #fff 12%, transparent) ${MOCK.ringTurn}turn 1turn)`,
+              background: `conic-gradient(var(--cx-teal) 0turn ${ringTurn}turn, color-mix(in srgb, #fff 12%, transparent) ${ringTurn}turn 1turn)`,
             }}
           >
             <div className="grid place-items-center rounded-full" style={{ width: 104, height: 104, background: 'var(--color-section)' }}>
-              <span className="cx-display" style={{ fontSize: 30, lineHeight: 1 }}>{MOCK.level}</span>
+              <span className="cx-display" style={{ fontSize: 30, lineHeight: 1 }}>{level}</span>
               <span className="text-[11px]" style={{ opacity: 0.7 }}>{t('learn.level')}</span>
             </div>
           </div>
@@ -524,9 +530,10 @@ function ExerciseCard({
 
 /* ═══════════════ Lesson detail view ════════════════════════════════════════ */
 function LessonDetail({
-  lesson, exercises, onBack, onComplete, completing, onOpenQuiz, onOpenCoding,
+  lesson, classId, exercises, onBack, onComplete, completing, onOpenQuiz, onOpenCoding,
 }: {
   lesson: MyLessonDto;
+  classId: string;
   exercises: Exercise[];
   onBack: () => void;
   onComplete: () => void;
@@ -572,7 +579,7 @@ function LessonDetail({
         </div>
       )}
 
-      {/* Nội dung bài học — API my-lessons chưa trả body → placeholder (đánh dấu rõ) */}
+      {/* Nội dung bài học */}
       <div className="card" style={{ borderRadius: 'var(--cx-radius)' }}>
         <p className="card-title cx-display" style={{ fontSize: 15 }}>{t('learn.lessonContent')}</p>
         <p className="text-muted text-sm">{t('learn.lessonBodyPlaceholder')}</p>
@@ -622,23 +629,8 @@ function LessonDetail({
         </button>
       </div>
 
-      {/* Thảo luận — chưa có API bình luận → placeholder tĩnh */}
-      <div className="card" style={{ borderRadius: 'var(--cx-radius)' }}>
-        <p className="card-title cx-display" style={{ fontSize: 15 }}>{t('learn.discussion')}</p>
-        <div className="mt-1 flex items-start gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ background: 'linear-gradient(150deg, var(--cx-purple), var(--cx-coral))' }}>C</span>
-          <div className="rounded-2xl px-3 py-2 text-sm" style={{ background: 'var(--color-neutral-900)' }}>
-            <p className="mb-0.5 text-xs font-semibold">{t('learn.discussionSampleName')}</p>
-            <p className="text-muted">{t('learn.discussionSample')}</p>
-          </div>
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <input className="input" placeholder={t('learn.discussionPlaceholder')} disabled />
-          <button className="btn btn-icon btn-primary !rounded-full" disabled aria-label={t('learn.discussionPost')}>
-            <i className="ph ph-paper-plane-tilt" aria-hidden />
-          </button>
-        </div>
-      </div>
+      {/* Thảo luận bài học (Real API) */}
+      <LessonCommentsSection lessonId={lesson.lessonId} classId={classId} />
     </section>
   );
 }

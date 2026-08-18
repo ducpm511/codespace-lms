@@ -111,8 +111,11 @@ function CreateClassForm({ onCreated }: { onCreated: (id: string) => void }): JS
   );
 }
 
+import { useClassReport } from '../../features/reports/useClassReport';
+
 function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
   const { t } = useTranslation();
+  const [tab, setTab] = useState<'manage' | 'report'>('manage');
   const cls = useClass(classId);
   if (cls.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
   if (cls.isError || !cls.data) return <p className="text-sm text-red-400">{t('common.error')}</p>;
@@ -121,21 +124,116 @@ function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
   return (
     <div className="space-y-4">
       <div className="card" style={{ borderRadius: 'var(--radius-lg)' }}>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="cx-display text-xl">{c.name}</h2>
             <p className="text-muted text-xs">{c.code}</p>
           </div>
-          <span className="tag tag-outline">{t('classes.ongoing', { defaultValue: 'Đang diễn ra' })}</span>
+          <div className="seg">
+            <button
+              className={`seg-btn cx-press ${tab === 'manage' ? 'seg-active' : ''}`}
+              onClick={() => setTab('manage')}
+            >
+              <i className="ph ph-gear mr-1.5" aria-hidden /> Quản lý lớp
+            </button>
+            <button
+              className={`seg-btn cx-press ${tab === 'report' ? 'seg-active' : ''}`}
+              onClick={() => setTab('report')}
+            >
+              <i className="ph ph-chart-bar mr-1.5" aria-hidden /> Báo cáo & Thống kê
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <CoursesPanel classId={classId} courses={c.courses} />
-        <MembersPanel classId={classId} members={c.members} />
+      {tab === 'manage' && (
+        <>
+          <div className="grid gap-4 md:grid-cols-2">
+            <CoursesPanel classId={classId} courses={c.courses} />
+            <MembersPanel classId={classId} members={c.members} />
+          </div>
+
+          <GatesPanel classId={classId} assignedCourses={c.courses} />
+        </>
+      )}
+
+      {tab === 'report' && <ClassReportPanel classId={classId} />}
+    </div>
+  );
+}
+
+function ClassReportPanel({ classId }: { classId: string }): JSX.Element {
+  const { data: report, isLoading, isError } = useClassReport(classId);
+
+  if (isLoading) return <p className="text-muted text-sm py-6">Đang tải báo cáo...</p>;
+  if (isError || !report) return <p className="text-sm text-red-400 py-6">Không thể tải báo cáo lớp học.</p>;
+
+  return (
+    <div className="space-y-5">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card p-4 rounded-xl text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
+          <p className="text-muted text-xs">Tổng học viên</p>
+          <p className="cx-display text-2xl mt-1">{report.totalStudents}</p>
+          <p className="text-[11px] mt-1" style={{ color: 'var(--cx-teal)' }}>{report.activeStudents} đang hoạt động</p>
+        </div>
+        <div className="card p-4 rounded-xl text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
+          <p className="text-muted text-xs">Tỷ lệ hoàn thành</p>
+          <p className="cx-display text-2xl mt-1" style={{ color: 'var(--cx-amber)' }}>{report.courseCompletionRate}%</p>
+          <p className="text-muted text-[11px] mt-1">trên các bài đã mở</p>
+        </div>
+        <div className="card p-4 rounded-xl text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
+          <p className="text-muted text-xs">Điểm TB lớp</p>
+          <p className="cx-display text-2xl mt-1" style={{ color: 'var(--cx-teal)' }}>{report.avgFinalScore}</p>
+          <p className="text-muted text-[11px] mt-1">thang điểm 100</p>
+        </div>
+        <div className="card p-4 rounded-xl text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
+          <p className="text-muted text-xs">Chứng chỉ đã cấp</p>
+          <p className="cx-display text-2xl mt-1" style={{ color: 'var(--cx-purple)' }}>{report.totalCertificatesIssued}</p>
+          <p className="text-muted text-[11px] mt-1">chứng nhận hoàn thành</p>
+        </div>
       </div>
 
-      <GatesPanel classId={classId} assignedCourses={c.courses} />
+      {/* Phân phối điểm số */}
+      <div className="card rounded-xl p-4 text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
+        <p className="card-title text-sm font-semibold mb-3">Phân phối điểm số</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {report.gradeDistribution.map((gd) => (
+            <div key={gd.range} className="p-3 rounded-lg text-center" style={{ background: 'color-mix(in srgb, var(--color-text) 5%, transparent)', border: '1px solid var(--color-divider)' }}>
+              <span className="text-muted text-xs font-mono">{gd.range} điểm</span>
+              <p className="cx-display text-lg mt-1">{gd.count} <span className="text-muted text-xs font-normal">học viên</span></p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tiến độ hoàn thành từng bài */}
+      <div className="card rounded-xl p-4 text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
+        <p className="card-title text-sm font-semibold mb-3">Tiến độ bài học đã mở ({report.lessonProgressStats.length})</p>
+        {report.lessonProgressStats.length === 0 ? (
+          <p className="text-muted text-xs py-4">Chưa có bài học nào được mở gate cho lớp này.</p>
+        ) : (
+          <div className="space-y-3">
+            {report.lessonProgressStats.map((stat) => (
+              <div key={stat.lessonId} className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="font-medium truncate max-w-md">{stat.title}</span>
+                  <span className="font-mono shrink-0" style={{ color: 'var(--cx-amber)' }}>{stat.completedCount}/{report.totalStudents} ({stat.completionRate}%)</span>
+                </div>
+                <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: 'var(--color-neutral-800)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${stat.completionRate}%`,
+                      background: 'linear-gradient(90deg, var(--cx-amber), var(--cx-teal))',
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

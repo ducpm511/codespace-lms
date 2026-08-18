@@ -101,6 +101,7 @@
   "admin": {
     "title": "Bảng điều khiển quản trị",
     "usersHeading": "Người dùng",
+    "auditHeading": "Nhật ký hệ thống",
     "email": "Email",
     "name": "Họ tên",
     "status": "Trạng thái",
@@ -134,6 +135,7 @@
     "selectHint": "Chọn một bài trắc nghiệm để chỉnh sửa, hoặc tạo bài mới.",
     "settings": "Cài đặt",
     "draft": "Bản nháp",
+    "published": "Đã phát hành",
     "delete": "Xóa",
     "confirmDelete": "Xóa bài trắc nghiệm này? Không thể hoàn tác.",
     "maxScore": "Tổng điểm",

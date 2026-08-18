@@ -56,6 +56,10 @@ const PERMISSION_DEFS = [
   { key: PERMISSIONS.CERTIFICATE_READ, description: 'Xem chứng chỉ' },
   { key: PERMISSIONS.CERTIFICATE_ISSUE, description: 'Cấp chứng chỉ cho học viên' },
   { key: PERMISSIONS.CERTIFICATE_REVOKE, description: 'Thu hồi chứng chỉ' },
+  // P6 — Polish, Audit & Notifications
+  { key: PERMISSIONS.AUDIT_READ, description: 'Xem nhật ký kiểm toán hệ thống' },
+  { key: PERMISSIONS.CERTIFICATE_TEMPLATE_MANAGE, description: 'Quản lý mẫu thiết kế chứng chỉ' },
+  { key: PERMISSIONS.NOTIFICATION_READ, description: 'Xem thông báo cá nhân' },
 ];
 
 // 5 role hệ thống (isSystem = true → không cho xóa).
@@ -67,7 +71,17 @@ const ROLE_DEFS = [
   { key: 'student', name: 'Học viên', description: 'Học bài, làm bài, xem điểm & chứng chỉ' },
 ];
 
-// Ma trận role → permission. P5 (T5.2): thêm grade.*/certificate.* cho admin, instructor, TA, student.
+// Danh mục huy hiệu hệ thống P6 (upsert theo code).
+const BADGE_DEFS = [
+  { code: 'first_lesson', name: 'Học viên xuất sắc', description: 'Hoàn thành bài học đầu tiên', icon: 'ph-medal' },
+  { code: 'first_code', name: 'Coder nhí', description: 'Chấm đạt bài lập trình Python đầu tiên', icon: 'ph-code' },
+  { code: 'quiz_master', name: 'Bậc thầy Trắc nghiệm', description: 'Đạt điểm tối đa một bài trắc nghiệm', icon: 'ph-check-square-offset' },
+  { code: 'streak_3', name: 'Chăm chỉ 3 ngày', description: 'Duy trì chuỗi học 3 ngày liên tiếp', icon: 'ph-fire' },
+  { code: 'streak_7', name: 'Chiến binh 7 ngày', description: 'Duy trì chuỗi học 7 ngày liên tiếp', icon: 'ph-fire' },
+  { code: 'xp_500', name: 'Nhà thám hiểm', description: 'Đạt 500 XP đầu tiên (Level 2)', icon: 'ph-star' },
+];
+
+// Ma trận role → permission. P6: thêm audit.read, certificate.template.manage, notification.read.
 const ALL = Object.values(PERMISSIONS);
 const ROLE_PERMISSIONS = {
   super_admin: ALL,
@@ -85,6 +99,7 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.QUIZ_READ, PERMISSIONS.QUIZ_CREATE, PERMISSIONS.QUIZ_UPDATE,
     PERMISSIONS.QUIZ_DELETE, PERMISSIONS.QUIZ_SUBMIT, PERMISSIONS.QUIZ_RESULT_READ,
     PERMISSIONS.GRADE_READ, PERMISSIONS.CERTIFICATE_READ, PERMISSIONS.CERTIFICATE_ISSUE, PERMISSIONS.CERTIFICATE_REVOKE,
+    PERMISSIONS.AUDIT_READ, PERMISSIONS.CERTIFICATE_TEMPLATE_MANAGE, PERMISSIONS.NOTIFICATION_READ,
   ],
   instructor: [
     PERMISSIONS.COURSE_READ, PERMISSIONS.COURSE_CREATE, PERMISSIONS.COURSE_UPDATE,
@@ -97,17 +112,20 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.QUIZ_READ, PERMISSIONS.QUIZ_CREATE, PERMISSIONS.QUIZ_UPDATE,
     PERMISSIONS.QUIZ_DELETE, PERMISSIONS.QUIZ_RESULT_READ,
     PERMISSIONS.GRADE_READ, PERMISSIONS.CERTIFICATE_READ, PERMISSIONS.CERTIFICATE_ISSUE, PERMISSIONS.CERTIFICATE_REVOKE,
+    PERMISSIONS.NOTIFICATION_READ,
   ],
   teaching_assistant: [
     PERMISSIONS.ASSIGNMENT_READ, PERMISSIONS.SUBMISSION_READ, PERMISSIONS.GRADE_WRITE,
     PERMISSIONS.CODING_READ, PERMISSIONS.CODING_RESULT_READ,
     PERMISSIONS.QUIZ_READ, PERMISSIONS.QUIZ_RESULT_READ,
     PERMISSIONS.GRADE_READ, PERMISSIONS.CERTIFICATE_READ,
+    PERMISSIONS.NOTIFICATION_READ,
   ],
-  // học viên: nộp code/quiz + xem kết quả của mình (sổ điểm lớp/chứng chỉ dùng endpoint riêng chặn theo membership)
+  // học viên: nộp code/quiz + xem kết quả của mình + nhận thông báo
   student: [
     PERMISSIONS.CODING_SUBMIT, PERMISSIONS.CODING_RESULT_READ,
     PERMISSIONS.QUIZ_SUBMIT, PERMISSIONS.QUIZ_RESULT_READ,
+    PERMISSIONS.NOTIFICATION_READ,
   ],
 };
 
@@ -149,7 +167,18 @@ async function main() {
       }
     }
 
-    // 4) (Tùy chọn) super_admin đầu tiên từ env — KHÔNG hardcode secret.
+    // 4) Badges (upsert theo code)
+    let badgeCount = 0;
+    for (const b of BADGE_DEFS) {
+      await prisma.badge.upsert({
+        where: { code: b.code },
+        update: { name: b.name, description: b.description, icon: b.icon },
+        create: b,
+      });
+      badgeCount++;
+    }
+
+    // 5) (Tùy chọn) super_admin đầu tiên từ env — KHÔNG hardcode secret.
     const email = process.env.SEED_ADMIN_EMAIL;
     const password = process.env.SEED_ADMIN_PASSWORD;
     if (email && password) {
@@ -172,7 +201,7 @@ async function main() {
       console.log('· Bỏ qua tạo admin (đặt SEED_ADMIN_EMAIL + SEED_ADMIN_PASSWORD để tạo).');
     }
 
-    console.log(`✔ Seed xong: ${PERMISSION_DEFS.length} permission, ${ROLE_DEFS.length} role, ${linkCount} liên kết role-permission.`);
+    console.log(`✔ Seed xong: ${PERMISSION_DEFS.length} permission, ${ROLE_DEFS.length} role, ${linkCount} liên kết role-permission, ${badgeCount} badges.`);
   } finally {
     await prisma.$disconnect();
   }

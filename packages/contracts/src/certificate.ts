@@ -27,13 +27,12 @@ export interface CertificateDto {
   issuerFullName?: string;
 }
 
-/** Thông tin xác thực công khai (/verify/:code) — KHÔNG PII nhạy cảm (không email/địa chỉ). */
+/** Thông tin xác thực công khai (/verify/:code) — KHÔNG PII nhạy cảm (không email/địa chỉ/điểm số). DESIGN §5.3 */
 export interface PublicVerificationDto {
   serialNo: string;
   verificationCode: string;
   studentName: string;
   courseTitle: string;
-  finalScore: number;
   issuedAt: string;
   status: 'valid' | 'revoked';
   revokedAt?: string | null;

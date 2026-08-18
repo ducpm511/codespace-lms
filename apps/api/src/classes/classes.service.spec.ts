@@ -8,7 +8,7 @@ import { ClassesService } from './classes.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
 function makePrisma() {
-  return {
+  const p: Record<string, unknown> = {
     class: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -18,13 +18,38 @@ function makePrisma() {
       delete: jest.fn(),
     },
     classCourse: { create: jest.fn(), deleteMany: jest.fn(), findFirst: jest.fn() },
-    classMember: { findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn(), updateMany: jest.fn() },
+    classMember: { findUnique: jest.fn(), findMany: jest.fn().mockResolvedValue([]), upsert: jest.fn(), updateMany: jest.fn() },
     course: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
     lesson: { findUnique: jest.fn() },
     lessonGate: { findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn() },
     lessonProgress: { findMany: jest.fn(), upsert: jest.fn() },
-    $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
+    notification: { create: jest.fn() },
+  };
+  p.$transaction = jest.fn((arg: unknown): unknown => {
+    if (typeof arg === 'function') {
+      return (arg as (client: unknown) => unknown)(p);
+    }
+    return Promise.all(arg as Promise<unknown>[]);
+  });
+  return p as unknown as {
+    class: {
+      findUnique: jest.Mock;
+      findMany: jest.Mock;
+      count: jest.Mock;
+      create: jest.Mock;
+      update: jest.Mock;
+      delete: jest.Mock;
+    };
+    classCourse: { create: jest.Mock; deleteMany: jest.Mock; findFirst: jest.Mock };
+    classMember: { findUnique: jest.Mock; findMany: jest.Mock; upsert: jest.Mock; updateMany: jest.Mock };
+    course: { findUnique: jest.Mock };
+    user: { findUnique: jest.Mock };
+    lesson: { findUnique: jest.Mock };
+    lessonGate: { findUnique: jest.Mock; findMany: jest.Mock; upsert: jest.Mock };
+    lessonProgress: { findMany: jest.Mock; upsert: jest.Mock };
+    notification: { create: jest.Mock };
+    $transaction: jest.Mock;
   };
 }
 

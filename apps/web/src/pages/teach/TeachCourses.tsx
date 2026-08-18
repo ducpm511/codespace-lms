@@ -9,6 +9,10 @@ import {
   useCourses,
   useCreateCourse,
   usePublishCourse,
+  useRemoveLesson,
+  useRemoveSection,
+  useUpdateLesson,
+  useUpdateSection,
 } from '../../features/courses/hooks';
 
 export function TeachCourses(): JSX.Element {
@@ -110,8 +114,18 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
   const { t } = useTranslation();
   const course = useCourse(courseId);
   const addSection = useAddSection(courseId);
+  const updateSection = useUpdateSection(courseId);
+  const removeSection = useRemoveSection(courseId);
+  const updateLesson = useUpdateLesson(courseId);
+  const removeLesson = useRemoveLesson(courseId);
   const publish = usePublishCourse(courseId);
   const [sectionTitle, setSectionTitle] = useState('');
+
+  // Inline editing state
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editingSectionTitle, setEditingSectionTitle] = useState('');
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+  const [editingLessonTitle, setEditingLessonTitle] = useState('');
 
   if (course.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
   if (course.isError || !course.data) return <p className="text-sm text-red-400">{t('common.error')}</p>;
@@ -138,7 +152,68 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
         {c.sections.length === 0 && <p className="text-muted text-sm">{t('courses.noSections')}</p>}
         {c.sections.map((s) => (
           <div key={s.id} className="rounded-md" style={{ border: '1px solid var(--color-divider)' }}>
-            <div className="chip rounded-b-none text-sm font-medium">{s.title}</div>
+            <div className="chip rounded-b-none text-sm font-medium flex items-center justify-between gap-2">
+              {editingSectionId === s.id ? (
+                <div className="flex items-center gap-1 flex-1">
+                  <input
+                    className="input text-xs py-1 flex-1"
+                    value={editingSectionTitle}
+                    onChange={(e) => setEditingSectionTitle(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary !py-0.5 !px-2 text-xs"
+                    onClick={() => {
+                      if (editingSectionTitle.trim()) {
+                        updateSection.mutate(
+                          { sectionId: s.id, body: { title: editingSectionTitle.trim() } },
+                          { onSuccess: () => setEditingSectionId(null) },
+                        );
+                      }
+                    }}
+                  >
+                    Lưu
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary !py-0.5 !px-2 text-xs"
+                    onClick={() => setEditingSectionId(null)}
+                  >
+                    Hủy
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <span>{s.title}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="text-xs text-slate-400 hover:text-amber-400 p-1"
+                      title="Sửa chương"
+                      onClick={() => {
+                        setEditingSectionId(s.id);
+                        setEditingSectionTitle(s.title);
+                      }}
+                    >
+                      <i className="ph ph-pencil" />
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs text-slate-400 hover:text-rose-400 p-1"
+                      title="Xóa chương"
+                      onClick={() => {
+                        if (confirm(`Xóa chương "${s.title}" và toàn bộ bài học bên trong?`)) {
+                          removeSection.mutate(s.id);
+                        }
+                      }}
+                    >
+                      <i className="ph ph-trash" />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             <ul>
               {s.lessons.map((l) => (
                 <li
@@ -146,10 +221,75 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
                   className="flex items-center justify-between px-3 py-1.5 text-sm"
                   style={{ borderTop: '1px solid var(--color-divider)' }}
                 >
-                  <span>{l.title}</span>
-                  <span className="text-muted text-xs">
-                    {t(`lessonType.${l.type}`, { defaultValue: l.type })}
-                  </span>
+                  {editingLessonId === l.id ? (
+                    <div className="flex items-center gap-1 flex-1">
+                      <input
+                        className="input text-xs py-1 flex-1"
+                        value={editingLessonTitle}
+                        onChange={(e) => setEditingLessonTitle(e.target.value)}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary !py-0.5 !px-2 text-xs"
+                        onClick={() => {
+                          if (editingLessonTitle.trim()) {
+                            updateLesson.mutate(
+                              {
+                                sectionId: s.id,
+                                lessonId: l.id,
+                                body: { title: editingLessonTitle.trim() },
+                              },
+                              { onSuccess: () => setEditingLessonId(null) },
+                            );
+                          }
+                        }}
+                      >
+                        Lưu
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary !py-0.5 !px-2 text-xs"
+                        onClick={() => setEditingLessonId(null)}
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span>{l.title}</span>
+                        <span className="text-muted text-xs">
+                          {t(`lessonType.${l.type}`, { defaultValue: l.type })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="text-xs text-slate-400 hover:text-amber-400 p-1"
+                          title="Sửa bài học"
+                          onClick={() => {
+                            setEditingLessonId(l.id);
+                            setEditingLessonTitle(l.title);
+                          }}
+                        >
+                          <i className="ph ph-pencil" />
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs text-slate-400 hover:text-rose-400 p-1"
+                          title="Xóa bài học"
+                          onClick={() => {
+                            if (confirm(`Xóa bài học "${l.title}"?`)) {
+                              removeLesson.mutate({ sectionId: s.id, lessonId: l.id });
+                            }
+                          }}
+                        >
+                          <i className="ph ph-trash" />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </li>
               ))}
               {s.lessons.length === 0 && (

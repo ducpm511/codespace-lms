@@ -1,6 +1,7 @@
 import { type DynamicModule, Logger, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { RunnerModule } from '../runner/runner.module';
+import { GamificationModule } from '../../gamification/gamification.module';
 import { AutograderService } from '../grading/autograder.service';
 import { SubmissionQueue } from './submission-queue';
 import { InlineSubmissionQueue } from './inline-submission-queue';
@@ -21,7 +22,7 @@ export class CodingQueueModule {
 
     return {
       module: CodingQueueModule,
-      imports: [ConfigModule, RunnerModule],
+      imports: [ConfigModule, RunnerModule, GamificationModule],
       providers: [AutograderService, { provide: SubmissionQueue, useClass }],
       exports: [SubmissionQueue, AutograderService],
     };

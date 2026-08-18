@@ -61,6 +61,14 @@ model User {
   certificatesIssued Certificate[] @relation("CertificateIssuedBy")
   auditLogs          AuditLog[]    @relation("AuditLogActor")
 
+  // P6 (Gamification, Notifications, Storage, Discussion)
+  notifications Notification[]  @relation("NotificationForUser")
+  xpEvents      XpEvent[]
+  streak        UserStreak?
+  userBadges    UserBadge[]
+  files         File[]          @relation("FileOwner")
+  comments      LessonComment[]
+
   @@map("users")
 }
 
@@ -229,6 +237,7 @@ model Lesson {
   assignments    Assignment[]
   codingProblems CodingProblem[]
   quizzes        Quiz[]
+  comments       LessonComment[]
 
   @@unique([sectionId, order])
   @@index([refId])
@@ -285,6 +294,9 @@ model Class {
   // P5 (Gradebook & Certificate)
   gradeItems   GradeItem[]
   certificates Certificate[]
+
+  // P6 (Discussion)
+  comments LessonComment[]
 
   @@index([createdById])
   @@map("classes")
@@ -590,6 +602,7 @@ model Quiz {
   passScore        Decimal  @default(0) @db.Decimal(6, 2)
   shuffleQuestions Boolean  @default(false)
   shuffleOptions   Boolean  @default(false)
+  published        Boolean  @default(false)
   createdById      String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -795,3 +808,120 @@ model AuditLog {
   @@index([entity, entityId])
   @@map("audit_logs")
 }
+
+// === Polish, Gamification, Notifications & Storage (P6) — docs/DESIGN.md §4.8, §5.4 ===
+
+// Thông báo trong ứng dụng cho người dùng. Ghi CÙNG transaction với sự kiện domain.
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  type        String // certificate.issued, certificate.revoked, submission.graded, gate.opened, badge.awarded...
+  title       String
+  message     String
+  payloadJson Json?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation("NotificationForUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+// Sự kiện cộng điểm kinh nghiệm (XP) — append-only, idempotent (P6)
+model XpEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  source    String // lesson_complete, quiz_pass, coding_pass
+  sourceId  String
+  amount    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, sourceId])
+  @@index([userId])
+  @@map("xp_events")
+}
+
+// Chuỗi ngày học liên tiếp của học viên (P6)
+model UserStreak {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  currentStreak  Int      @default(0)
+  longestStreak  Int      @default(0)
+  lastActiveDate String? // 'YYYY-MM-DD'
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_streaks")
+}
+
+// Danh mục huy hiệu hệ thống (P6)
+model Badge {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String
+  icon         String?
+  criteriaJson Json?
+  createdAt    DateTime @default(now())
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+// Huy hiệu đã đạt của học viên (P6)
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  awardedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+// Quản lý file lưu trữ (private / public) (P6)
+model File {
+  id         String   @id @default(cuid())
+  ownerId    String?
+  provider   String   @default("local") // local, r2, cloudinary
+  storageKey String
+  mime       String
+  sizeBytes  Int
+  visibility String   @default("private") // private, public
+  createdAt  DateTime @default(now())
+
+  owner User? @relation("FileOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId])
+  @@map("files")
+}
+
+// Bình luận, thảo luận trong bài học theo lớp (P6 / D5)
+model LessonComment {
+  id        String   @id @default(cuid())
+  lessonId  String
+  classId   String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  class  Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, classId, createdAt])
+  @@index([userId])
+  @@map("lesson_comments")
+}
+

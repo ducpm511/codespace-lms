@@ -24,6 +24,9 @@ function makePrisma() {
     lessonGate: {
       findUnique: jest.fn(),
     },
+    notification: {
+      create: jest.fn(),
+    },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
 }

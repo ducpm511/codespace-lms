@@ -8,13 +8,16 @@ import {
 import { Prisma } from '@lms/database';
 import type {
   ClassDetail,
+  ClassReportDto,
   ClassSummary,
   LessonGateDto,
   LessonProgressDto,
+  LessonProgressStatDto,
   MyLessonDto,
   Paginated,
 } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
+import { GamificationService } from '../gamification/gamification.service';
 import type { CreateClassDto } from './dto/create-class.dto';
 import type { UpdateClassDto } from './dto/update-class.dto';
 import type { AssignCourseDto } from './dto/assign-course.dto';
@@ -37,7 +40,10 @@ type ClassWithDetail = Prisma.ClassGetPayload<{ include: typeof detailInclude }>
 
 @Injectable()
 export class ClassesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gamificationService?: GamificationService,
+  ) {}
 
   // --- Class CRUD ---
 
@@ -183,7 +189,10 @@ export class ClassesService {
     await this.ensureClass(classId);
     const lesson = await this.prisma.lesson.findUnique({
       where: { id: dto.lessonId },
-      select: { section: { select: { courseId: true } } },
+      select: {
+        title: true,
+        section: { select: { courseId: true, course: { select: { title: true } } } },
+      },
     });
     if (!lesson) {
       throw new NotFoundException('Bài học không tồn tại');
@@ -210,6 +219,26 @@ export class ClassesService {
         activatedById: dto.isActive ? activatedById : null,
       },
     });
+
+    if (dto.isActive) {
+      const students =
+        (await this.prisma.classMember.findMany({
+          where: { classId, status: 'active', roleInClass: 'student' },
+          select: { userId: true },
+        })) ?? [];
+      for (const s of students) {
+        await this.prisma.notification.create({
+          data: {
+            userId: s.userId,
+            type: 'gate.opened',
+            title: 'Bài học mới đã được mở! 🚀',
+            message: `Bài học "${lesson.title}" (${lesson.section.course.title}) đã được mở cho lớp.`,
+            payloadJson: { classId, lessonId: dto.lessonId },
+          },
+        });
+      }
+    }
+
     return toGateDto(gate);
   }
 
@@ -286,12 +315,140 @@ export class ClassesService {
       throw new ForbiddenException('Bài học chưa được mở cho lớp này');
     }
     const completedAt = dto.status === 'completed' ? new Date() : null;
-    const row = await this.prisma.lessonProgress.upsert({
-      where: { userId_lessonId_classId: { userId, lessonId, classId } },
-      update: { status: dto.status, completedAt },
-      create: { userId, lessonId, classId, status: dto.status, completedAt },
+
+    const row = await this.prisma.$transaction(async (tx) => {
+      const p = await tx.lessonProgress.upsert({
+        where: { userId_lessonId_classId: { userId, lessonId, classId } },
+        update: { status: dto.status, completedAt },
+        create: { userId, lessonId, classId, status: dto.status, completedAt },
+      });
+
+      if (dto.status === 'completed' && this.gamificationService) {
+        await this.gamificationService.recordLearningActivityInTx(tx, {
+          userId,
+          source: 'lesson_complete',
+          sourceId: lessonId,
+          xpAmount: 50,
+        });
+      }
+
+      return p;
     });
+
     return toProgressDto(row);
+  }
+
+  /**
+   * Báo cáo/Thống kê lớp học (T6.2): tỷ lệ hoàn thành, điểm trung bình, số chứng chỉ, phân phối điểm.
+   */
+  async getClassReport(classId: string): Promise<ClassReportDto> {
+    const cls = await this.prisma.class.findUnique({
+      where: { id: classId },
+      select: { id: true, name: true },
+    });
+    if (!cls) {
+      throw new NotFoundException('Lớp học không tồn tại');
+    }
+
+    // 1. Thành viên học viên active
+    const members = await this.prisma.classMember.findMany({
+      where: { classId, status: 'active', roleInClass: 'student' },
+      select: { userId: true },
+    });
+    const totalStudents = members.length;
+    const studentIds = members.map((m) => m.userId);
+
+    // 2. Bài học đã mở gate
+    const gates = await this.prisma.lessonGate.findMany({
+      where: { classId, isActive: true },
+      include: { lesson: { select: { id: true, title: true, order: true } } },
+      orderBy: { lesson: { order: 'asc' } },
+    });
+    const totalGatedLessons = gates.length;
+
+    // 3. Tiến độ hoàn thành bài của học viên
+    const progressList = await this.prisma.lessonProgress.findMany({
+      where: {
+        classId,
+        userId: { in: studentIds },
+        lessonId: { in: gates.map((g) => g.lessonId) },
+        status: 'completed',
+      },
+    });
+
+    const completedByLesson = new Map<string, number>();
+    for (const p of progressList) {
+      completedByLesson.set(p.lessonId, (completedByLesson.get(p.lessonId) ?? 0) + 1);
+    }
+
+    const lessonProgressStats: LessonProgressStatDto[] = gates.map((g) => {
+      const completedCount = completedByLesson.get(g.lessonId) ?? 0;
+      const rate = totalStudents > 0 ? Math.round((completedCount / totalStudents) * 100) : 0;
+      return {
+        lessonId: g.lessonId,
+        title: g.lesson.title,
+        order: g.lesson.order,
+        completedCount,
+        completionRate: rate,
+      };
+    });
+
+    const activeStudentsSet = new Set(progressList.map((p) => p.userId));
+    const activeStudents = activeStudentsSet.size;
+
+    const totalPossible = totalStudents * totalGatedLessons;
+    const courseCompletionRate =
+      totalPossible > 0 ? Math.round((progressList.length / totalPossible) * 100) : 0;
+
+    // 4. Sổ điểm & phân phối điểm
+    const gradeEntries = await this.prisma.gradeEntry.findMany({
+      where: {
+        userId: { in: studentIds },
+        gradeItem: { classId },
+      },
+      select: { score: true, gradeItem: { select: { maxScore: true } } },
+    });
+
+    let sumScore = 0;
+    let scoreCount = 0;
+    const dist: Record<string, number> = { '0-49': 0, '50-69': 0, '70-84': 0, '85-100': 0 };
+
+    for (const ge of gradeEntries) {
+      const s = Number(ge.score);
+      const max = Number(ge.gradeItem.maxScore) || 100;
+      const pct = (s / max) * 100;
+      sumScore += pct;
+      scoreCount++;
+
+      if (pct < 50) dist['0-49'] = (dist['0-49'] ?? 0) + 1;
+      else if (pct < 70) dist['50-69'] = (dist['50-69'] ?? 0) + 1;
+      else if (pct < 85) dist['70-84'] = (dist['70-84'] ?? 0) + 1;
+      else dist['85-100'] = (dist['85-100'] ?? 0) + 1;
+    }
+
+    const avgFinalScore = scoreCount > 0 ? Math.round((sumScore / scoreCount) * 10) / 10 : 0;
+
+    // 5. Chứng chỉ đã cấp
+    const totalCertificatesIssued = await this.prisma.certificate.count({
+      where: { classId, revokedAt: null },
+    });
+
+    return {
+      classId,
+      className: cls.name,
+      totalStudents,
+      activeStudents,
+      courseCompletionRate,
+      avgFinalScore,
+      totalCertificatesIssued,
+      gradeDistribution: [
+        { range: '0-49', count: dist['0-49'] ?? 0 },
+        { range: '50-69', count: dist['50-69'] ?? 0 },
+        { range: '70-84', count: dist['70-84'] ?? 0 },
+        { range: '85-100', count: dist['85-100'] ?? 0 },
+      ],
+      lessonProgressStats,
+    };
   }
 
   // --- helpers ---

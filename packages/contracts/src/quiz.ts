@@ -28,6 +28,7 @@ export interface QuizSummary {
   passScore: number;
   shuffleQuestions: boolean;
   shuffleOptions: boolean;
+  published: boolean;
   questionCount: number;
   maxScore: number; // Σ points của mọi câu hỏi
   createdAt: string;
@@ -90,6 +91,7 @@ export interface CreateQuizRequest {
   passScore?: number;
   shuffleQuestions?: boolean;
   shuffleOptions?: boolean;
+  published?: boolean;
 }
 
 export interface UpdateQuizRequest {
@@ -99,6 +101,7 @@ export interface UpdateQuizRequest {
   passScore?: number;
   shuffleQuestions?: boolean;
   shuffleOptions?: boolean;
+  published?: boolean;
 }
 
 export interface UpsertQuestionOptionRequest {

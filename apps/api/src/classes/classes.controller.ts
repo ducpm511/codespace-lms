@@ -64,6 +64,12 @@ export class ClassesController {
     return this.classes.findOne(classId);
   }
 
+  @Get(':classId/report')
+  @RequirePermission(PERMISSIONS.CLASS_READ)
+  getReport(@Param('classId') classId: string) {
+    return this.classes.getClassReport(classId);
+  }
+
   @Patch(':classId')
   @RequirePermission(PERMISSIONS.CLASS_UPDATE)
   update(@Param('classId') classId: string, @Body() dto: UpdateClassDto): Promise<ClassDetail> {

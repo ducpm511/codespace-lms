@@ -63,6 +63,10 @@ export const PERMISSIONS = {
   CERTIFICATE_READ: 'certificate.read',
   CERTIFICATE_ISSUE: 'certificate.issue',
   CERTIFICATE_REVOKE: 'certificate.revoke',
+  // P6 — Polish, Audit & Notifications
+  AUDIT_READ: 'audit.read',
+  CERTIFICATE_TEMPLATE_MANAGE: 'certificate.template.manage',
+  NOTIFICATION_READ: 'notification.read',
 } as const;
 
 export type PermissionCatalogKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

@@ -19,6 +19,21 @@ export const createCourse = (body: CreateCourseRequest): Promise<CourseDetail> =
 export const addSection = (courseId: string, body: CreateSectionRequest): Promise<CourseDetail> =>
   apiFetch<CourseDetail>(`/courses/${courseId}/sections`, { method: 'POST', body: JSON.stringify(body) });
 
+export const updateSection = (
+  courseId: string,
+  sectionId: string,
+  body: { title?: string; order?: number },
+): Promise<CourseDetail> =>
+  apiFetch<CourseDetail>(`/courses/${courseId}/sections/${sectionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+
+export const removeSection = (courseId: string, sectionId: string): Promise<CourseDetail> =>
+  apiFetch<CourseDetail>(`/courses/${courseId}/sections/${sectionId}`, {
+    method: 'DELETE',
+  });
+
 export const addLesson = (
   courseId: string,
   sectionId: string,
@@ -27,6 +42,26 @@ export const addLesson = (
   apiFetch<CourseDetail>(`/courses/${courseId}/sections/${sectionId}/lessons`, {
     method: 'POST',
     body: JSON.stringify(body),
+  });
+
+export const updateLesson = (
+  courseId: string,
+  sectionId: string,
+  lessonId: string,
+  body: { title?: string; order?: number; type?: string; durationSec?: number | null },
+): Promise<CourseDetail> =>
+  apiFetch<CourseDetail>(`/courses/${courseId}/sections/${sectionId}/lessons/${lessonId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+
+export const removeLesson = (
+  courseId: string,
+  sectionId: string,
+  lessonId: string,
+): Promise<CourseDetail> =>
+  apiFetch<CourseDetail>(`/courses/${courseId}/sections/${sectionId}/lessons/${lessonId}`, {
+    method: 'DELETE',
   });
 
 export const publishCourse = (id: string): Promise<CourseDetail> =>

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { PERMISSIONS, type AuthUser, type CertificateDto, type CertificateTemplateDto } from '@lms/contracts';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -55,9 +56,22 @@ export class CertificatesController {
     return this.certificatesService.listTemplates();
   }
 
+  @Get(':id/pdf')
+  @UseGuards(JwtAuthGuard)
+  async downloadPdf(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthUser,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { buffer, fileName } = await this.certificatesService.getPdfBuffer(id, currentUser);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(buffer);
+  }
+
   @Post('templates')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermission(PERMISSIONS.CERTIFICATE_ISSUE)
+  @RequirePermission(PERMISSIONS.CERTIFICATE_TEMPLATE_MANAGE)
   createTemplate(@Body() dto: CreateCertificateTemplateDto): Promise<CertificateTemplateDto> {
     return this.certificatesService.createTemplate(dto);
   }

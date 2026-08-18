@@ -122,20 +122,9 @@ export function VerifyCertificate(): JSX.Element {
                 <p className="text-lg font-bold mt-1" style={{ color: 'var(--cx-purple)' }}>{data.courseTitle}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="pt-4 border-t flex items-center justify-around" style={{ borderColor: 'var(--color-border)' }}>
                 <div
-                  className="rounded-xl p-3 text-center"
-                  style={{
-                    background: 'var(--color-surface)',
-                    border: '1px solid var(--color-border)',
-                  }}
-                >
-                  <span className="text-xs text-muted">Điểm tổng kết</span>
-                  <div className="text-xl font-bold mt-0.5" style={{ color: 'var(--cx-amber)' }}>{data.finalScore}%</div>
-                </div>
-
-                <div
-                  className="rounded-xl p-3 text-center"
+                  className="rounded-xl p-3 text-center flex-1 max-w-xs"
                   style={{
                     background: 'var(--color-surface)',
                     border: '1px solid var(--color-border)',

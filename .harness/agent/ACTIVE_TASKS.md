@@ -20,7 +20,7 @@ Updated: 2026-08-16
 | **P3** Coding & Runner | Pyodide FE + Judge0/Piston + autograde | ✅ Done |
 | **P4** Quiz | quiz engine + autograde | ✅ Done |
 | **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | ✅ Done (T5.0–T5.7 + review fixes) |
-| **P6** Polish | notification, audit UI, báo cáo | ⬅️ Next (chưa breakdown) |
+| **P6** Polish & Gamification | notification, audit UI, báo cáo lớp, gamification thật, PDF cert, tech debt cleanup | ✅ Done (T6.1–T6.6 + D1–D5) |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -31,23 +31,31 @@ Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified
 
 ## Active Phase
 
-### Phase P6: Polish — ⬅️ Next (chưa breakdown task)
+### Phase P6: Polish & Gamification — ✅ HOÀN THÀNH (2026-08-17)
 
-Nội dung dự kiến (docs/DESIGN.md §4.8, §10): `Notification` (in-app + trigger domain), audit UI (xem
-`AuditLog`), báo cáo/thống kê lớp. Chưa chốt task — cần đọc DESIGN + breakdown khi bắt đầu.
+- **T6.1 (In-app Notification)**: Schema + contracts + NotificationsModule + Domain triggers (`gate.opened`, `submission.graded`, `certificate.issued`, `certificate.revoked`, `badge.awarded`) trong cùng `$transaction` + FE `NotificationBell` header dropdown + badge unread + mark read.
+- **T6.2 (Teacher Class Report)**: `GET /classes/:classId/report` tính số lượng học viên, tỷ lệ hoàn thành khóa, điểm trung bình, phân phối điểm và tiến độ từng bài đã mở gate + Tab Báo cáo & Thống kê trong TeachClasses.
+- **T6.3 (Audit Log Viewer)**: `GET /audit` (phân trang + lọc theo actor/action/entity/date) + Tab Nhật ký hệ thống trong AdminHome + Modal xem JSON meta chi tiết.
+- **T6.4 (Teacher Authoring Polish)**: Thêm inline sửa/xóa Section và Lesson trong TeachCourses.
+- **T6.5 (Quiz Publish Switch)**: Thêm trường `Quiz.published` vào Schema/Contracts + toggle `.cx-toggle` trong TeachQuiz.
+- **T6.6 (i18n Parity)**: Đồng bộ 100% bộ key giữa `vi.json` và `en.json` (0 missing keys).
+- **D1 (PDF Certificate Generation & Storage)**: Tích hợp `pdf-lib` sinh PDF chứng chỉ khổ ngang A4 (màu vàng/teal, serial, verification code) + `LocalStorageAdapter` (`uploads/`) + endpoint `GET /certificates/:id/pdf` tải file PDF.
+- **D2 (Verify Certificate Privacy)**: Gỡ bỏ `finalScore` khỏi `PublicVerificationDto` và trang `VerifyCertificate.tsx` (chống lộ điểm số trên QR code công khai).
+- **D3 (Separate Template Permission)**: Thêm quyền `certificate.template.manage` (`CERTIFICATE_TEMPLATE_MANAGE`) tách biệt với quyền cấp phát chứng chỉ.
+- **D4 (Real Gamification ADR 002)**: Schema (`XpEvent`, `UserStreak`, `Badge`, `UserBadge`) + tính Level/XP/Streak pure function + tự động trao huy hiệu + trigger XP khi hoàn thành bài học (50 XP), pass quiz (100 XP), pass coding (100 XP) trong cùng transaction + FE `GreetingHero` và Streak pill hiển thị dữ liệu thật từ `/gamification/me`.
+- **D5 (Lesson Discussion / Comments)**: Schema (`LessonComment`) + CommentsModule (`GET/POST /lessons/:id/comments?classId=`) + FE `LessonCommentsSection` tích hợp trong `LearnHome > LessonDetail`.
 
 ---
 
-## Nợ kỹ thuật ghi nhận (không chặn — dọn ở P6/Polish)
+## Nợ kỹ thuật đã giải quyết (Phase P6 Tech Debt Cleaned)
 
-- **P5 L2**: trang verify công khai trả thừa `finalScore` (DESIGN §5.3 chỉ yêu cầu tên/khóa/ngày).
-- **P5 L3**: `certificates.createTemplate` dùng chung quyền `CERTIFICATE_ISSUE` — nên tách quyền admin riêng.
-- **P5**: sinh **PDF chứng chỉ** chưa làm (MVP chỉ có record + verify page; `Certificate.pdfFileId` để null) —
-  cần chốt lib (pdf-lib/puppeteer) + `StorageAdapter` private (R2) khi làm.
-- **Quiz.published**: chưa có field (schema + contract) → publish toggle ở TeachQuiz đang PLACEHOLDER disabled.
-- **Gamification** (streak/XP/badge/level ở Learn hero) — UI MOCK tĩnh, chưa có backend.
-- **Discussion/comment** (lesson detail) — placeholder tĩnh, chưa có API.
-- Cũ (P1): FE chưa sửa/xóa section/lesson/gán-khóa; enroll nhập `userId` thô (chưa tra theo email).
+- ✅ **P5 L2**: Trang verify công khai đã gỡ bỏ `finalScore` (D2 fix).
+- ✅ **P5 L3**: `certificates.createTemplate` đã chuyển sang quyền `CERTIFICATE_TEMPLATE_MANAGE` (D3 fix).
+- ✅ **P5 PDF**: Đã sinh PDF chứng chỉ hoàn chỉnh qua `pdf-lib` + `StorageAdapter` lưu file và tải về qua `GET /certificates/:id/pdf` (D1 fix).
+- ✅ **Quiz.published**: Đã thêm trường schema + toggle hoạt động trong TeachQuiz (T6.5).
+- ✅ **Gamification**: Đã chuyển từ mock sang backend thật (Level, XP, Streak, Badges, triggers) (D4 fix).
+- ✅ **Discussion/comment**: Đã có module comment + form thảo luận bài học (D5 fix).
+- ✅ **Section/Lesson edit/delete**: Đã có UI inline edit/delete trong TeachCourses (T6.4).
 
 ---
 
