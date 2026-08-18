@@ -176,6 +176,16 @@ enum LessonType {
   assignment
 }
 
+// P7 — loại activity trong một bài học (1 lesson = nhiều activity có thứ tự).
+enum LessonActivityType {
+  markdown
+  pdf
+  video
+  quiz
+  coding
+  assignment
+}
+
 model Course {
   id           String         @id @default(cuid())
   slug         String         @unique
@@ -238,10 +248,36 @@ model Lesson {
   codingProblems CodingProblem[]
   quizzes        Quiz[]
   comments       LessonComment[]
+  activities     LessonActivity[]
 
   @@unique([sectionId, order])
   @@index([refId])
   @@map("lessons")
+}
+
+// P7 — một đơn vị nội dung trong bài học. `type` quyết định cột nào có nghĩa:
+// markdown->contentMd, pdf->fileId, video->videoUrl (link nhúng, allowlist host),
+// quiz/coding/assignment->refId (soft-ref tới Quiz/CodingProblem/Assignment, giống Lesson.refId).
+model LessonActivity {
+  id        String             @id @default(cuid())
+  lessonId  String
+  order     Int
+  type      LessonActivityType
+  title     String?
+  contentMd String?
+  fileId    String?
+  videoUrl  String?
+  refId     String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  file   File?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@unique([lessonId, order])
+  @@index([fileId])
+  @@index([refId])
+  @@map("lesson_activities")
 }
 
 // === Class / Cohort (T1.0) — docs/DESIGN.md §4.3 ===
@@ -895,12 +931,14 @@ model File {
   ownerId    String?
   provider   String   @default("local") // local, r2, cloudinary
   storageKey String
+  fileName   String? // tên gốc lúc upload (chỉ để hiển thị — KHÔNG dùng dựng đường dẫn)
   mime       String
   sizeBytes  Int
   visibility String   @default("private") // private, public
   createdAt  DateTime @default(now())
 
-  owner User? @relation("FileOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  owner            User?            @relation("FileOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  lessonActivities LessonActivity[]
 
   @@index([ownerId])
   @@map("files")
@@ -924,4 +962,3 @@ model LessonComment {
   @@index([userId])
   @@map("lesson_comments")
 }
-

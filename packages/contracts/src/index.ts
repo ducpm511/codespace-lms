@@ -6,6 +6,7 @@ export * from './rbac';
 export * from './auth';
 export * from './user';
 export * from './course';
+export * from './lesson-activity';
 export * from './class';
 export * from './assignment';
 export * from './coding';

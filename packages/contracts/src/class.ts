@@ -1,5 +1,7 @@
 // Hợp đồng Class/ClassCourse/ClassMember/LessonGate/LessonProgress. docs/DESIGN.md §4.3.
 
+import type { StudentLessonActivityDto } from './lesson-activity';
+
 export type ClassStatusValue = 'planning' | 'active' | 'finished' | 'archived';
 export type ClassMemberRoleValue = 'student' | 'ta' | 'instructor';
 export type ProgressStatusValue = 'not_started' | 'in_progress' | 'completed';
@@ -94,4 +96,9 @@ export interface MyLessonDto {
   sectionTitle: string;
   progressStatus: string;
   completedAt?: string | null;
+  /** P7 — nội dung bài học dạng danh sách activity có thứ tự. */
+  activities: StudentLessonActivityDto[];
+  /** Legacy (bài soạn trước P7) — FE chỉ dùng khi `activities` rỗng. */
+  contentMd?: string | null;
+  videoUrl?: string | null;
 }

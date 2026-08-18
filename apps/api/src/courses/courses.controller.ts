@@ -7,11 +7,18 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { PERMISSIONS } from '@lms/contracts';
-import type { CourseDetail, CourseSummary, Paginated } from '@lms/contracts';
+import type {
+  CourseDetail,
+  CourseSummary,
+  LessonActivityDto,
+  LessonDetail,
+  Paginated,
+} from '@lms/contracts';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthPrincipal } from '../auth/auth.types';
@@ -25,11 +32,18 @@ import { CreateSectionDto } from './dto/create-section.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
+import { CreateLessonActivityDto } from './dto/create-lesson-activity.dto';
+import { UpdateLessonActivityDto } from './dto/update-lesson-activity.dto';
+import { ReorderLessonActivitiesDto } from './dto/reorder-lesson-activities.dto';
+import { LessonActivitiesService } from './lesson-activities.service';
 
 @Controller('courses')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class CoursesController {
-  constructor(private readonly courses: CoursesService) {}
+  constructor(
+    private readonly courses: CoursesService,
+    private readonly activities: LessonActivitiesService,
+  ) {}
 
   @Get()
   @RequirePermission(PERMISSIONS.COURSE_READ)
@@ -131,5 +145,62 @@ export class CoursesController {
     @Param('lessonId') lessonId: string,
   ): Promise<CourseDetail> {
     return this.courses.removeLesson(id, sectionId, lessonId);
+  }
+
+  // --- Lesson activities (P7) — IDOR kiểm trong service theo course/section/lesson trong path ---
+
+  @Get(':id/sections/:sectionId/lessons/:lessonId')
+  @RequirePermission(PERMISSIONS.COURSE_READ)
+  lessonDetail(
+    @Param('id') id: string,
+    @Param('sectionId') sectionId: string,
+    @Param('lessonId') lessonId: string,
+  ): Promise<LessonDetail> {
+    return this.activities.getLessonDetail(id, sectionId, lessonId);
+  }
+
+  @Post(':id/sections/:sectionId/lessons/:lessonId/activities')
+  @RequirePermission(PERMISSIONS.COURSE_UPDATE)
+  addActivity(
+    @Param('id') id: string,
+    @Param('sectionId') sectionId: string,
+    @Param('lessonId') lessonId: string,
+    @Body() dto: CreateLessonActivityDto,
+  ): Promise<LessonActivityDto[]> {
+    return this.activities.create(id, sectionId, lessonId, dto);
+  }
+
+  @Put(':id/sections/:sectionId/lessons/:lessonId/activities/reorder')
+  @RequirePermission(PERMISSIONS.COURSE_UPDATE)
+  reorderActivities(
+    @Param('id') id: string,
+    @Param('sectionId') sectionId: string,
+    @Param('lessonId') lessonId: string,
+    @Body() dto: ReorderLessonActivitiesDto,
+  ): Promise<LessonActivityDto[]> {
+    return this.activities.reorder(id, sectionId, lessonId, dto);
+  }
+
+  @Patch(':id/sections/:sectionId/lessons/:lessonId/activities/:activityId')
+  @RequirePermission(PERMISSIONS.COURSE_UPDATE)
+  updateActivity(
+    @Param('id') id: string,
+    @Param('sectionId') sectionId: string,
+    @Param('lessonId') lessonId: string,
+    @Param('activityId') activityId: string,
+    @Body() dto: UpdateLessonActivityDto,
+  ): Promise<LessonActivityDto[]> {
+    return this.activities.update(id, sectionId, lessonId, activityId, dto);
+  }
+
+  @Delete(':id/sections/:sectionId/lessons/:lessonId/activities/:activityId')
+  @RequirePermission(PERMISSIONS.COURSE_UPDATE)
+  removeActivity(
+    @Param('id') id: string,
+    @Param('sectionId') sectionId: string,
+    @Param('lessonId') lessonId: string,
+    @Param('activityId') activityId: string,
+  ): Promise<LessonActivityDto[]> {
+    return this.activities.remove(id, sectionId, lessonId, activityId);
   }
 }

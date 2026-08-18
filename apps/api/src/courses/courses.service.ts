@@ -12,7 +12,10 @@ import type { UpdateLessonDto } from './dto/update-lesson.dto';
 const detailInclude = {
   sections: {
     orderBy: { order: 'asc' },
-    include: { lessons: { orderBy: { order: 'asc' } } },
+    include: {
+      // `_count.activities` chỉ là badge số lượng — nội dung activity lấy qua LessonDetail (P7).
+      lessons: { orderBy: { order: 'asc' }, include: { _count: { select: { activities: true } } } },
+    },
   },
 } satisfies Prisma.CourseInclude;
 type CourseWithDetail = Prisma.CourseGetPayload<{ include: typeof detailInclude }>;
@@ -266,6 +269,7 @@ function toDetail(course: CourseWithDetail): CourseDetail {
         order: lesson.order,
         type: lesson.type,
         estimatedMinutes: lesson.estimatedMinutes,
+        activityCount: lesson._count.activities,
       })),
     })),
   };

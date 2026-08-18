@@ -18,6 +18,7 @@ import type {
 } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
+import { LessonActivitiesService } from '../courses/lesson-activities.service';
 import type { CreateClassDto } from './dto/create-class.dto';
 import type { UpdateClassDto } from './dto/update-class.dto';
 import type { AssignCourseDto } from './dto/assign-course.dto';
@@ -42,6 +43,7 @@ type ClassWithDetail = Prisma.ClassGetPayload<{ include: typeof detailInclude }>
 export class ClassesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly lessonActivities: LessonActivitiesService,
     private readonly gamificationService?: GamificationService,
   ) {}
 
@@ -265,6 +267,8 @@ export class ClassesService {
             title: true,
             type: true,
             order: true,
+            contentMd: true,
+            videoUrl: true,
             section: { select: { title: true, order: true, course: { select: { title: true } } } },
           },
         },
@@ -273,10 +277,13 @@ export class ClassesService {
     if (gates.length === 0) {
       return [];
     }
+    const lessonIds = gates.map((g) => g.lessonId);
     const progress = await this.prisma.lessonProgress.findMany({
-      where: { classId, userId, lessonId: { in: gates.map((g) => g.lessonId) } },
+      where: { classId, userId, lessonId: { in: lessonIds } },
     });
     const byLesson = new Map(progress.map((p) => [p.lessonId, p]));
+    // P7 — nội dung bài học. Chỉ nạp cho bài ĐÃ mở gate ở trên (INVARIANT #3).
+    const activitiesByLesson = await this.lessonActivities.listForStudent(lessonIds);
 
     return gates
       .map((g) => {
@@ -289,6 +296,9 @@ export class ClassesService {
           sectionTitle: g.lesson.section.title,
           progressStatus: p?.status ?? 'not_started',
           completedAt: p?.completedAt ? p.completedAt.toISOString() : null,
+          activities: activitiesByLesson.get(g.lessonId) ?? [],
+          contentMd: g.lesson.contentMd,
+          videoUrl: g.lesson.videoUrl,
           _sort: [g.lesson.section.order, g.lesson.order] as const,
         };
       })

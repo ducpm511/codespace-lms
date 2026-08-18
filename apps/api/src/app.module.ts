@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { AuditModule } from './audit/audit.module';
 import { CommentsModule } from './comments/comments.module';
+import { FilesModule } from './files/files.module';
 import { StorageModule } from './common/storage/storage.module';
 import { HealthController } from './health/health.controller';
 
@@ -40,6 +41,7 @@ import { HealthController } from './health/health.controller';
     GamificationModule,
     AuditModule,
     CommentsModule,
+    FilesModule,
   ],
   controllers: [HealthController],
   providers: [],

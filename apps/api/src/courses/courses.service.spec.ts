@@ -116,7 +116,16 @@ describe('CoursesService', () => {
               id: 's1',
               title: 'Intro',
               order: 0,
-              lessons: [{ id: 'l1', title: 'Hello', order: 0, type: 'article', estimatedMinutes: 5 }],
+              lessons: [
+                {
+                  id: 'l1',
+                  title: 'Hello',
+                  order: 0,
+                  type: 'article',
+                  estimatedMinutes: 5,
+                  _count: { activities: 2 },
+                },
+              ],
             },
           ],
         }),
@@ -129,6 +138,7 @@ describe('CoursesService', () => {
         order: 0,
         type: 'article',
         estimatedMinutes: 5,
+        activityCount: 2,
       });
     });
   });

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ClassesService } from './classes.service';
 import type { PrismaService } from '../prisma/prisma.service';
+import type { LessonActivitiesService } from '../courses/lesson-activities.service';
 
 function makePrisma() {
   const p: Record<string, unknown> = {
@@ -73,11 +74,16 @@ function classRow(over: Record<string, unknown> = {}) {
 
 describe('ClassesService', () => {
   let prisma: ReturnType<typeof makePrisma>;
+  let lessonActivities: { listForStudent: jest.Mock };
   let service: ClassesService;
 
   beforeEach(() => {
     prisma = makePrisma();
-    service = new ClassesService(prisma as unknown as PrismaService);
+    lessonActivities = { listForStudent: jest.fn().mockResolvedValue(new Map()) };
+    service = new ClassesService(
+      prisma as unknown as PrismaService,
+      lessonActivities as unknown as LessonActivitiesService,
+    );
   });
 
   describe('create', () => {
@@ -210,8 +216,8 @@ describe('ClassesService', () => {
     it('trả bài đã gate + progress (mặc định not_started), sort theo section/lesson', async () => {
       prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
       prisma.lessonGate.findMany.mockResolvedValue([
-        { lessonId: 'l2', lesson: { id: 'l2', title: 'B', type: 'article', order: 1, section: { title: 'S1', order: 0, course: { title: 'C' } } } },
-        { lessonId: 'l1', lesson: { id: 'l1', title: 'A', type: 'video', order: 0, section: { title: 'S1', order: 0, course: { title: 'C' } } } },
+        { lessonId: 'l2', lesson: { id: 'l2', title: 'B', type: 'article', order: 1, contentMd: null, videoUrl: null, section: { title: 'S1', order: 0, course: { title: 'C' } } } },
+        { lessonId: 'l1', lesson: { id: 'l1', title: 'A', type: 'video', order: 0, contentMd: null, videoUrl: null, section: { title: 'S1', order: 0, course: { title: 'C' } } } },
       ]);
       prisma.lessonProgress.findMany.mockResolvedValue([
         { lessonId: 'l1', status: 'completed', completedAt: now },
@@ -221,10 +227,30 @@ describe('ClassesService', () => {
       expect(res[0]).toEqual({
         lessonId: 'l1', title: 'A', type: 'video', courseTitle: 'C', sectionTitle: 'S1',
         progressStatus: 'completed', completedAt: now.toISOString(),
+        activities: [], contentMd: null, videoUrl: null,
       });
       expect(res[1].progressStatus).toBe('not_started');
       expect(res[1].completedAt).toBeNull();
       expect(res[0]).not.toHaveProperty('_sort');
+    });
+
+    it('P7: chỉ nạp activity của bài ĐÃ mở gate (INVARIANT #3) và gắn đúng bài', async () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.lessonGate.findMany.mockResolvedValue([
+        { lessonId: 'l1', lesson: { id: 'l1', title: 'A', type: 'article', order: 0, contentMd: 'legacy', videoUrl: null, section: { title: 'S1', order: 0, course: { title: 'C' } } } },
+      ]);
+      prisma.lessonProgress.findMany.mockResolvedValue([]);
+      lessonActivities.listForStudent.mockResolvedValue(
+        new Map([['l1', [{ id: 'a1', lessonId: 'l1', order: 0, type: 'markdown', contentMd: '# Hi' }]]]),
+      );
+
+      const res = await service.getMyLessons('cl1', 'u1');
+
+      expect(lessonActivities.listForStudent).toHaveBeenCalledWith(['l1']);
+      expect(res[0].activities).toEqual([
+        { id: 'a1', lessonId: 'l1', order: 0, type: 'markdown', contentMd: '# Hi' },
+      ]);
+      expect(res[0].contentMd).toBe('legacy'); // fallback bài cũ trước P7
     });
   });
 
