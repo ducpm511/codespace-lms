@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { LessonSummary, SectionWithLessons } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import {
   useAddLesson,
@@ -15,56 +16,101 @@ import {
   useUpdateSection,
 } from '../../features/courses/hooks';
 import { LessonActivityBuilder } from './LessonActivityBuilder';
+import {
+  DetailColumn,
+  DetailHeader,
+  DetailSection,
+  EmptyHint,
+  IconButton,
+  IconTile,
+  PillButton,
+  Sidebar,
+  SidebarCard,
+  TeachShell,
+} from './teachUi';
+
+/** Màu category theo trạng thái khóa học. */
+const STATUS_COLOR: Record<string, string> = {
+  published: 'var(--cx-teal)',
+  archived: 'var(--cx-blue)',
+  draft: 'var(--cx-amber)',
+};
+const statusColor = (s: string) => STATUS_COLOR[s] ?? 'var(--cx-purple)';
+
+/** Màu + icon theo loại bài học (khớp bảng ở Learn). */
+const LESSON_META: Record<string, { icon: string; color: string }> = {
+  video: { icon: 'ph-video-camera', color: 'var(--cx-coral)' },
+  article: { icon: 'ph-book-open', color: 'var(--cx-blue)' },
+  interactive: { icon: 'ph-cursor-click', color: 'var(--cx-teal)' },
+  coding: { icon: 'ph-code', color: 'var(--cx-teal)' },
+  quiz: { icon: 'ph-check-square-offset', color: 'var(--cx-coral)' },
+  assignment: { icon: 'ph-target', color: 'var(--cx-amber)' },
+};
+const lessonMeta = (type: string) => LESSON_META[type] ?? { icon: 'ph-book-bookmark', color: 'var(--cx-purple)' };
 
 export function TeachCourses(): JSX.Element {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const courses = useCourses();
 
   return (
-    <div className="grid gap-4 md:grid-cols-[18rem_1fr]">
-      <div className="space-y-4">
-        <CreateCourseForm onCreated={(id) => setSelected(id)} />
-        <div className="panel overflow-hidden">
-          <div className="panel-head flex items-center gap-2">
-            {t('courses.heading')}
-            {courses.data && <span className="text-muted">({courses.data.total})</span>}
-          </div>
-          {courses.isLoading && <p className="text-muted px-3 py-4 text-sm">{t('common.loading')}</p>}
-          {courses.data?.items.length === 0 && (
-            <p className="text-muted px-3 py-4 text-sm">{t('courses.empty')}</p>
-          )}
-          <ul>
-            {courses.data?.items.map((c) => (
-              <li key={c.id}>
-                <button
-                  onClick={() => setSelected(c.id)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-white/5"
-                  style={selected === c.id ? { background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' } : undefined}
-                >
-                  <span className="truncate">{c.title}</span>
-                  <StatusBadge status={c.status} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      <div>
-        {selected ? (
-          <CourseDetailPanel courseId={selected} />
-        ) : (
-          <p className="text-muted rounded-lg border border-dashed px-4 py-10 text-center text-sm" style={{ borderColor: 'var(--color-divider)' }}>
-            {t('courses.selectHint')}
-          </p>
-        )}
-      </div>
-    </div>
+    <TeachShell
+      sidebar={
+        <Sidebar
+          icon="ph-books"
+          color="var(--cx-purple)"
+          title={t('courses.heading')}
+          count={courses.data?.total}
+          footer={
+            creating ? (
+              <CreateCourseForm
+                onCancel={() => setCreating(false)}
+                onCreated={(id) => {
+                  setSelected(id);
+                  setCreating(false);
+                }}
+              />
+            ) : (
+              <PillButton icon="ph-plus" onClick={() => setCreating(true)}>
+                {t('courses.create')}
+              </PillButton>
+            )
+          }
+        >
+          {courses.isLoading && <p className="text-muted text-sm">{t('common.loading')}</p>}
+          {courses.data?.items.length === 0 && <EmptyHint icon="ph-books">{t('courses.empty')}</EmptyHint>}
+          {courses.data?.items.map((c) => (
+            <SidebarCard
+              key={c.id}
+              icon="ph-book-bookmark"
+              color={statusColor(c.status)}
+              title={c.title}
+              meta={`/${c.slug}`}
+              selected={selected === c.id}
+              onClick={() => setSelected(c.id)}
+              tag={<StatusBadge status={c.status} />}
+            />
+          ))}
+        </Sidebar>
+      }
+    >
+      {selected ? (
+        <CourseDetailPanel courseId={selected} />
+      ) : (
+        <EmptyHint icon="ph-hand-pointing">{t('courses.selectHint')}</EmptyHint>
+      )}
+    </TeachShell>
   );
 }
 
-function CreateCourseForm({ onCreated }: { onCreated: (id: string) => void }): JSX.Element {
+function CreateCourseForm({
+  onCreated,
+  onCancel,
+}: {
+  onCreated: (id: string) => void;
+  onCancel: () => void;
+}): JSX.Element {
   const { t } = useTranslation();
   const [slug, setSlug] = useState('');
   const [title, setTitle] = useState('');
@@ -85,8 +131,10 @@ function CreateCourseForm({ onCreated }: { onCreated: (id: string) => void }): J
   };
 
   return (
-    <form onSubmit={submit} className="card gap-2">
-      <p className="card-title">{t('courses.create')}</p>
+    <form onSubmit={submit} className="card gap-2" style={{ borderRadius: 18 }}>
+      <p className="cx-display m-0" style={{ fontSize: 14 }}>
+        {t('courses.create')}
+      </p>
       <input
         className="input"
         value={title}
@@ -103,10 +151,15 @@ function CreateCourseForm({ onCreated }: { onCreated: (id: string) => void }): J
         title={t('courses.slugHint')}
         required
       />
-      <button type="submit" disabled={create.isPending} className="btn btn-primary btn-block">
-        {t('courses.add')}
-      </button>
-      {create.isError && <p className="text-xs text-red-400">{errMsg(create.error)}</p>}
+      <div className="flex gap-2">
+        <PillButton type="submit" disabled={create.isPending} icon="ph-plus">
+          {t('courses.add')}
+        </PillButton>
+        <PillButton variant="secondary" onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
+      </div>
+      {create.isError && <p className="text-xs" style={{ color: '#f4a3a3' }}>{errMsg(create.error)}</p>}
     </form>
   );
 }
@@ -115,30 +168,23 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
   const { t } = useTranslation();
   const course = useCourse(courseId);
   const addSection = useAddSection(courseId);
-  const updateSection = useUpdateSection(courseId);
-  const removeSection = useRemoveSection(courseId);
-  const updateLesson = useUpdateLesson(courseId);
-  const removeLesson = useRemoveLesson(courseId);
   const publish = usePublishCourse(courseId);
+  const [addingSection, setAddingSection] = useState(false);
   const [sectionTitle, setSectionTitle] = useState('');
-
-  // Inline editing state
-  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
-  const [editingSectionTitle, setEditingSectionTitle] = useState('');
-  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
-  const [editingLessonTitle, setEditingLessonTitle] = useState('');
   // P7 — bài học đang mở trình soạn activity
   const [openLesson, setOpenLesson] = useState<{ sectionId: string; lessonId: string; title: string } | null>(null);
 
   if (course.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
-  if (course.isError || !course.data) return <p className="text-sm text-red-400">{t('common.error')}</p>;
+  if (course.isError || !course.data) return <p className="text-sm" style={{ color: '#f4a3a3' }}>{t('common.error')}</p>;
   const c = course.data;
 
   if (openLesson) {
+    const section = c.sections.find((s) => s.id === openLesson.sectionId);
     return (
       <LessonActivityBuilder
         courseId={courseId}
         sectionId={openLesson.sectionId}
+        sectionTitle={section?.title}
         lessonId={openLesson.lessonId}
         lessonTitle={openLesson.title}
         onClose={() => setOpenLesson(null)}
@@ -146,212 +192,315 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
     );
   }
 
+  const lessonCount = c.sections.reduce((n, s) => n + s.lessons.length, 0);
+
   return (
-    <div className="card gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg">{c.title}</h2>
-          <p className="text-muted text-xs">{c.slug}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <StatusBadge status={c.status} />
-          {c.status !== 'published' && (
-            <button onClick={() => publish.mutate()} disabled={publish.isPending} className="btn btn-primary">
-              {t('courses.publish')}
-            </button>
-          )}
-        </div>
+    <DetailColumn>
+      <DetailHeader
+        icon="ph-book-bookmark"
+        color={statusColor(c.status)}
+        title={c.title}
+        meta={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>/{c.slug}</span>
+            <span aria-hidden>·</span>
+            <span>{t('courses.treeMeta', { sections: c.sections.length, lessons: lessonCount })}</span>
+          </span>
+        }
+        actions={
+          <>
+            <StatusBadge status={c.status} />
+            {c.status !== 'published' && (
+              <PillButton icon="ph-rocket-launch" onClick={() => publish.mutate()} disabled={publish.isPending}>
+                {t('courses.publish')}
+              </PillButton>
+            )}
+          </>
+        }
+      />
+
+      <DetailSection
+        icon="ph-tree-structure"
+        color="var(--cx-purple)"
+        title={t('courses.treeHeading')}
+        action={
+          !addingSection && (
+            <PillButton icon="ph-plus" variant="secondary" onClick={() => setAddingSection(true)}>
+              {t('courses.addSection')}
+            </PillButton>
+          )
+        }
+      >
+        {addingSection && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              addSection.mutate(
+                { title: sectionTitle.trim() },
+                {
+                  onSuccess: () => {
+                    setSectionTitle('');
+                    setAddingSection(false);
+                  },
+                },
+              );
+            }}
+            className="card flex-row flex-wrap items-center gap-2"
+            style={{ borderRadius: 18 }}
+          >
+            <input
+              className="input min-w-[200px] flex-1"
+              value={sectionTitle}
+              onChange={(e) => setSectionTitle(e.target.value)}
+              placeholder={t('courses.sectionTitle')}
+              autoFocus
+              required
+            />
+            <PillButton type="submit" disabled={addSection.isPending} icon="ph-check">
+              {t('courses.addSection')}
+            </PillButton>
+            <PillButton
+              variant="secondary"
+              onClick={() => {
+                setAddingSection(false);
+                setSectionTitle('');
+              }}
+            >
+              {t('common.cancel')}
+            </PillButton>
+          </form>
+        )}
+
+        {c.sections.length === 0 && !addingSection && (
+          <EmptyHint icon="ph-tree-structure">{t('courses.noSections')}</EmptyHint>
+        )}
+
+        {c.sections.map((s, idx) => (
+          <SectionCard
+            key={s.id}
+            courseId={courseId}
+            section={s}
+            index={idx + 1}
+            onOpenBuilder={(lesson) => setOpenLesson({ sectionId: s.id, lessonId: lesson.id, title: lesson.title })}
+          />
+        ))}
+      </DetailSection>
+    </DetailColumn>
+  );
+}
+
+function SectionCard({
+  courseId,
+  section,
+  index,
+  onOpenBuilder,
+}: {
+  courseId: string;
+  section: SectionWithLessons;
+  index: number;
+  onOpenBuilder: (lesson: LessonSummary) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const updateSection = useUpdateSection(courseId);
+  const removeSection = useRemoveSection(courseId);
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(section.title);
+  const [addingLesson, setAddingLesson] = useState(false);
+
+  return (
+    <div className="card" style={{ borderRadius: 20, padding: 'var(--space-6)', gap: 'var(--space-4)' }}>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <span
+          className="cx-display flex shrink-0 items-center justify-center"
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 10,
+            fontSize: 14,
+            background: 'color-mix(in srgb, var(--cx-purple) 20%, transparent)',
+            color: 'var(--color-accent-300)',
+          }}
+        >
+          {index}
+        </span>
+
+        {editing ? (
+          <form
+            className="flex min-w-0 flex-1 items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!draftTitle.trim()) return;
+              updateSection.mutate(
+                { sectionId: section.id, body: { title: draftTitle.trim() } },
+                { onSuccess: () => setEditing(false) },
+              );
+            }}
+          >
+            <input
+              className="input min-w-0 flex-1"
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              autoFocus
+            />
+            <PillButton type="submit" icon="ph-check" disabled={updateSection.isPending}>
+              {t('common.save')}
+            </PillButton>
+            <PillButton variant="secondary" onClick={() => setEditing(false)}>
+              {t('common.cancel')}
+            </PillButton>
+          </form>
+        ) : (
+          <>
+            <p className="cx-display m-0 min-w-0 flex-1 truncate" style={{ fontSize: 15 }}>
+              {section.title}
+            </p>
+            <span className="tag tag-neutral shrink-0">
+              {t('courses.lessonCount', { count: section.lessons.length })}
+            </span>
+            <IconButton
+              icon="ph-pencil-simple"
+              title={t('courses.editSection')}
+              onClick={() => {
+                setDraftTitle(section.title);
+                setEditing(true);
+              }}
+            />
+            <IconButton
+              icon="ph-trash"
+              tone="danger"
+              title={t('courses.removeSection')}
+              onClick={() => {
+                if (confirm(t('courses.confirmRemoveSection', { title: section.title }))) {
+                  removeSection.mutate(section.id);
+                }
+              }}
+            />
+          </>
+        )}
       </div>
 
-      <div className="space-y-3">
-        {c.sections.length === 0 && <p className="text-muted text-sm">{t('courses.noSections')}</p>}
-        {c.sections.map((s) => (
-          <div key={s.id} className="rounded-md" style={{ border: '1px solid var(--color-divider)' }}>
-            <div className="chip rounded-b-none text-sm font-medium flex items-center justify-between gap-2">
-              {editingSectionId === s.id ? (
-                <div className="flex items-center gap-1 flex-1">
-                  <input
-                    className="input text-xs py-1 flex-1"
-                    value={editingSectionTitle}
-                    onChange={(e) => setEditingSectionTitle(e.target.value)}
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-primary !py-0.5 !px-2 text-xs"
-                    onClick={() => {
-                      if (editingSectionTitle.trim()) {
-                        updateSection.mutate(
-                          { sectionId: s.id, body: { title: editingSectionTitle.trim() } },
-                          { onSuccess: () => setEditingSectionId(null) },
-                        );
-                      }
-                    }}
-                  >
-                    Lưu
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary !py-0.5 !px-2 text-xs"
-                    onClick={() => setEditingSectionId(null)}
-                  >
-                    Hủy
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <span>{s.title}</span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      className="text-xs text-slate-400 hover:text-amber-400 p-1"
-                      title="Sửa chương"
-                      onClick={() => {
-                        setEditingSectionId(s.id);
-                        setEditingSectionTitle(s.title);
-                      }}
-                    >
-                      <i className="ph ph-pencil" />
-                    </button>
-                    <button
-                      type="button"
-                      className="text-xs text-slate-400 hover:text-rose-400 p-1"
-                      title="Xóa chương"
-                      onClick={() => {
-                        if (confirm(`Xóa chương "${s.title}" và toàn bộ bài học bên trong?`)) {
-                          removeSection.mutate(s.id);
-                        }
-                      }}
-                    >
-                      <i className="ph ph-trash" />
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-            <ul>
-              {s.lessons.map((l) => (
-                <li
-                  key={l.id}
-                  className="flex items-center justify-between px-3 py-1.5 text-sm"
-                  style={{ borderTop: '1px solid var(--color-divider)' }}
-                >
-                  {editingLessonId === l.id ? (
-                    <div className="flex items-center gap-1 flex-1">
-                      <input
-                        className="input text-xs py-1 flex-1"
-                        value={editingLessonTitle}
-                        onChange={(e) => setEditingLessonTitle(e.target.value)}
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-primary !py-0.5 !px-2 text-xs"
-                        onClick={() => {
-                          if (editingLessonTitle.trim()) {
-                            updateLesson.mutate(
-                              {
-                                sectionId: s.id,
-                                lessonId: l.id,
-                                body: { title: editingLessonTitle.trim() },
-                              },
-                              { onSuccess: () => setEditingLessonId(null) },
-                            );
-                          }
-                        }}
-                      >
-                        Lưu
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary !py-0.5 !px-2 text-xs"
-                        onClick={() => setEditingLessonId(null)}
-                      >
-                        Hủy
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <span>{l.title}</span>
-                        <span className="text-muted text-xs">
-                          {t(`lessonType.${l.type}`, { defaultValue: l.type })}
-                        </span>
-                        <span className="tag tag-outline">
-                          <i className="ph ph-stack" aria-hidden /> {l.activityCount ?? 0}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          className="btn btn-secondary !py-0.5 !px-2 text-xs cx-press"
-                          title={t('activity.builderKicker')}
-                          onClick={() => setOpenLesson({ sectionId: s.id, lessonId: l.id, title: l.title })}
-                        >
-                          <i className="ph ph-stack" aria-hidden /> {t('activity.manage')}
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs text-slate-400 hover:text-amber-400 p-1"
-                          title="Sửa bài học"
-                          onClick={() => {
-                            setEditingLessonId(l.id);
-                            setEditingLessonTitle(l.title);
-                          }}
-                        >
-                          <i className="ph ph-pencil" />
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs text-slate-400 hover:text-rose-400 p-1"
-                          title="Xóa bài học"
-                          onClick={() => {
-                            if (confirm(`Xóa bài học "${l.title}"?`)) {
-                              removeLesson.mutate({ sectionId: s.id, lessonId: l.id });
-                            }
-                          }}
-                        >
-                          <i className="ph ph-trash" />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </li>
-              ))}
-              {s.lessons.length === 0 && (
-                <li className="text-muted px-3 py-1.5 text-xs" style={{ borderTop: '1px solid var(--color-divider)' }}>
-                  {t('courses.noLessons')}
-                </li>
-              )}
-            </ul>
-            <AddLessonForm courseId={courseId} sectionId={s.id} />
-          </div>
+      <div className="flex flex-col">
+        {section.lessons.length === 0 && (
+          <p className="text-muted m-0 text-xs" style={{ paddingTop: 'var(--space-3)' }}>
+            {t('courses.noLessons')}
+          </p>
+        )}
+        {section.lessons.map((l) => (
+          <LessonRow key={l.id} courseId={courseId} sectionId={section.id} lesson={l} onOpenBuilder={onOpenBuilder} />
         ))}
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          addSection.mutate({ title: sectionTitle.trim() }, { onSuccess: () => setSectionTitle('') });
-        }}
-        className="flex gap-2"
-      >
-        <input
-          className="input flex-1"
-          value={sectionTitle}
-          onChange={(e) => setSectionTitle(e.target.value)}
-          placeholder={t('courses.sectionTitle')}
-          required
-        />
-        <button type="submit" disabled={addSection.isPending} className="btn btn-secondary shrink-0">
-          {t('courses.addSection')}
-        </button>
-      </form>
+      {addingLesson ? (
+        <AddLessonForm courseId={courseId} sectionId={section.id} onDone={() => setAddingLesson(false)} />
+      ) : (
+        <div>
+          <PillButton icon="ph-plus" variant="ghost" onClick={() => setAddingLesson(true)}>
+            {t('courses.addLessonToSection')}
+          </PillButton>
+        </div>
+      )}
     </div>
   );
 }
 
-function AddLessonForm({ courseId, sectionId }: { courseId: string; sectionId: string }): JSX.Element {
+function LessonRow({
+  courseId,
+  sectionId,
+  lesson,
+  onOpenBuilder,
+}: {
+  courseId: string;
+  sectionId: string;
+  lesson: LessonSummary;
+  onOpenBuilder: (lesson: LessonSummary) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const updateLesson = useUpdateLesson(courseId);
+  const removeLesson = useRemoveLesson(courseId);
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(lesson.title);
+  const meta = lessonMeta(lesson.type);
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-3"
+      style={{ borderTop: '1px solid var(--color-divider)', padding: 'var(--space-3) 0' }}
+    >
+      {editing ? (
+        <form
+          className="flex min-w-0 flex-1 items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!draftTitle.trim()) return;
+            updateLesson.mutate(
+              { sectionId, lessonId: lesson.id, body: { title: draftTitle.trim() } },
+              { onSuccess: () => setEditing(false) },
+            );
+          }}
+        >
+          <input
+            className="input min-w-0 flex-1"
+            value={draftTitle}
+            onChange={(e) => setDraftTitle(e.target.value)}
+            autoFocus
+          />
+          <PillButton type="submit" icon="ph-check" disabled={updateLesson.isPending}>
+            {t('common.save')}
+          </PillButton>
+          <PillButton variant="secondary" onClick={() => setEditing(false)}>
+            {t('common.cancel')}
+          </PillButton>
+        </form>
+      ) : (
+        <>
+          <IconTile icon={meta.icon} color={meta.color} size={34} />
+          <div className="min-w-0 flex-1">
+            <p className="m-0 truncate" style={{ fontSize: 14 }}>
+              {lesson.title}
+            </p>
+            <p className="text-muted m-0 truncate" style={{ fontSize: 11 }}>
+              {t(`lessonType.${lesson.type}`, { defaultValue: lesson.type })} ·{' '}
+              {t('activity.count', { count: lesson.activityCount ?? 0 })}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <PillButton icon="ph-stack" variant="secondary" onClick={() => onOpenBuilder(lesson)}>
+              {t('activity.manage')}
+            </PillButton>
+            <IconButton
+              icon="ph-pencil-simple"
+              title={t('courses.editLesson')}
+              onClick={() => {
+                setDraftTitle(lesson.title);
+                setEditing(true);
+              }}
+            />
+            <IconButton
+              icon="ph-trash"
+              tone="danger"
+              title={t('courses.removeLesson')}
+              onClick={() => {
+                if (confirm(t('courses.confirmRemoveLesson', { title: lesson.title }))) {
+                  removeLesson.mutate({ sectionId, lessonId: lesson.id });
+                }
+              }}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function AddLessonForm({
+  courseId,
+  sectionId,
+  onDone,
+}: {
+  courseId: string;
+  sectionId: string;
+  onDone: () => void;
+}): JSX.Element {
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const addLesson = useAddLesson(courseId);
@@ -359,21 +508,33 @@ function AddLessonForm({ courseId, sectionId }: { courseId: string; sectionId: s
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        addLesson.mutate({ sectionId, body: { title: title.trim() } }, { onSuccess: () => setTitle('') });
+        addLesson.mutate(
+          { sectionId, body: { title: title.trim() } },
+          {
+            onSuccess: () => {
+              setTitle('');
+              onDone();
+            },
+          },
+        );
       }}
-      className="flex gap-2 px-3 py-2"
-      style={{ borderTop: '1px solid var(--color-divider)' }}
+      className="flex flex-wrap items-center gap-2"
+      style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 'var(--space-4)' }}
     >
       <input
-        className="input flex-1 text-xs"
+        className="input min-w-[180px] flex-1"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder={t('courses.lessonTitle')}
+        autoFocus
         required
       />
-      <button type="submit" disabled={addLesson.isPending} className="btn btn-secondary shrink-0">
+      <PillButton type="submit" icon="ph-check" disabled={addLesson.isPending}>
         {t('courses.addLesson')}
-      </button>
+      </PillButton>
+      <PillButton variant="secondary" onClick={onDone}>
+        {t('common.cancel')}
+      </PillButton>
     </form>
   );
 }

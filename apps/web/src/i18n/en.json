@@ -80,7 +80,17 @@
     "sectionTitle": "New section title",
     "addSection": "Add section",
     "lessonTitle": "New lesson title",
-    "addLesson": "Add lesson"
+    "addLesson": "Add lesson",
+    "treeHeading": "Chapters & lessons",
+    "treeMeta": "{{sections}} chapters · {{lessons}} lessons",
+    "lessonCount": "{{count}} lessons",
+    "editSection": "Edit chapter",
+    "removeSection": "Delete chapter",
+    "confirmRemoveSection": "Delete chapter \"{{title}}\" and all lessons inside?",
+    "editLesson": "Edit lesson",
+    "removeLesson": "Delete lesson",
+    "confirmRemoveLesson": "Delete lesson \"{{title}}\"?",
+    "addLessonToSection": "Add a lesson to this chapter"
   },
   "classes": {
     "heading": "Classes",
@@ -364,7 +374,7 @@
   },
   "activity": {
     "builderKicker": "Lesson content editor",
-    "manage": "Content",
+    "manage": "Activities",
     "count": "{{count}} activities",
     "empty": "This lesson has no content yet. Add the first activity below.",
     "emptyBody": "This activity has no content yet.",
@@ -395,6 +405,17 @@
     "type_video": "Video",
     "type_quiz": "Quiz",
     "type_coding": "Coding problem",
-    "type_assignment": "Assignment"
+    "type_assignment": "Assignment",
+    "countInLesson": "{{count}} activities in this lesson",
+    "backToLessons": "Back to lesson list",
+    "orderHeading": "Activity order",
+    "orderHint": "Students go through them from top to bottom.",
+    "previewHeading": "Preview as a student sees it",
+    "addNewHeading": "Add a new activity",
+    "addTyped": "Add {{type}}",
+    "titlePlaceholder": "Title shown to students",
+    "dropzoneTitle": "Drop a PDF file here",
+    "dropzoneHint": "or pick one from your device — up to {{size}} MB",
+    "choosePdf": "Choose PDF file"
   }
 }

@@ -80,7 +80,17 @@
     "sectionTitle": "Tên chương mới",
     "addSection": "Thêm chương",
     "lessonTitle": "Tên bài học mới",
-    "addLesson": "Thêm bài"
+    "addLesson": "Thêm bài",
+    "treeHeading": "Chương & bài học",
+    "treeMeta": "{{sections}} chương · {{lessons}} bài",
+    "lessonCount": "{{count}} bài",
+    "editSection": "Sửa chương",
+    "removeSection": "Xóa chương",
+    "confirmRemoveSection": "Xóa chương \"{{title}}\" và toàn bộ bài học bên trong?",
+    "editLesson": "Sửa bài học",
+    "removeLesson": "Xóa bài học",
+    "confirmRemoveLesson": "Xóa bài học \"{{title}}\"?",
+    "addLessonToSection": "Thêm bài học vào chương"
   },
   "classes": {
     "heading": "Lớp học",
@@ -364,7 +374,7 @@
   },
   "activity": {
     "builderKicker": "Soạn nội dung bài học",
-    "manage": "Nội dung",
+    "manage": "Hoạt động",
     "count": "{{count}} hoạt động",
     "empty": "Bài học chưa có nội dung. Thêm hoạt động đầu tiên bên dưới.",
     "emptyBody": "Hoạt động này chưa có nội dung.",
@@ -395,6 +405,17 @@
     "type_video": "Video",
     "type_quiz": "Trắc nghiệm",
     "type_coding": "Bài lập trình",
-    "type_assignment": "Bài tập nộp"
+    "type_assignment": "Bài tập nộp",
+    "countInLesson": "{{count}} hoạt động trong bài học này",
+    "backToLessons": "Về danh sách bài học",
+    "orderHeading": "Thứ tự hoạt động",
+    "orderHint": "Học viên sẽ đi lần lượt từ trên xuống.",
+    "previewHeading": "Xem trước như học viên thấy",
+    "addNewHeading": "Thêm hoạt động mới",
+    "addTyped": "Thêm {{type}}",
+    "titlePlaceholder": "Tiêu đề hiển thị cho học viên",
+    "dropzoneTitle": "Kéo thả file PDF vào đây",
+    "dropzoneHint": "hoặc chọn từ máy — tối đa {{size}} MB",
+    "choosePdf": "Chọn file PDF"
   }
 }

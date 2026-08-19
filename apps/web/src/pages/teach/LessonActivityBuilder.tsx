@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LESSON_ACTIVITY_TYPES, MAX_UPLOAD_BYTES } from '@lms/contracts';
 import type { CreateLessonActivityRequest, LessonActivityDto, LessonActivityTypeValue } from '@lms/contracts';
@@ -16,24 +16,29 @@ import {
 } from '../../features/lesson-activities/hooks';
 import { MarkdownBlock, PdfBlock, VideoBlock } from '../../features/lesson-activities/ActivityBlocks';
 import { activityMeta } from '../../features/lesson-activities/activityMeta';
+import { DetailColumn, DetailSection, EmptyHint, IconButton, IconTile, PillButton } from './teachUi';
 
 function errMsg(e: unknown): string {
   return e instanceof ApiError ? e.message : String(e);
 }
 
+const ERROR_COLOR = '#f4a3a3';
+
 /**
  * Trình soạn nội dung bài học (P7): danh sách activity có thứ tự — thêm / sửa / xoá / đổi thứ tự.
- * Thay cho form "chỉ có tiêu đề" trước đây.
+ * Thay chỗ cột cây khóa học (không mở route mới), vào bằng animation cx-pop.
  */
 export function LessonActivityBuilder({
   courseId,
   sectionId,
+  sectionTitle,
   lessonId,
   lessonTitle,
   onClose,
 }: {
   courseId: string;
   sectionId: string;
+  sectionTitle?: string;
   lessonId: string;
   lessonTitle: string;
   onClose: () => void;
@@ -55,72 +60,107 @@ export function LessonActivityBuilder({
   };
 
   return (
-    <div className="card gap-4" style={{ borderRadius: 'var(--cx-radius)' }}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.08em]" style={{ color: 'var(--color-accent-300)' }}>
-            {t('activity.builderKicker')}
-          </p>
-          <h3 className="cx-display text-xl">{lessonTitle}</h3>
-          <p className="card-meta">{t('activity.count', { count: activities.length })}</p>
+    <DetailColumn>
+      {/* Header band — gradient tím + dots + blob */}
+      <div
+        className="cx-dots relative overflow-hidden"
+        style={{
+          animation: 'cx-pop 0.3s ease',
+          borderRadius: 'var(--cx-radius)',
+          background:
+            'linear-gradient(135deg, color-mix(in srgb, var(--cx-purple) 26%, var(--color-surface)), var(--color-surface))',
+          padding: 'var(--space-6)',
+        }}
+      >
+        <span
+          className="cx-blob"
+          style={{ width: 220, height: 220, top: -80, right: 40, background: 'var(--cx-purple)', opacity: 0.35 }}
+          aria-hidden
+        />
+        <div className="relative z-10 flex flex-wrap items-center justify-between" style={{ gap: 'var(--space-4)' }}>
+          <div className="flex min-w-0 flex-1 items-start gap-3.5" style={{ minWidth: 240 }}>
+            <IconTile icon="ph-stack" color="var(--cx-purple)" />
+            <div className="min-w-0 flex-1">
+              <p className="m-0 text-[11px] uppercase tracking-[0.08em]" style={{ color: 'var(--color-accent-300)' }}>
+                {t('activity.builderKicker')}
+                {sectionTitle ? ` · ${sectionTitle}` : ''}
+              </p>
+              <h2 className="cx-display m-0 truncate" style={{ fontSize: 20, lineHeight: 1.25 }}>
+                {lessonTitle}
+              </h2>
+              <p className="text-muted m-0" style={{ fontSize: 12, marginTop: 2 }}>
+                {t('activity.countInLesson', { count: activities.length })}
+              </p>
+            </div>
+          </div>
+          <PillButton icon="ph-arrow-left" variant="secondary" onClick={onClose}>
+            {t('activity.backToLessons')}
+          </PillButton>
         </div>
-        <button type="button" className="btn btn-ghost cx-press" onClick={onClose}>
-          <i className="ph ph-x" aria-hidden /> {t('common.close')}
-        </button>
       </div>
 
       {detail.isLoading && <p className="text-muted text-sm">{t('common.loading')}</p>}
-      {detail.isError && <p className="text-sm text-red-400">{errMsg(detail.error)}</p>}
-      {reorder.isError && <p className="text-sm text-red-400">{errMsg(reorder.error)}</p>}
-      {remove.isError && <p className="text-sm text-red-400">{errMsg(remove.error)}</p>}
+      {detail.isError && <p className="text-sm" style={{ color: ERROR_COLOR }}>{errMsg(detail.error)}</p>}
+      {reorder.isError && <p className="text-sm" style={{ color: ERROR_COLOR }}>{errMsg(reorder.error)}</p>}
+      {remove.isError && <p className="text-sm" style={{ color: ERROR_COLOR }}>{errMsg(remove.error)}</p>}
 
-      {detail.data && activities.length === 0 && (
-        <p
-          className="text-muted rounded-lg border border-dashed px-4 py-8 text-center text-sm"
-          style={{ borderColor: 'var(--color-divider)' }}
-        >
-          {t('activity.empty')}
+      <DetailSection
+        icon="ph-list-numbers"
+        color="var(--cx-purple)"
+        title={t('activity.orderHeading')}
+        count={activities.length}
+      >
+        <p className="text-muted m-0" style={{ fontSize: 12, marginTop: -6 }}>
+          {t('activity.orderHint')}
         </p>
-      )}
 
-      <ul className="space-y-3">
-        {activities.map((a, i) => (
-          <li key={a.id}>
-            {editingId === a.id ? (
-              <ActivityEditor
-                courseId={courseId}
-                sectionId={sectionId}
-                lessonId={lessonId}
-                activity={a}
-                onDone={() => setEditingId(null)}
-              />
-            ) : (
-              <ActivityRow
-                activity={a}
-                index={i}
-                total={activities.length}
-                onEdit={() => setEditingId(a.id)}
-                onRemove={() => {
-                  if (confirm(t('activity.confirmRemove', { title: a.title || t(`activity.type_${a.type}`) }))) {
-                    remove.mutate(a.id);
-                  }
-                }}
-                onMove={(delta) => move(i, delta)}
-                busy={reorder.isPending || remove.isPending}
-              />
-            )}
-          </li>
-        ))}
-      </ul>
+        {detail.data && activities.length === 0 && <EmptyHint icon="ph-stack">{t('activity.empty')}</EmptyHint>}
+
+        <ul className="flex list-none flex-col p-0" style={{ gap: 'var(--space-3)' }}>
+          {activities.map((a, i) => (
+            <li key={a.id}>
+              {editingId === a.id ? (
+                <ActivityEditor
+                  courseId={courseId}
+                  sectionId={sectionId}
+                  lessonId={lessonId}
+                  activity={a}
+                  onDone={() => setEditingId(null)}
+                />
+              ) : (
+                <ActivityRow
+                  activity={a}
+                  index={i}
+                  total={activities.length}
+                  onEdit={() => setEditingId(a.id)}
+                  onRemove={() => {
+                    if (confirm(t('activity.confirmRemove', { title: a.title || t(`activity.type_${a.type}`) }))) {
+                      remove.mutate(a.id);
+                    }
+                  }}
+                  onMove={(delta) => move(i, delta)}
+                  busy={reorder.isPending || remove.isPending}
+                />
+              )}
+            </li>
+          ))}
+        </ul>
+      </DetailSection>
 
       <AddActivityForm courseId={courseId} sectionId={sectionId} lessonId={lessonId} />
-    </div>
+    </DetailColumn>
   );
 }
 
 /* ── Một dòng activity (xem nhanh + hành động) ───────────────────────────── */
 function ActivityRow({
-  activity, index, total, onEdit, onRemove, onMove, busy,
+  activity,
+  index,
+  total,
+  onEdit,
+  onRemove,
+  onMove,
+  busy,
 }: {
   activity: LessonActivityDto;
   index: number;
@@ -136,84 +176,69 @@ function ActivityRow({
 
   return (
     <div
-      className="card gap-3"
-      style={{ borderRadius: 16, borderLeft: `3px solid color-mix(in srgb, ${meta.color} 55%, transparent)` }}
+      className="card"
+      style={{
+        borderRadius: 18,
+        padding: 'var(--space-5)',
+        gap: 'var(--space-3)',
+        borderLeft: `3px solid ${meta.color}`,
+      }}
     >
       <div className="flex flex-wrap items-center gap-3">
-        <span
-          className="flex shrink-0 items-center justify-center rounded-2xl"
-          style={{
-            width: 38,
-            height: 38,
-            background: `color-mix(in srgb, ${meta.color} 22%, transparent)`,
-            color: meta.color,
-            fontSize: 19,
-          }}
-        >
-          <i className={`ph-fill ${meta.icon}`} aria-hidden />
+        <span className="cx-display text-muted shrink-0" style={{ fontSize: 13, width: 16 }}>
+          {index + 1}
         </span>
+        <IconTile icon={meta.icon} color={meta.color} size={38} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="tag tag-outline">{t(`activity.type_${activity.type}`)}</span>
-            <p className="card-title truncate" style={{ fontSize: 15 }}>
+            <span className="tag tag-outline shrink-0">{t(`activity.type_${activity.type}`)}</span>
+            <p className="cx-display m-0 min-w-0 truncate" style={{ fontSize: 15 }}>
               {activity.title || t(`activity.type_${activity.type}`)}
             </p>
           </div>
-          <p className="card-meta truncate">{summaryLine(activity, t)}</p>
+          <p className="text-muted m-0 truncate" style={{ fontSize: 11, marginTop: 2 }}>
+            {summaryLine(activity, t)}
+          </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            className="btn btn-icon btn-ghost cx-press"
+        <div className="flex shrink-0 items-center gap-1.5">
+          <IconButton
+            icon="ph-arrow-up"
             title={t('activity.moveUp')}
-            aria-label={t('activity.moveUp')}
             disabled={busy || index === 0}
             onClick={() => onMove(-1)}
-          >
-            <i className="ph ph-arrow-up" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon btn-ghost cx-press"
+          />
+          <IconButton
+            icon="ph-arrow-down"
             title={t('activity.moveDown')}
-            aria-label={t('activity.moveDown')}
             disabled={busy || index === total - 1}
             onClick={() => onMove(1)}
-          >
-            <i className="ph ph-arrow-down" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon btn-ghost cx-press"
+          />
+          <IconButton
+            icon={preview ? 'ph-eye-slash' : 'ph-eye'}
             title={t('activity.preview')}
-            aria-label={t('activity.preview')}
+            tone={preview ? 'accent' : 'neutral'}
             onClick={() => setPreview((p) => !p)}
-          >
-            <i className={`ph ${preview ? 'ph-eye-slash' : 'ph-eye'}`} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon btn-ghost cx-press"
-            title={t('common.edit')}
-            aria-label={t('common.edit')}
-            onClick={onEdit}
-          >
-            <i className="ph ph-pencil" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon btn-ghost cx-press"
-            title={t('common.delete')}
-            aria-label={t('common.delete')}
-            disabled={busy}
-            onClick={onRemove}
-          >
-            <i className="ph ph-trash" aria-hidden />
-          </button>
+          />
+          <IconButton icon="ph-pencil-simple" title={t('common.edit')} onClick={onEdit} />
+          <IconButton icon="ph-trash" tone="danger" title={t('common.delete')} disabled={busy} onClick={onRemove} />
         </div>
       </div>
 
-      {preview && <ActivityPreview activity={activity} />}
+      {preview && (
+        <div
+          style={{
+            borderRadius: 14,
+            background: 'var(--color-neutral-900)',
+            boxShadow: 'inset 0 0 0 1px var(--color-divider)',
+            padding: 'var(--space-5)',
+          }}
+        >
+          <p className="text-muted m-0 flex items-center gap-1.5" style={{ fontSize: 11, marginBottom: 8 }}>
+            <i className="ph ph-eye" aria-hidden /> {t('activity.previewHeading')}
+          </p>
+          <ActivityPreview activity={activity} />
+        </div>
+      )}
     </div>
   );
 }
@@ -225,7 +250,7 @@ function ActivityPreview({ activity }: { activity: LessonActivityDto }): JSX.Ele
     return <PdfBlock fileId={activity.fileId} fileName={activity.fileName} />;
   }
   if (activity.type === 'video' && activity.videoUrl) return <VideoBlock videoUrl={activity.videoUrl} />;
-  return <p className="text-muted text-sm">{t('activity.refPreviewHint')}</p>;
+  return <p className="text-muted m-0 text-sm">{t('activity.refPreviewHint')}</p>;
 }
 
 function summaryLine(a: LessonActivityDto, t: (k: string, o?: Record<string, unknown>) => string): string {
@@ -243,44 +268,69 @@ function summaryLine(a: LessonActivityDto, t: (k: string, o?: Record<string, unk
 
 /* ── Form thêm activity ──────────────────────────────────────────────────── */
 function AddActivityForm({
-  courseId, sectionId, lessonId,
-}: { courseId: string; sectionId: string; lessonId: string }): JSX.Element {
+  courseId,
+  sectionId,
+  lessonId,
+}: {
+  courseId: string;
+  sectionId: string;
+  lessonId: string;
+}): JSX.Element {
   const { t } = useTranslation();
   const [type, setType] = useState<LessonActivityTypeValue>('markdown');
   const add = useAddActivity(courseId, sectionId, lessonId);
 
   return (
-    <div className="space-y-3 border-t pt-4" style={{ borderColor: 'var(--color-divider)' }}>
-      <p className="cx-display" style={{ fontSize: 15 }}>{t('activity.addHeading')}</p>
-      <div className="seg flex-wrap">
-        {LESSON_ACTIVITY_TYPES.map((ty) => (
-          <button
-            key={ty}
-            type="button"
-            className={`seg-btn cx-press ${type === ty ? 'seg-active' : ''}`}
-            onClick={() => setType(ty)}
-          >
-            <i className={`ph ${activityMeta(ty).icon}`} aria-hidden /> {t(`activity.type_${ty}`)}
-          </button>
-        ))}
-      </div>
+    <DetailSection icon="ph-plus-circle" color="var(--cx-teal)" title={t('activity.addNewHeading')}>
+      <div className="card" style={{ borderRadius: 20, padding: 'var(--space-6)', gap: 'var(--space-4)' }}>
+        <div className="flex flex-wrap gap-2">
+          {LESSON_ACTIVITY_TYPES.map((ty) => {
+            const meta = activityMeta(ty);
+            const active = type === ty;
+            return (
+              <button
+                key={ty}
+                type="button"
+                className="cx-press flex items-center gap-1.5"
+                onClick={() => setType(ty)}
+                style={{
+                  borderRadius: 999,
+                  padding: '7px 14px',
+                  fontSize: 13,
+                  color: active ? meta.color : 'var(--color-text)',
+                  background: active ? `color-mix(in srgb, ${meta.color} 15%, transparent)` : 'transparent',
+                  boxShadow: active
+                    ? `inset 0 0 0 1.5px color-mix(in srgb, ${meta.color} 60%, transparent)`
+                    : 'inset 0 0 0 1px var(--color-divider)',
+                }}
+              >
+                <i className={`ph ${meta.icon}`} aria-hidden /> {t(`activity.type_${ty}`)}
+              </button>
+            );
+          })}
+        </div>
 
-      <ActivityFields
-        key={type}
-        type={type}
-        courseId={courseId}
-        submitting={add.isPending}
-        submitLabel={t('activity.add')}
-        error={add.isError ? errMsg(add.error) : null}
-        onSubmit={(body) => add.mutate({ ...body, type } as CreateLessonActivityRequest)}
-      />
-    </div>
+        <ActivityFields
+          key={type}
+          type={type}
+          courseId={courseId}
+          submitting={add.isPending}
+          submitLabel={t('activity.addTyped', { type: t(`activity.type_${type}`) })}
+          error={add.isError ? errMsg(add.error) : null}
+          onSubmit={(body) => add.mutate({ ...body, type } as CreateLessonActivityRequest)}
+        />
+      </div>
+    </DetailSection>
   );
 }
 
 /* ── Form sửa activity (giữ nguyên loại) ─────────────────────────────────── */
 function ActivityEditor({
-  courseId, sectionId, lessonId, activity, onDone,
+  courseId,
+  sectionId,
+  lessonId,
+  activity,
+  onDone,
 }: {
   courseId: string;
   sectionId: string;
@@ -290,16 +340,29 @@ function ActivityEditor({
 }): JSX.Element {
   const { t } = useTranslation();
   const update = useUpdateActivity(courseId, sectionId, lessonId);
+  const meta = activityMeta(activity.type);
 
   return (
-    <div className="card gap-3" style={{ borderRadius: 16, outline: '1px solid var(--color-accent-700)' }}>
+    <div
+      className="card"
+      style={{
+        borderRadius: 18,
+        padding: 'var(--space-5)',
+        gap: 'var(--space-3)',
+        borderLeft: `3px solid ${meta.color}`,
+        outline: '1px solid var(--color-accent-700)',
+      }}
+    >
       <div className="flex items-center justify-between gap-2">
-        <p className="cx-display" style={{ fontSize: 15 }}>
-          {t('activity.editHeading', { type: t(`activity.type_${activity.type}`) })}
-        </p>
-        <button type="button" className="btn btn-ghost cx-press" onClick={onDone}>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <IconTile icon={meta.icon} color={meta.color} size={34} />
+          <p className="cx-display m-0 truncate" style={{ fontSize: 15 }}>
+            {t('activity.editHeading', { type: t(`activity.type_${activity.type}`) })}
+          </p>
+        </div>
+        <PillButton variant="ghost" onClick={onDone}>
           {t('common.cancel')}
-        </button>
+        </PillButton>
       </div>
       <ActivityFields
         type={activity.type}
@@ -309,6 +372,7 @@ function ActivityEditor({
         submitLabel={t('common.save')}
         error={update.isError ? errMsg(update.error) : null}
         onSubmit={(body) => update.mutate({ activityId: activity.id, body }, { onSuccess: onDone })}
+        onCancel={onDone}
       />
     </div>
   );
@@ -316,7 +380,14 @@ function ActivityEditor({
 
 /* ── Trường nhập theo loại activity ──────────────────────────────────────── */
 function ActivityFields({
-  type, courseId, initial, submitting, submitLabel, error, onSubmit,
+  type,
+  courseId,
+  initial,
+  submitting,
+  submitLabel,
+  error,
+  onSubmit,
+  onCancel,
 }: {
   type: LessonActivityTypeValue;
   courseId: string;
@@ -324,13 +395,8 @@ function ActivityFields({
   submitting: boolean;
   submitLabel: string;
   error: string | null;
-  onSubmit: (body: {
-    title?: string;
-    contentMd?: string;
-    fileId?: string;
-    videoUrl?: string;
-    refId?: string;
-  }) => void;
+  onSubmit: (body: { title?: string; contentMd?: string; fileId?: string; videoUrl?: string; refId?: string }) => void;
+  onCancel?: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
   const [title, setTitle] = useState(initial?.title ?? '');
@@ -358,57 +424,48 @@ function ActivityFields({
   };
 
   return (
-    <div className="space-y-2">
-      <input
-        className="input"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder={t('activity.titleField')}
-      />
+    <div className="flex flex-col" style={{ gap: 'var(--space-3)' }}>
+      <div className="field">
+        <label>{t('activity.titleField')}</label>
+        <input
+          className="input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={t('activity.titlePlaceholder')}
+        />
+      </div>
 
       {type === 'markdown' && (
         <>
           <textarea
             className="input"
-            rows={8}
+            rows={7}
             value={contentMd}
             onChange={(e) => setContentMd(e.target.value)}
             placeholder={t('activity.markdownPlaceholder')}
             style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', resize: 'vertical' }}
           />
-          <p className="card-meta">{t('activity.markdownHint')}</p>
+          <p className="text-muted m-0" style={{ fontSize: 11 }}>
+            {t('activity.markdownHint')}
+          </p>
         </>
       )}
 
       {type === 'pdf' && (
-        <div className="space-y-2">
-          <input
-            type="file"
-            accept="application/pdf"
-            className="input"
-            disabled={upload.isPending}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              upload.mutate(f, {
-                onSuccess: (res) => {
-                  setFileId(res.id);
-                  setFileName(res.fileName ?? f.name);
-                },
-              });
-            }}
-          />
-          <p className="card-meta">
-            {t('activity.pdfHint', { size: Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024)) })}
-          </p>
-          {upload.isPending && <p className="text-muted text-sm">{t('activity.uploading')}</p>}
-          {upload.isError && <p className="text-sm text-red-400">{errMsg(upload.error)}</p>}
-          {fileId && (
-            <p className="text-sm" style={{ color: 'var(--color-accent-300)' }}>
-              <i className="ph ph-file-pdf" aria-hidden /> {fileName || fileId}
-            </p>
-          )}
-        </div>
+        <PdfDropZone
+          fileId={fileId}
+          fileName={fileName}
+          uploading={upload.isPending}
+          error={upload.isError ? errMsg(upload.error) : null}
+          onPick={(f) =>
+            upload.mutate(f, {
+              onSuccess: (res) => {
+                setFileId(res.id);
+                setFileName(res.fileName ?? f.name);
+              },
+            })
+          }
+        />
       )}
 
       {type === 'video' && (
@@ -419,28 +476,124 @@ function ActivityFields({
             onChange={(e) => setVideoUrl(e.target.value)}
             placeholder="https://www.youtube.com/watch?v=..."
           />
-          <p className="card-meta">{t('activity.videoHint')}</p>
+          <p className="text-muted m-0" style={{ fontSize: 11 }}>
+            {t('activity.videoHint')}
+          </p>
         </>
       )}
 
       {isRef && <RefPicker type={type} courseId={courseId} value={refId} onChange={setRefId} />}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      <button
-        type="button"
-        className="btn btn-primary cx-press"
-        disabled={submitting || !canSubmit}
-        onClick={submit}
+      {error && <p className="m-0 text-sm" style={{ color: ERROR_COLOR }}>{error}</p>}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <PillButton icon="ph-plus" disabled={submitting || !canSubmit} onClick={submit}>
+          {submitLabel}
+        </PillButton>
+        {onCancel && (
+          <PillButton variant="ghost" onClick={onCancel}>
+            {t('common.cancel')}
+          </PillButton>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Vùng kéo-thả PDF (dashed coral). Server vẫn là nơi validate thật (mime + magic bytes + size). */
+function PdfDropZone({
+  fileId,
+  fileName,
+  uploading,
+  error,
+  onPick,
+}: {
+  fileId: string;
+  fileName: string;
+  uploading: boolean;
+  error: string | null;
+  onPick: (file: File) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const maxMb = Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024));
+
+  return (
+    <div className="flex flex-col" style={{ gap: 'var(--space-2)' }}>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) onPick(f);
+        }}
+        className="flex flex-col items-center justify-center gap-2 text-center"
+        style={{
+          borderRadius: 18,
+          border: `1.5px dashed color-mix(in srgb, var(--cx-coral) ${dragging ? 90 : 55}%, transparent)`,
+          background: dragging ? 'color-mix(in srgb, var(--cx-coral) 10%, transparent)' : 'transparent',
+          padding: 'var(--space-7) var(--space-6)',
+        }}
       >
-        {submitLabel}
-      </button>
+        <i className="ph-fill ph-file-pdf" style={{ fontSize: 32, color: 'var(--cx-coral)' }} aria-hidden />
+        <p className="m-0" style={{ fontSize: 14 }}>
+          {t('activity.dropzoneTitle')}
+        </p>
+        <p className="text-muted m-0" style={{ fontSize: 11 }}>
+          {t('activity.dropzoneHint', { size: maxMb })}
+        </p>
+        <PillButton icon="ph-upload-simple" variant="secondary" disabled={uploading} onClick={() => inputRef.current?.click()}>
+          {t('activity.choosePdf')}
+        </PillButton>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          disabled={uploading}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onPick(f);
+            e.target.value = '';
+          }}
+        />
+      </div>
+
+      <p className="text-muted m-0" style={{ fontSize: 11 }}>
+        {t('activity.pdfHint', { size: maxMb })}
+      </p>
+      {uploading && <p className="text-muted m-0 text-sm">{t('activity.uploading')}</p>}
+      {error && <p className="m-0 text-sm" style={{ color: ERROR_COLOR }}>{error}</p>}
+      {fileId && (
+        <span
+          className="inline-flex items-center gap-1.5 self-start"
+          style={{
+            borderRadius: 999,
+            padding: '5px 12px',
+            fontSize: 12,
+            color: 'var(--cx-coral)',
+            background: 'color-mix(in srgb, var(--cx-coral) 15%, transparent)',
+          }}
+        >
+          <i className="ph-fill ph-file-pdf" aria-hidden /> {fileName || fileId}
+        </span>
+      )}
     </div>
   );
 }
 
 /** Chọn Quiz / CodingProblem / Assignment sẵn có trong khóa để gắn vào bài học. */
 function RefPicker({
-  type, courseId, value, onChange,
+  type,
+  courseId,
+  value,
+  onChange,
 }: {
   type: 'quiz' | 'coding' | 'assignment';
   courseId: string;
@@ -466,7 +619,7 @@ function RefPicker({
   }, [options, value, onChange]);
 
   return (
-    <div className="space-y-1">
+    <div className="flex flex-col" style={{ gap: 'var(--space-2)' }}>
       <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">{t('activity.refPlaceholder')}</option>
         {options.map((o) => (
@@ -475,7 +628,9 @@ function RefPicker({
           </option>
         ))}
       </select>
-      {options.length === 0 && <p className="card-meta">{t(`activity.refEmpty_${type}`)}</p>}
+      <p className="text-muted m-0" style={{ fontSize: 11 }}>
+        {options.length === 0 ? t(`activity.refEmpty_${type}`) : t('activity.refPreviewHint')}
+      </p>
     </div>
   );
 }
