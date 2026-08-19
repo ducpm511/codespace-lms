@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreateAssignmentRequest,
   GradeSubmissionRequest,
@@ -65,6 +65,20 @@ export function useSubmissions(classId: string | null, assignmentId: string | nu
     queryKey: submissionsKey(classId ?? '_none', assignmentId ?? '_none', status),
     queryFn: () => api.listSubmissions(classId as string, assignmentId as string, status),
     enabled: !!classId && !!assignmentId,
+  });
+}
+
+/**
+ * Bài nộp của NHIỀU assignment trong cùng một lớp (badge "đã nộp / chờ chấm" ở sidebar
+ * tab Bài tập). Dùng chung query key với `useSubmissions` nên không fetch trùng.
+ */
+export function useSubmissionsByAssignments(classId: string | null, assignmentIds: string[]) {
+  return useQueries({
+    queries: assignmentIds.map((assignmentId) => ({
+      queryKey: submissionsKey(classId ?? '_none', assignmentId),
+      queryFn: () => api.listSubmissions(classId as string, assignmentId),
+      enabled: !!classId,
+    })),
   });
 }
 

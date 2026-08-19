@@ -40,7 +40,8 @@
     "edit": "Edit",
     "delete": "Delete",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "empty": "Empty"
   },
   "courseStatus": {
     "draft": "Draft",
@@ -299,7 +300,13 @@
     "actual": "Actual",
     "runnerError": "Could not run Python in the browser. Check your connection and try again.",
     "noResultYet": "No result yet. Click \"Run\" or \"Submit\".",
-    "difficultyLabel": "Difficulty"
+    "difficultyLabel": "Difficulty",
+    "scoreValue": "{{score}} points",
+    "lessonLabel": "Lesson: {{title}}",
+    "statementHeading": "Problem statement",
+    "kindSampleLong": "Example (visible to students)",
+    "kindHiddenLong": "Hidden (used for grading)",
+    "weightLabel": "Weight {{weight}}"
   },
   "assignments": {
     "heading": "Assignments",
@@ -322,7 +329,22 @@
     "gradedAt": "Graded at",
     "submittedAt": "Submitted at",
     "selectCourse": "Select course…",
-    "selectClass": "Select class…"
+    "selectClass": "Select class…",
+    "dueShort": "Due {{date}}",
+    "dueLong": "Due on {{date}}",
+    "noDue": "No due date",
+    "submittedCount": "{{count}} submitted",
+    "pendingCount": "{{count}} to grade",
+    "allGraded": "All graded",
+    "chipSubmitted": "Submitted",
+    "chipPending": "To grade",
+    "maxScoreValue": "Max score {{score}}",
+    "gradingHeading": "Grading",
+    "submissionContent": "Submission content",
+    "scoreOutOf": "/ {{max}} points",
+    "pickStudent": "Pick a student to review and grade their work.",
+    "gradeSaved": "Grade saved successfully!",
+    "noSubmissionsYet": "No submissions yet"
   },
   "submissions": {
     "status_draft": "Draft",

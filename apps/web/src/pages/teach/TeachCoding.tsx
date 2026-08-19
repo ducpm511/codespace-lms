@@ -17,73 +17,143 @@ import {
   useDeleteTestCase,
   useUpsertTestCase,
 } from '../../features/coding/hooks';
+import { MarkdownBlock } from '../../features/lesson-activities/ActivityBlocks';
+import {
+  DetailColumn,
+  DetailHeader,
+  DetailSection,
+  EmptyHint,
+  IconButton,
+  PillButton,
+  Sidebar,
+  SidebarCard,
+  TeachShell,
+} from './teachUi';
 
-const dividerBorder = { borderColor: 'var(--color-divider)' } as const;
-const selectedBg = { background: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' } as const;
+const ERROR_COLOR = '#f4a3a3';
+
+/** Màu category theo độ khó. */
+const DIFF_COLOR: Record<string, string> = {
+  easy: 'var(--cx-teal)',
+  medium: 'var(--cx-amber)',
+  hard: 'var(--cx-coral)',
+};
+const diffColor = (d: string) => DIFF_COLOR[d] ?? 'var(--cx-purple)';
 
 export function TeachCoding(): JSX.Element {
   const { t } = useTranslation();
   const courses = useCourses();
   const [courseId, setCourseId] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const activeCourseId = courseId || courses.data?.items[0]?.id || '';
+  const problems = useCodingProblems(activeCourseId || undefined);
 
   return (
-    <div className="space-y-4">
-      <div className="field card max-w-md">
-        <label>{t('assignments.selectCourse')}</label>
-        <select
-          className="input"
-          value={activeCourseId}
-          onChange={(e) => {
-            setCourseId(e.target.value);
-            setSelectedId(null);
-          }}
-        >
-          {courses.data?.items.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.title}
-            </option>
-          ))}
-        </select>
+    <DetailColumn>
+      <div className="card" style={{ borderRadius: 20, padding: 'var(--space-6)' }}>
+        <div className="field max-w-md">
+          <label>{t('assignments.selectCourse')}</label>
+          <select
+            className="input"
+            value={activeCourseId}
+            onChange={(e) => {
+              setCourseId(e.target.value);
+              setSelectedId(null);
+            }}
+          >
+            {courses.data?.items.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[20rem_1fr]">
-        <div className="space-y-4">
-          {activeCourseId && (
-            <CreateProblemForm courseId={activeCourseId} onCreated={(id) => setSelectedId(id)} />
-          )}
-          <div className="panel overflow-hidden">
-            <div className="panel-head">{t('coding.heading')}</div>
-            {!activeCourseId ? (
-              <p className="text-muted px-3 py-4 text-xs">{t('assignments.selectCourse')}</p>
-            ) : (
-              <ProblemsList courseId={activeCourseId} selectedId={selectedId} onSelect={setSelectedId} />
+      <TeachShell
+        sidebar={
+          <Sidebar
+            icon="ph-code"
+            color="var(--cx-teal)"
+            title={t('coding.heading')}
+            count={problems.data?.items.length}
+            footer={
+              creating && activeCourseId ? (
+                <CreateProblemForm
+                  courseId={activeCourseId}
+                  onCancel={() => setCreating(false)}
+                  onCreated={(id) => {
+                    setSelectedId(id);
+                    setCreating(false);
+                  }}
+                />
+              ) : (
+                <PillButton icon="ph-plus" disabled={!activeCourseId} onClick={() => setCreating(true)}>
+                  {t('coding.create')}
+                </PillButton>
+              )
+            }
+          >
+            {problems.isLoading && <p className="text-muted text-sm">{t('common.loading')}</p>}
+            {!activeCourseId && <EmptyHint icon="ph-books">{t('assignments.selectCourse')}</EmptyHint>}
+            {activeCourseId && problems.data?.items.length === 0 && (
+              <EmptyHint icon="ph-code">{t('coding.empty')}</EmptyHint>
             )}
-          </div>
-        </div>
+            {problems.data?.items.map((p) => (
+              <SidebarCard
+                key={p.id}
+                icon="ph-terminal-window"
+                color={diffColor(p.difficulty)}
+                title={p.title}
+                meta={`${p.language} · ${t('coding.scoreValue', { score: p.maxScore })}`}
+                selected={selectedId === p.id}
+                onClick={() => setSelectedId(p.id)}
+                tag={<DifficultyTag difficulty={p.difficulty} />}
+              />
+            ))}
+          </Sidebar>
+        }
+      >
+        {selectedId ? (
+          <ProblemEditor problemId={selectedId} courseId={activeCourseId} onDeleted={() => setSelectedId(null)} />
+        ) : (
+          <EmptyHint icon="ph-hand-pointing">{t('coding.selectHint')}</EmptyHint>
+        )}
+      </TeachShell>
+    </DetailColumn>
+  );
+}
 
-        <div>
-          {selectedId ? (
-            <ProblemEditor problemId={selectedId} courseId={activeCourseId} onDeleted={() => setSelectedId(null)} />
-          ) : (
-            <p className="text-muted rounded-lg border border-dashed px-4 py-12 text-center text-sm" style={dividerBorder}>
-              {t('coding.selectHint')}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+function DifficultyTag({ difficulty }: { difficulty: string }): JSX.Element {
+  const { t } = useTranslation();
+  const color = diffColor(difficulty);
+  return (
+    <span
+      className="shrink-0"
+      style={{
+        borderRadius: 999,
+        padding: '3px 10px',
+        fontSize: 11,
+        color,
+        background: `color-mix(in srgb, ${color} 16%, transparent)`,
+        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${color} 45%, transparent)`,
+      }}
+    >
+      {t(`coding.diff_${difficulty}`, { defaultValue: difficulty })}
+    </span>
   );
 }
 
 function CreateProblemForm({
   courseId,
   onCreated,
+  onCancel,
 }: {
   courseId: string;
   onCreated: (id: string) => void;
+  onCancel: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
   const course = useCourse(courseId);
@@ -123,9 +193,17 @@ function CreateProblemForm({
   };
 
   return (
-    <form onSubmit={submit} className="card gap-2">
-      <p className="card-title">{t('coding.create')}</p>
-      <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('coding.title')} required />
+    <form onSubmit={submit} className="card gap-2" style={{ borderRadius: 18 }}>
+      <p className="cx-display m-0" style={{ fontSize: 14 }}>
+        {t('coding.create')}
+      </p>
+      <input
+        className="input"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder={t('coding.title')}
+        required
+      />
       <textarea
         className="input text-xs"
         value={statementMd}
@@ -148,7 +226,11 @@ function CreateProblemForm({
       <div className="flex gap-2">
         <div className="field flex-1">
           <label>{t('coding.difficulty')}</label>
-          <select className="input" value={difficulty} onChange={(e) => setDifficulty(e.target.value as CodingDifficultyValue)}>
+          <select
+            className="input"
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value as CodingDifficultyValue)}
+          >
             <option value="easy">{t('coding.diff_easy')}</option>
             <option value="medium">{t('coding.diff_medium')}</option>
             <option value="hard">{t('coding.diff_hard')}</option>
@@ -156,51 +238,26 @@ function CreateProblemForm({
         </div>
         <div className="field flex-1">
           <label>{t('coding.maxScore')}</label>
-          <input className="input" type="number" min={1} max={1000} value={maxScore} onChange={(e) => setMaxScore(Number(e.target.value))} />
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={1000}
+            value={maxScore}
+            onChange={(e) => setMaxScore(Number(e.target.value))}
+          />
         </div>
       </div>
-      <button type="submit" disabled={create.isPending} className="btn btn-primary btn-block">
-        {t('coding.add')}
-      </button>
-      {create.isError && <p className="text-xs text-red-400">{errMsg(create.error)}</p>}
+      <div className="flex gap-2">
+        <PillButton type="submit" icon="ph-plus" disabled={create.isPending}>
+          {t('coding.add')}
+        </PillButton>
+        <PillButton variant="secondary" onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
+      </div>
+      {create.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(create.error)}</p>}
     </form>
-  );
-}
-
-function ProblemsList({
-  courseId,
-  selectedId,
-  onSelect,
-}: {
-  courseId: string;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}): JSX.Element {
-  const { t } = useTranslation();
-  const problems = useCodingProblems(courseId);
-
-  if (problems.isLoading) return <p className="text-muted px-3 py-4 text-xs">{t('common.loading')}</p>;
-  if (problems.data?.items.length === 0) {
-    return <p className="text-muted px-3 py-4 text-xs">{t('coding.empty')}</p>;
-  }
-
-  return (
-    <ul>
-      {problems.data?.items.map((p) => (
-        <li key={p.id}>
-          <button
-            onClick={() => onSelect(p.id)}
-            className="w-full px-3 py-2 text-left text-sm hover:bg-white/5"
-            style={selectedId === p.id ? selectedBg : undefined}
-          >
-            <p className="truncate font-medium">{p.title}</p>
-            <p className="text-muted text-xs">
-              {p.language} · {t(`coding.diff_${p.difficulty}`, { defaultValue: p.difficulty })} · {p.maxScore}đ
-            </p>
-          </button>
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -215,41 +272,69 @@ function ProblemEditor({
 }): JSX.Element {
   const { t } = useTranslation();
   const problem = useCodingProblem(problemId);
+  const course = useCourse(courseId || null);
   const del = useDeleteCodingProblem(courseId);
 
   if (problem.isLoading || !problem.data) {
     return <p className="text-muted text-sm">{t('common.loading')}</p>;
   }
   const p = problem.data;
+  const lessonTitle = (course.data?.sections ?? [])
+    .flatMap((s) => s.lessons ?? [])
+    .find((l) => l.id === p.lessonId)?.title;
 
   return (
-    <div className="space-y-4">
-      <div className="card gap-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base">{p.title}</h2>
-            <p className="text-muted text-xs">
-              {p.language} · {t(`coding.diff_${p.difficulty}`, { defaultValue: p.difficulty })} ·{' '}
-              {t('coding.maxScore')}: {p.maxScore} · {p.timeLimitMs}ms · {p.memoryLimitMb}MB
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              if (confirm(t('coding.confirmDelete'))) del.mutate(p.id, { onSuccess: onDeleted });
-            }}
-            className="btn btn-danger shrink-0"
-          >
-            {t('coding.delete')}
-          </button>
+    <DetailColumn>
+      <DetailHeader
+        icon="ph-terminal-window"
+        color={diffColor(p.difficulty)}
+        title={p.title}
+        meta={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>{p.language}</span>
+            <span aria-hidden>·</span>
+            <span>{t('coding.scoreValue', { score: p.maxScore })}</span>
+            <span aria-hidden>·</span>
+            <span>{p.timeLimitMs}ms · {p.memoryLimitMb}MB</span>
+            {lessonTitle && (
+              <>
+                <span aria-hidden>·</span>
+                <span>{t('coding.lessonLabel', { title: lessonTitle })}</span>
+              </>
+            )}
+          </span>
+        }
+        actions={
+          <>
+            <DifficultyTag difficulty={p.difficulty} />
+            <PillButton
+              icon="ph-trash"
+              variant="secondary"
+              onClick={() => {
+                if (confirm(t('coding.confirmDelete'))) del.mutate(p.id, { onSuccess: onDeleted });
+              }}
+            >
+              {t('coding.delete')}
+            </PillButton>
+          </>
+        }
+      />
+
+      <DetailSection icon="ph-article" color="var(--cx-blue)" title={t('coding.statementHeading')}>
+        <div
+          style={{
+            borderRadius: 18,
+            background: 'var(--color-neutral-900)',
+            boxShadow: 'inset 0 0 0 1px var(--color-divider)',
+            padding: 'var(--space-6)',
+          }}
+        >
+          <MarkdownBlock content={p.statementMd} />
         </div>
-        <div>
-          <p className="text-muted text-xs font-medium">{t('coding.statement')}</p>
-          <pre className="chip mt-1 whitespace-pre-wrap text-xs">{p.statementMd}</pre>
-        </div>
-      </div>
+      </DetailSection>
 
       <TestCasesManager problem={p} />
-    </div>
+    </DetailColumn>
   );
 }
 
@@ -258,78 +343,113 @@ function TestCasesManager({ problem }: { problem: CodingProblemAuthorDetail }): 
   const del = useDeleteTestCase(problem.id);
   const [editing, setEditing] = useState<AuthorTestCaseDto | null>(null);
 
-  const samples = problem.testCases.filter((c) => c.kind === 'sample');
-  const hidden = problem.testCases.filter((c) => c.kind === 'hidden');
+  return (
+    <DetailSection
+      icon="ph-flask"
+      color="var(--cx-teal)"
+      title={t('coding.testcases')}
+      count={problem.testCases.length}
+      action={
+        !editing && (
+          <PillButton
+            icon="ph-plus"
+            variant="secondary"
+            onClick={() =>
+              setEditing({ id: '', name: '', stdin: '', expectedStdout: '', kind: 'sample', weight: 1, order: 0 })
+            }
+          >
+            {t('coding.addTestcase')}
+          </PillButton>
+        )
+      }
+    >
+      {editing && <TestCaseForm problemId={problem.id} initial={editing} onClose={() => setEditing(null)} />}
+
+      {problem.testCases.length === 0 && !editing && <EmptyHint icon="ph-flask">{t('coding.noTestcase')}</EmptyHint>}
+
+      {problem.testCases.map((tc, i) => (
+        <TestCaseCard key={tc.id} testCase={tc} index={i + 1} onEdit={() => setEditing(tc)} onDelete={() => del.mutate(tc.id)} />
+      ))}
+    </DetailSection>
+  );
+}
+
+function TestCaseCard({
+  testCase,
+  index,
+  onEdit,
+  onDelete,
+}: {
+  testCase: AuthorTestCaseDto;
+  index: number;
+  onEdit: () => void;
+  onDelete: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const isSample = testCase.kind === 'sample';
 
   return (
-    <div className="card gap-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-base">{t('coding.testcases')}</h3>
-        <button
-          onClick={() => setEditing({ id: '', name: '', stdin: '', expectedStdout: '', kind: 'sample', weight: 1, order: 0 })}
-          className="btn btn-primary"
+    <div className="card" style={{ borderRadius: 18, padding: 'var(--space-5)', gap: 'var(--space-3)' }}>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <span
+          className="cx-display flex shrink-0 items-center justify-center"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 9,
+            fontSize: 13,
+            background: 'color-mix(in srgb, var(--cx-teal) 18%, transparent)',
+            color: 'var(--cx-teal)',
+          }}
         >
-          {t('coding.addTestcase')}
-        </button>
+          {index}
+        </span>
+        <p className="m-0 min-w-0 flex-1 truncate" style={{ fontSize: 14 }}>
+          {testCase.name || t('coding.tcName')}
+        </p>
+        <span className={isSample ? 'tag tag-outline shrink-0' : 'tag tag-neutral shrink-0'}>
+          {isSample ? t('coding.kindSampleLong') : t('coding.kindHiddenLong')}
+        </span>
+        <span className="text-muted shrink-0" style={{ fontSize: 11 }}>
+          {t('coding.weightLabel', { weight: testCase.weight })}
+        </span>
+        <IconButton icon="ph-pencil-simple" title={t('coding.edit')} onClick={onEdit} />
+        <IconButton icon="ph-trash" tone="danger" title={t('coding.delete')} onClick={onDelete} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <TestCaseGroup label={t('coding.sampleTests')} hint={t('coding.sampleHint')} items={samples} onEdit={setEditing} onDelete={(id) => del.mutate(id)} />
-        <TestCaseGroup label={t('coding.hiddenTests')} hint={t('coding.hiddenHint')} items={hidden} onEdit={setEditing} onDelete={(id) => del.mutate(id)} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <IoPanel label={t('coding.stdin')} value={testCase.stdin} />
+        <IoPanel label={t('coding.expectedStdout')} value={testCase.expectedStdout} color="var(--cx-teal)" />
       </div>
-
-      {editing && <TestCaseForm problemId={problem.id} initial={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
 
-function TestCaseGroup({
-  label,
-  hint,
-  items,
-  onEdit,
-  onDelete,
-}: {
-  label: string;
-  hint: string;
-  items: AuthorTestCaseDto[];
-  onEdit: (tc: AuthorTestCaseDto) => void;
-  onDelete: (id: string) => void;
-}): JSX.Element {
-  const { t } = useTranslation();
+function IoPanel({ label, value, color }: { label: string; value: string; color?: string }): JSX.Element {
   return (
-    <div>
-      <p className="text-xs font-medium">{label}</p>
-      <p className="text-muted mb-1 text-[10px]">{hint}</p>
-      {items.length === 0 ? (
-        <p className="text-muted rounded border border-dashed p-3 text-center text-[11px]" style={dividerBorder}>
-          {t('coding.noTestcase')}
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {items.map((tc) => (
-            <li key={tc.id} className="rounded p-2 text-xs" style={{ border: '1px solid var(--color-divider)' }}>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">
-                  #{tc.order} {tc.name || ''} · w{tc.weight}
-                </span>
-                <span className="flex gap-2">
-                  <button onClick={() => onEdit(tc)} className="btn btn-ghost">
-                    {t('coding.edit')}
-                  </button>
-                  <button onClick={() => onDelete(tc.id)} className="btn btn-ghost btn-danger">
-                    {t('coding.delete')}
-                  </button>
-                </span>
-              </div>
-              <div className="mt-1 grid grid-cols-2 gap-2">
-                <pre className="chip overflow-x-auto text-[10px]">in: {tc.stdin}</pre>
-                <pre className="chip overflow-x-auto text-[10px]">out: {tc.expectedStdout}</pre>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div
+      style={{
+        borderRadius: 14,
+        background: 'var(--color-neutral-900)',
+        boxShadow: 'inset 0 0 0 1px var(--color-divider)',
+        padding: 'var(--space-4)',
+      }}
+    >
+      <p className="text-muted m-0" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        {label}
+      </p>
+      <pre
+        className="m-0 overflow-x-auto"
+        style={{
+          marginTop: 6,
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+          fontSize: 12,
+          whiteSpace: 'pre-wrap',
+          color: color ?? 'var(--color-text)',
+        }}
+      >
+        {value || '—'}
+      </pre>
     </div>
   );
 }
@@ -368,33 +488,64 @@ function TestCaseForm({
   };
 
   return (
-    <form onSubmit={submit} className="space-y-2 rounded-md p-3" style={{ background: 'var(--color-neutral-900)', boxShadow: 'inset 0 0 0 1px var(--color-divider)' }}>
-      <p className="text-xs font-semibold">{initial.id ? t('coding.editTestcase') : t('coding.addTestcase')}</p>
-      <div className="flex gap-2">
-        <input className="input flex-1" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('coding.tcName')} />
+    <form
+      onSubmit={submit}
+      className="card"
+      style={{ borderRadius: 18, padding: 'var(--space-5)', gap: 'var(--space-3)', outline: '1px solid var(--color-accent-700)' }}
+    >
+      <p className="cx-display m-0" style={{ fontSize: 14 }}>
+        {initial.id ? t('coding.editTestcase') : t('coding.addTestcase')}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <input
+          className="input min-w-[140px] flex-1"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('coding.tcName')}
+        />
         <select className="input w-28" value={kind} onChange={(e) => setKind(e.target.value as TestCaseKindValue)}>
           <option value="sample">{t('coding.kind_sample')}</option>
           <option value="hidden">{t('coding.kind_hidden')}</option>
         </select>
-        <input className="input w-16" type="number" step="0.5" min={0} value={weight} onChange={(e) => setWeight(Number(e.target.value))} title={t('coding.weight')} />
+        <input
+          className="input w-20"
+          type="number"
+          step="0.5"
+          min={0}
+          value={weight}
+          onChange={(e) => setWeight(Number(e.target.value))}
+          title={t('coding.weight')}
+        />
       </div>
-      <div className="field">
-        <label>{t('coding.stdin')}</label>
-        <textarea className="input font-mono text-[11px]" value={stdin} onChange={(e) => setStdin(e.target.value)} rows={2} />
-      </div>
-      <div className="field">
-        <label>{t('coding.expectedStdout')}</label>
-        <textarea className="input font-mono text-[11px]" value={expectedStdout} onChange={(e) => setExpectedStdout(e.target.value)} rows={2} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="field">
+          <label>{t('coding.stdin')}</label>
+          <textarea
+            className="input font-mono text-[11px]"
+            value={stdin}
+            onChange={(e) => setStdin(e.target.value)}
+            rows={3}
+          />
+        </div>
+        <div className="field">
+          <label>{t('coding.expectedStdout')}</label>
+          <textarea
+            className="input font-mono text-[11px]"
+            value={expectedStdout}
+            onChange={(e) => setExpectedStdout(e.target.value)}
+            rows={3}
+          />
+        </div>
       </div>
       <div className="flex gap-2">
-        <button type="submit" disabled={upsert.isPending} className="btn btn-primary">
+        <PillButton type="submit" icon="ph-check" disabled={upsert.isPending}>
           {t('coding.save')}
-        </button>
-        <button type="button" onClick={onClose} className="btn btn-secondary">
+        </PillButton>
+        <PillButton variant="secondary" onClick={onClose}>
           {t('coding.cancel')}
-        </button>
+        </PillButton>
       </div>
-      {upsert.isError && <p className="text-[10px] text-red-400">{errMsg(upsert.error)}</p>}
+      {upsert.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(upsert.error)}</p>}
     </form>
   );
 }

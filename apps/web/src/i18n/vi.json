@@ -40,7 +40,8 @@
     "edit": "Sửa",
     "delete": "Xóa",
     "cancel": "Hủy",
-    "save": "Lưu"
+    "save": "Lưu",
+    "empty": "Trống"
   },
   "courseStatus": {
     "draft": "Bản nháp",
@@ -299,7 +300,13 @@
     "actual": "Thực tế",
     "runnerError": "Không chạy được Python trong trình duyệt. Kiểm tra kết nối mạng rồi thử lại.",
     "noResultYet": "Chưa có kết quả. Bấm \"Chạy thử\" hoặc \"Nộp bài\".",
-    "difficultyLabel": "Độ khó"
+    "difficultyLabel": "Độ khó",
+    "scoreValue": "{{score}} điểm",
+    "lessonLabel": "Bài học: {{title}}",
+    "statementHeading": "Đề bài",
+    "kindSampleLong": "Ví dụ (học viên thấy)",
+    "kindHiddenLong": "Ẩn (dùng để chấm)",
+    "weightLabel": "Trọng số {{weight}}"
   },
   "assignments": {
     "heading": "Bài tập",
@@ -322,7 +329,22 @@
     "gradedAt": "Đã chấm lúc",
     "submittedAt": "Đã nộp lúc",
     "selectCourse": "Chọn khóa học…",
-    "selectClass": "Chọn lớp học…"
+    "selectClass": "Chọn lớp học…",
+    "dueShort": "Hạn {{date}}",
+    "dueLong": "Hạn nộp {{date}}",
+    "noDue": "Không có hạn nộp",
+    "submittedCount": "{{count}} đã nộp",
+    "pendingCount": "{{count}} chờ chấm",
+    "allGraded": "Đã chấm hết",
+    "chipSubmitted": "Đã nộp",
+    "chipPending": "Chờ chấm",
+    "maxScoreValue": "Điểm tối đa {{score}}",
+    "gradingHeading": "Chấm bài",
+    "submissionContent": "Nội dung bài làm",
+    "scoreOutOf": "/ {{max}} điểm",
+    "pickStudent": "Chọn một học viên để xem bài và chấm điểm.",
+    "gradeSaved": "Đã lưu điểm thành công!",
+    "noSubmissionsYet": "Chưa có bài nộp"
   },
   "submissions": {
     "status_draft": "Bản nháp",
