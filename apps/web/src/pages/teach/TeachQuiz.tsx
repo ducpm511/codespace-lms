@@ -19,6 +19,19 @@ import {
   useUpdateQuiz,
   useUpsertQuestion,
 } from '../../features/quiz/hooks';
+import {
+  DetailColumn,
+  DetailHeader,
+  DetailSection,
+  EmptyHint,
+  IconButton,
+  PillButton,
+  Sidebar,
+  SidebarCard,
+  TeachShell,
+} from './teachUi';
+
+const ERROR_COLOR = '#f4a3a3';
 
 const QUESTION_TYPES: QuizQuestionTypeValue[] = [
   'single_choice',
@@ -41,59 +54,78 @@ export function TeachQuiz(): JSX.Element {
 
   const activeCourseId = courseId || courses.data?.items[0]?.id || '';
 
+  const quizzes = useQuizzes(activeCourseId || undefined);
+  const [creating, setCreating] = useState(false);
+
   return (
-    <div className="nocturne-surface space-y-4 rounded-lg p-4">
-      <div className="field max-w-md">
-        <label>{t('assignments.selectCourse')}</label>
-        <select
-          className="input"
-          value={activeCourseId}
-          onChange={(e) => {
-            setCourseId(e.target.value);
-            setSelectedId(null);
-          }}
-        >
-          {courses.data?.items.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.title}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-[20rem_1fr]">
-        <div className="space-y-4">
-          {activeCourseId && (
-            <CreateQuizForm courseId={activeCourseId} onCreated={(id) => setSelectedId(id)} />
-          )}
-          {!activeCourseId ? (
-            <p className="text-muted text-sm">{t('assignments.selectCourse')}</p>
-          ) : (
-            <QuizList courseId={activeCourseId} selectedId={selectedId} onSelect={setSelectedId} />
-          )}
-        </div>
-
-        <div>
-          {selectedId ? (
-            <QuizEditor
-              quizId={selectedId}
-              courseId={activeCourseId}
-              onDeleted={() => setSelectedId(null)}
-            />
-          ) : (
-            <EmptyHint text={t('quiz.selectHint')} mascot="mascot-huh.png" />
-          )}
+    <DetailColumn>
+      <div className="card" style={{ borderRadius: 20, padding: 'var(--space-6)' }}>
+        <div className="field max-w-md">
+          <label>{t('assignments.selectCourse')}</label>
+          <select
+            className="input"
+            value={activeCourseId}
+            onChange={(e) => {
+              setCourseId(e.target.value);
+              setSelectedId(null);
+            }}
+          >
+            {courses.data?.items.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
-    </div>
+
+      <TeachShell
+        sidebar={
+          <Sidebar
+            icon="ph-check-square-offset"
+            color="var(--cx-coral)"
+            title={t('quiz.heading')}
+            count={quizzes.data?.items.length}
+            footer={
+              creating && activeCourseId ? (
+                <CreateQuizForm
+                  courseId={activeCourseId}
+                  onCancel={() => setCreating(false)}
+                  onCreated={(id) => {
+                    setSelectedId(id);
+                    setCreating(false);
+                  }}
+                />
+              ) : (
+                <PillButton icon="ph-plus" disabled={!activeCourseId} onClick={() => setCreating(true)}>
+                  {t('quiz.create')}
+                </PillButton>
+              )
+            }
+          >
+            {!activeCourseId ? (
+              <EmptyHint icon="ph-books">{t('assignments.selectCourse')}</EmptyHint>
+            ) : (
+              <QuizList courseId={activeCourseId} selectedId={selectedId} onSelect={setSelectedId} />
+            )}
+          </Sidebar>
+        }
+      >
+        {selectedId ? (
+          <QuizEditor quizId={selectedId} courseId={activeCourseId} onDeleted={() => setSelectedId(null)} />
+        ) : (
+          <MascotHint text={t('quiz.selectHint')} mascot="mascot-huh.png" />
+        )}
+      </TeachShell>
+    </DetailColumn>
   );
 }
 
-function EmptyHint({ text, mascot }: { text: string; mascot: string }): JSX.Element {
+function MascotHint({ text, mascot }: { text: string; mascot: string }): JSX.Element {
   return (
-    <div className="card items-center gap-3 py-10 text-center">
+    <div className="card items-center gap-3 text-center" style={{ borderRadius: 20, padding: 'var(--space-8)' }}>
       <img src={`/brand/${mascot}`} alt="" className="h-16 w-16" />
-      <p className="text-muted text-sm">{text}</p>
+      <p className="text-muted m-0 text-sm">{text}</p>
     </div>
   );
 }
@@ -101,9 +133,11 @@ function EmptyHint({ text, mascot }: { text: string; mascot: string }): JSX.Elem
 function CreateQuizForm({
   courseId,
   onCreated,
+  onCancel,
 }: {
   courseId: string;
   onCreated: (id: string) => void;
+  onCancel: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
   const course = useCourse(courseId);
@@ -141,8 +175,10 @@ function CreateQuizForm({
   };
 
   return (
-    <form onSubmit={submit} className="card gap-3">
-      <p className="card-title">{t('quiz.create')}</p>
+    <form onSubmit={submit} className="card gap-3" style={{ borderRadius: 18 }}>
+      <p className="cx-display m-0" style={{ fontSize: 14 }}>
+        {t('quiz.create')}
+      </p>
       <div className="field">
         <label>{t('quiz.title')}</label>
         <input
@@ -196,10 +232,15 @@ function CreateQuizForm({
           />
         </div>
       </div>
-      <button type="submit" disabled={create.isPending} className="btn btn-primary btn-block">
-        {t('quiz.add')}
-      </button>
-      {create.isError && <p className="text-xs text-red-400">{errMsg(create.error)}</p>}
+      <div className="flex gap-2">
+        <PillButton type="submit" icon="ph-plus" disabled={create.isPending}>
+          {t('quiz.add')}
+        </PillButton>
+        <PillButton variant="secondary" onClick={onCancel}>
+          {t('quiz.cancel')}
+        </PillButton>
+      </div>
+      {create.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(create.error)}</p>}
     </form>
   );
 }
@@ -218,40 +259,35 @@ function QuizList({
 
   if (quizzes.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
   if (quizzes.data && quizzes.data.items.length === 0) {
-    return <EmptyHint text={t('quiz.empty')} mascot="mascot-default.png" />;
+    return <MascotHint text={t('quiz.empty')} mascot="mascot-default.png" />;
   }
 
   return (
-    <div className="space-y-2">
+    <>
       {quizzes.data?.items.map((q) => {
-        const active = selectedId === q.id;
+        const published = q.published ?? false;
+        const color = published ? 'var(--cx-teal)' : 'var(--cx-amber)';
         return (
-          <button
+          <SidebarCard
             key={q.id}
+            icon={published ? 'ph-check-circle' : 'ph-pencil-simple'}
+            color={color}
+            title={q.title}
+            selected={selectedId === q.id}
             onClick={() => onSelect(q.id)}
-            className="card w-full gap-1 text-left"
-            style={
-              active
-                ? {
-                    background: 'var(--color-accent-900)',
-                    boxShadow: 'inset 0 0 0 1px var(--color-accent-700)',
-                  }
-                : undefined
+            tag={
+              <>
+                <span className="tag tag-neutral">{t('quiz.questionCount', { count: q.questionCount })}</span>
+                <span className="tag tag-neutral">{t('quiz.scoreValue', { score: q.maxScore })}</span>
+                <span className={published ? 'tag tag-accent' : 'tag tag-outline'}>
+                  {published ? t('quiz.published') : t('quiz.draft')}
+                </span>
+              </>
             }
-          >
-            <span
-              className="card-title truncate"
-              style={active ? { color: 'var(--color-accent-100)' } : undefined}
-            >
-              {q.title}
-            </span>
-            <span className="card-meta">
-              {t('quiz.questionCount', { count: q.questionCount })} · {t('quiz.maxScore')} {q.maxScore}
-            </span>
-          </button>
+          />
         );
       })}
-    </div>
+    </>
   );
 }
 
@@ -266,6 +302,7 @@ function QuizEditor({
 }): JSX.Element {
   const { t } = useTranslation();
   const quiz = useQuiz(quizId);
+  const course = useCourse(courseId || null);
   const update = useUpdateQuiz(quizId);
   const del = useDeleteQuiz(courseId);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -274,62 +311,81 @@ function QuizEditor({
     return <p className="text-muted text-sm">{t('common.loading')}</p>;
   }
   const q = quiz.data;
+  const published = q.published ?? false;
+  const lessonTitle = (course.data?.sections ?? [])
+    .flatMap((s) => s.lessons ?? [])
+    .find((l) => l.id === q.lessonId)?.title;
 
   return (
-    <div className="space-y-4">
-      <div className="card gap-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="cx-display truncate text-xl">{q.title}</h2>
-            <p className="card-meta mt-1 flex-wrap">
-              <span>{t('quiz.questionCount', { count: q.questionCount })}</span>
-              <span>· {t('quiz.maxScore')} {q.maxScore}</span>
-              <span>· {t('quiz.passScore')} {q.passScore}</span>
-              <span>· {t('quiz.attempts')} {q.attemptsAllowed}</span>
-              {q.timeLimitSec ? <span>· {Math.round(q.timeLimitSec / 60)}′</span> : null}
-            </p>
+    <DetailColumn>
+      <DetailHeader
+        icon="ph-check-square-offset"
+        color="var(--cx-teal)"
+        title={q.title}
+        meta={
+          <div className="flex flex-col gap-1">
+            <span>
+              {t('quiz.questionCount', { count: q.questionCount })} ·{' '}
+              {t('quiz.metaMaxScore', { score: q.maxScore })} · {t('quiz.metaPassScore', { score: q.passScore })} ·{' '}
+              {t('quiz.metaAttempts', { count: q.attemptsAllowed })} ·{' '}
+              {q.timeLimitSec
+                ? t('quiz.metaTimeLimit', { minutes: Math.round(q.timeLimitSec / 60) })
+                : t('quiz.metaNoTimeLimit')}
+            </span>
+            {lessonTitle && <span>{t('quiz.lessonLabel', { title: lessonTitle })}</span>}
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+        }
+        actions={
+          <>
             {/* Publish toggle — T6.5 */}
-            <span className="flex items-center gap-1.5" title={q.published ? 'Đang phát hành' : 'Bản nháp'}>
-              <span className="text-muted text-xs">
-                {q.published ? t('quiz.published', { defaultValue: 'Đã phát hành' }) : t('quiz.draft', { defaultValue: 'Bản nháp' })}
+            <span
+              className="flex items-center gap-2"
+              style={{
+                borderRadius: 999,
+                padding: '5px 12px',
+                boxShadow: 'inset 0 0 0 1px var(--color-divider)',
+              }}
+            >
+              <span className="text-muted" style={{ fontSize: 11 }}>
+                {published ? t('quiz.published') : t('quiz.draft')}
               </span>
-              <label className="cx-toggle">
+              <label className="cx-toggle" aria-label={published ? t('quiz.published') : t('quiz.draft')}>
                 <input
                   type="checkbox"
-                  checked={q.published ?? false}
+                  checked={published}
                   disabled={update.isPending}
                   onChange={(e) => update.mutate({ published: e.target.checked })}
                 />
                 <span className="cx-toggle-thumb" />
               </label>
             </span>
-            <button className="btn btn-secondary" onClick={() => setSettingsOpen(true)}>
+            <PillButton icon="ph-gear" variant="secondary" onClick={() => setSettingsOpen(true)}>
               {t('quiz.settings')}
-            </button>
-            <button
-              className="btn btn-danger"
+            </PillButton>
+            <PillButton
+              icon="ph-trash"
+              variant="ghost"
               onClick={() => {
                 if (confirm(t('quiz.confirmDelete'))) del.mutate(q.id, { onSuccess: onDeleted });
               }}
             >
               {t('quiz.delete')}
-            </button>
+            </PillButton>
+          </>
+        }
+      >
+        {(q.shuffleQuestions || q.shuffleOptions) && (
+          <div className="flex flex-wrap gap-2">
+            {q.shuffleQuestions && <span className="tag tag-neutral">{t('quiz.shuffleQuestions')}</span>}
+            {q.shuffleOptions && <span className="tag tag-neutral">{t('quiz.shuffleOptions')}</span>}
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {q.shuffleQuestions && <span className="tag tag-neutral">{t('quiz.shuffleQuestions')}</span>}
-          {q.shuffleOptions && <span className="tag tag-neutral">{t('quiz.shuffleOptions')}</span>}
-        </div>
-      </div>
+        )}
+      </DetailHeader>
 
-      {settingsOpen && (
-        <QuizSettingsDialog quiz={q} onClose={() => setSettingsOpen(false)} />
-      )}
+      {settingsOpen && <QuizSettingsDialog quiz={q} onClose={() => setSettingsOpen(false)} />}
 
       <QuestionsManager quiz={q} />
-    </div>
+    </DetailColumn>
   );
 }
 
@@ -424,7 +480,7 @@ function QuizSettingsDialog({
             {t('quiz.save')}
           </button>
         </div>
-        {update.isError && <p className="text-xs text-red-400">{errMsg(update.error)}</p>}
+        {update.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(update.error)}</p>}
       </form>
     </div>
   );
@@ -438,18 +494,32 @@ function QuestionsManager({ quiz }: { quiz: QuizAuthorDetail }): JSX.Element {
   const nextOrder = quiz.questions.length;
 
   return (
-    <div className="card gap-3">
-      <div className="flex items-center justify-between">
-        <h3>{t('quiz.questions')}</h3>
-        <button className="btn btn-primary" onClick={() => setEditing('new')}>
-          {t('quiz.addQuestion')}
-        </button>
-      </div>
+    <DetailSection
+      icon="ph-list-numbers"
+      color="var(--cx-purple)"
+      title={t('quiz.questions')}
+      count={quiz.questions.length}
+      action={
+        !editing && (
+          <PillButton icon="ph-plus" variant="secondary" onClick={() => setEditing('new')}>
+            {t('quiz.addQuestion')}
+          </PillButton>
+        )
+      }
+    >
+      {editing && (
+        <QuestionForm
+          quizId={quiz.id}
+          initial={editing === 'new' ? null : editing}
+          nextOrder={nextOrder}
+          onClose={() => setEditing(null)}
+        />
+      )}
 
-      {quiz.questions.length === 0 ? (
-        <p className="text-muted text-sm">{t('quiz.noQuestions')}</p>
+      {quiz.questions.length === 0 && !editing ? (
+        <EmptyHint icon="ph-list-numbers">{t('quiz.noQuestions')}</EmptyHint>
       ) : (
-        <ol className="space-y-3">
+        <ol className="flex list-none flex-col p-0" style={{ gap: 'var(--space-3)' }}>
           {quiz.questions.map((question, idx) => (
             <QuestionCard
               key={question.id}
@@ -463,16 +533,7 @@ function QuestionsManager({ quiz }: { quiz: QuizAuthorDetail }): JSX.Element {
           ))}
         </ol>
       )}
-
-      {editing && (
-        <QuestionForm
-          quizId={quiz.id}
-          initial={editing === 'new' ? null : editing}
-          nextOrder={nextOrder}
-          onClose={() => setEditing(null)}
-        />
-      )}
-    </div>
+    </DetailSection>
   );
 }
 
@@ -489,47 +550,51 @@ function QuestionCard({
 }): JSX.Element {
   const { t } = useTranslation();
   return (
-    <li
-      className="rounded-md p-3"
-      style={{ background: 'var(--color-neutral-900)' }}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="whitespace-pre-wrap text-sm">
-            <span className="text-muted mr-1">{index + 1}.</span>
+    <li className="card" style={{ borderRadius: 18, padding: 'var(--space-5)', gap: 'var(--space-3)' }}>
+      <div className="flex items-start gap-3">
+        <span
+          className="cx-display flex shrink-0 items-center justify-center"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 9,
+            fontSize: 13,
+            background: 'color-mix(in srgb, var(--cx-purple) 20%, transparent)',
+            color: 'var(--color-accent-300)',
+          }}
+        >
+          {index + 1}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="m-0 whitespace-pre-wrap" style={{ fontSize: 14 }}>
             {question.promptMd}
           </p>
-          <div className="card-meta mt-1 flex-wrap">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <span className="tag tag-outline">{t(`quiz.qtype_${question.type}`)}</span>
-            <span>· {t('quiz.points', { points: question.points })}</span>
+            <span className="tag tag-neutral">{t('quiz.points', { points: question.points })}</span>
           </div>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <button className="btn btn-ghost" onClick={onEdit}>
-            {t('quiz.edit')}
-          </button>
-          <button className="btn btn-ghost btn-danger" onClick={onDelete}>
-            {t('quiz.delete')}
-          </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <IconButton icon="ph-pencil-simple" title={t('quiz.edit')} onClick={onEdit} />
+          <IconButton icon="ph-trash" tone="danger" title={t('quiz.delete')} onClick={onDelete} />
         </div>
       </div>
 
       {isChoiceType(question.type) ? (
-        <ul className="mt-2 space-y-1">
+        <ul className="m-0 flex list-none flex-col gap-1.5 p-0" style={{ paddingLeft: 40 }}>
           {question.options.map((o) => (
-            <li key={o.id} className="flex items-center gap-2 text-xs">
-              <span
-                className={o.isCorrect ? 'tag tag-accent' : 'tag tag-neutral'}
+            <li key={o.id} className="flex items-center gap-2" style={{ fontSize: 13 }}>
+              <i
+                className={o.isCorrect ? 'ph-fill ph-check-circle' : 'ph ph-circle'}
+                style={{ color: o.isCorrect ? 'var(--color-accent-300)' : undefined, opacity: o.isCorrect ? 1 : 0.4 }}
                 aria-hidden
-              >
-                {o.isCorrect ? '✓' : '·'}
-              </span>
+              />
               <span className={o.isCorrect ? '' : 'text-muted'}>{o.textMd}</span>
             </li>
           ))}
         </ul>
       ) : question.correctAnswer ? (
-        <p className="text-muted mt-2 text-xs">
+        <p className="text-muted m-0" style={{ paddingLeft: 40, fontSize: 12 }}>
           {t('quiz.correctAnswer')}: <span className="font-mono">{question.correctAnswer}</span>
         </p>
       ) : null}
@@ -752,7 +817,7 @@ function QuestionForm({
           {t('quiz.cancel')}
         </button>
       </div>
-      {upsert.isError && <p className="text-xs text-red-400">{errMsg(upsert.error)}</p>}
+      {upsert.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(upsert.error)}</p>}
     </form>
   );
 }
