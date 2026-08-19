@@ -64,7 +64,7 @@ export class FilesService {
         ownerId,
         provider: 'local',
         storageKey,
-        fileName: sanitizeFileName(file.originalname),
+        fileName: sanitizeFileName(decodeMultipartFileName(file.originalname)),
         mime: file.mimetype,
         sizeBytes,
         visibility: 'private',
@@ -141,6 +141,23 @@ export class FilesService {
       throw new ForbiddenException('Bạn không có quyền truy cập file này');
     }
   }
+}
+
+/**
+ * Busboy (multer) giải header multipart bằng **latin1**, nên tên file UTF-8 về tới đây thành mojibake:
+ * "Bài 10.pdf" → "BÃ i 10.pdf". Giải mã lại latin1 → utf8 để lưu đúng tên hiển thị.
+ *
+ * Chỉ giải mã khi AN TOÀN, tránh phá tên vốn đã đúng:
+ * - có ký tự > U+00FF ⇒ chuỗi không thể là bytes latin1 ⇒ giữ nguyên;
+ * - giải ra có U+FFFD ⇒ dãy byte không phải UTF-8 hợp lệ ⇒ giữ nguyên.
+ * Tên thuần ASCII đi qua hàm này không đổi.
+ */
+export function decodeMultipartFileName(name: string | undefined): string | undefined {
+  if (!name || Array.from(name).some((ch) => (ch.codePointAt(0) ?? 0) > 0xff)) {
+    return name;
+  }
+  const decoded = Buffer.from(name, 'latin1').toString('utf8');
+  return decoded.includes('�') ? name : decoded;
 }
 
 /** Giữ tên cơ sở an toàn để hiển thị/Content-Disposition: bỏ đường dẫn, ký tự điều khiển, nháy, backslash. */

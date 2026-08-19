@@ -1,6 +1,11 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MAX_UPLOAD_BYTES } from '@lms/contracts';
-import { FilesService, sanitizeFileName, type UploadedFileLike } from './files.service';
+import {
+  FilesService,
+  decodeMultipartFileName,
+  sanitizeFileName,
+  type UploadedFileLike,
+} from './files.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
 import type { StorageAdapter } from '../common/storage/storage.interface';
@@ -143,6 +148,48 @@ describe('FilesService', () => {
       expect(sanitizeFileName('a"b.pdf')).toBe('ab.pdf');
       expect(sanitizeFileName('')).toBe('document.pdf');
       expect(sanitizeFileName(undefined)).toBe('document.pdf');
+    });
+
+    it('giữ nguyên dấu tiếng Việt (không lọc mất ký tự Unicode)', () => {
+      expect(sanitizeFileName('Bài 10. Kiểu dữ liệu.pdf')).toBe('Bài 10. Kiểu dữ liệu.pdf');
+    });
+  });
+
+  describe('decodeMultipartFileName', () => {
+    it('giải mojibake latin1 của busboy về đúng UTF-8', () => {
+      const utf8 = 'Bài 10. Kiểu dữ liệu Danh sách.pdf';
+      // Mô phỏng đúng thứ busboy đưa vào: bytes UTF-8 nhưng được đọc như latin1.
+      const asBusboySees = Buffer.from(utf8, 'utf8').toString('latin1');
+      expect(asBusboySees).not.toBe(utf8);
+      expect(decodeMultipartFileName(asBusboySees)).toBe(utf8);
+    });
+
+    it('không đụng tên ASCII', () => {
+      expect(decodeMultipartFileName('slide-01.pdf')).toBe('slide-01.pdf');
+    });
+
+    it('giữ nguyên tên vốn đã đúng UTF-8 (không giải mã hai lần)', () => {
+      expect(decodeMultipartFileName('Bài 10.pdf')).toBe('Bài 10.pdf');
+    });
+
+    it('giữ nguyên khi dãy byte không phải UTF-8 hợp lệ', () => {
+      expect(decodeMultipartFileName('café.pdf')).toBe('café.pdf');
+    });
+
+    it('bỏ qua giá trị rỗng/undefined', () => {
+      expect(decodeMultipartFileName(undefined)).toBeUndefined();
+      expect(decodeMultipartFileName('')).toBe('');
+    });
+  });
+
+  describe('upload — tên file có dấu', () => {
+    it('lưu fileName đã giải mã đúng UTF-8', async () => {
+      const utf8 = 'Bài 10. Kiểu dữ liệu.pdf';
+      const asBusboySees = Buffer.from(utf8, 'utf8').toString('latin1');
+      await service.upload(makeFile({ originalname: asBusboySees }), 'owner1');
+      expect(prisma.file.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ fileName: utf8 }) }),
+      );
     });
   });
 });

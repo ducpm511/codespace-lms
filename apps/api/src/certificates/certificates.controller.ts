@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { PERMISSIONS, type CertificateDto, type CertificateTemplateDto } from '@lms/contracts';
+import { contentDisposition } from '../common/http/content-disposition';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthPrincipal } from '../auth/auth.types';
@@ -66,7 +67,7 @@ export class CertificatesController {
   ): Promise<void> {
     const { buffer, fileName } = await this.certificatesService.getPdfBuffer(id, currentUser);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', contentDisposition('attachment', fileName));
     res.send(buffer);
   }
 

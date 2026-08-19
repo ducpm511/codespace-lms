@@ -17,6 +17,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
+import { contentDisposition } from '../common/http/content-disposition';
 import { FilesService, type UploadedFileLike } from './files.service';
 
 @Controller('files')
@@ -48,7 +49,7 @@ export class FilesController {
   ): Promise<void> {
     const { buffer, fileName, mime } = await this.files.download(id, user.userId);
     res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.setHeader('Content-Disposition', contentDisposition('inline', fileName));
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, no-store');
     res.send(buffer);
