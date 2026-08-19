@@ -550,7 +550,7 @@ function QuestionCard({
 }): JSX.Element {
   const { t } = useTranslation();
   return (
-    <li className="card" style={{ borderRadius: 18, padding: 'var(--space-5)', gap: 'var(--space-3)' }}>
+    <li className="card" style={{ borderRadius: 18, padding: 'var(--space-6)', gap: 'var(--space-4)' }}>
       <div className="flex items-start gap-3">
         <span
           className="cx-display flex shrink-0 items-center justify-center"

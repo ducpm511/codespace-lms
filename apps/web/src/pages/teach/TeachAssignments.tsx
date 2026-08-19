@@ -477,7 +477,7 @@ function GradingForm({
           borderRadius: 14,
           background: 'var(--color-neutral-900)',
           boxShadow: 'inset 0 0 0 1px var(--color-divider)',
-          padding: 'var(--space-5)',
+          padding: 'var(--space-6)',
         }}
       >
         <p className="text-muted m-0" style={{ fontSize: 11, marginBottom: 6 }}>

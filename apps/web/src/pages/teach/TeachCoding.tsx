@@ -389,7 +389,7 @@ function TestCaseCard({
   const isSample = testCase.kind === 'sample';
 
   return (
-    <div className="card" style={{ borderRadius: 18, padding: 'var(--space-5)', gap: 'var(--space-3)' }}>
+    <div className="card" style={{ borderRadius: 18, padding: 'var(--space-6)', gap: 'var(--space-4)' }}>
       <div className="flex flex-wrap items-center gap-2.5">
         <span
           className="cx-display flex shrink-0 items-center justify-center"
@@ -491,7 +491,7 @@ function TestCaseForm({
     <form
       onSubmit={submit}
       className="card"
-      style={{ borderRadius: 18, padding: 'var(--space-5)', gap: 'var(--space-3)', outline: '1px solid var(--color-accent-700)' }}
+      style={{ borderRadius: 18, padding: 'var(--space-6)', gap: 'var(--space-4)', outline: '1px solid var(--color-accent-700)' }}
     >
       <p className="cx-display m-0" style={{ fontSize: 14 }}>
         {initial.id ? t('coding.editTestcase') : t('coding.addTestcase')}

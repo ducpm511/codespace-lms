@@ -65,7 +65,7 @@ export function Sidebar({
   footer?: ReactNode;
 }): JSX.Element {
   return (
-    <div className="flex flex-col" style={{ gap: 'var(--space-4)' }}>
+    <div className="flex flex-col" style={{ gap: 'var(--space-6)' }}>
       <div className="flex items-center gap-2.5">
         <IconTile icon={icon} color={color} size={34} />
         <p className="cx-display m-0" style={{ fontSize: 16 }}>
@@ -73,7 +73,7 @@ export function Sidebar({
         </p>
         {count !== undefined && <span className="tag tag-neutral">{count}</span>}
       </div>
-      <div className="flex flex-col" style={{ gap: 'var(--space-3)' }}>
+      <div className="flex flex-col" style={{ gap: 'var(--space-4)' }}>
         {children}
       </div>
       {footer}
@@ -109,8 +109,10 @@ export function SidebarCard({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
-        padding: 'var(--space-5)',
+        // README §Layout gotchas: card dùng padding --space-6 + gap 10px cho cột nội dung,
+        // đã qua nhiều vòng review để icon ↔ text ↔ meta đủ thoáng. KHÔNG bóp lại.
+        gap: 10,
+        padding: 'var(--space-6)',
         borderRadius: 18,
         background: selected ? `color-mix(in srgb, ${color} 14%, var(--color-surface))` : 'var(--color-surface)',
         boxShadow: selected
@@ -118,20 +120,21 @@ export function SidebarCard({
           : 'inset 0 0 0 1px var(--color-divider)',
       }}
     >
-      <div className="flex w-full items-start gap-3">
-        <IconTile icon={icon} color={color} size={38} />
-        <div className="min-w-0 flex-1">
-          <p className="cx-display m-0 truncate" style={{ fontSize: 14, lineHeight: 1.3 }}>
+      <div className="flex w-full items-start" style={{ gap: 12 }}>
+        <IconTile icon={icon} color={color} size={40} />
+        <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
+          <p className="cx-display m-0 truncate" style={{ fontSize: 15, lineHeight: 1.3 }}>
             {title}
           </p>
           {meta !== undefined && (
-            <p className="text-muted m-0 truncate" style={{ fontSize: 11, marginTop: 2 }}>
+            <p className="text-muted m-0 truncate" style={{ fontSize: 12 }}>
               {meta}
             </p>
           )}
+          {/* Tag nằm trong cột nội dung (thẳng hàng với tiêu đề), không phải hàng full-width dưới icon. */}
+          {tag !== undefined && <div className="flex flex-wrap items-center gap-1.5">{tag}</div>}
         </div>
       </div>
-      {tag !== undefined && <div className="flex w-full flex-wrap items-center gap-1.5">{tag}</div>}
       {children}
     </button>
   );
@@ -208,6 +211,7 @@ export function DetailSection({
   color,
   title,
   count,
+  hint,
   action,
   children,
 }: {
@@ -215,12 +219,14 @@ export function DetailSection({
   color: string;
   title: string;
   count?: ReactNode;
+  /** Dòng gợi ý muted, canh phải trên CÙNG hàng với tiêu đề (đúng design §7f). */
+  hint?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
 }): JSX.Element {
   return (
-    <section className="flex flex-col" style={{ gap: 'var(--space-4)' }}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <section className="flex flex-col" style={{ gap: 'var(--space-7)' }}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <IconTile icon={icon} color={color} size={34} />
           <h3 className="cx-display m-0 truncate" style={{ fontSize: 16 }}>
@@ -228,6 +234,11 @@ export function DetailSection({
           </h3>
           {count !== undefined && <span className="tag tag-neutral shrink-0">{count}</span>}
         </div>
+        {hint !== undefined && (
+          <p className="text-muted m-0" style={{ fontSize: 12 }}>
+            {hint}
+          </p>
+        )}
         {action}
       </div>
       {children}
@@ -292,7 +303,10 @@ export function PillButton({
   );
 }
 
-/** Nút icon nhỏ (sửa/xoá/đảo thứ tự) — dùng token, không dùng class slate-* thô. */
+/**
+ * Nút icon trần (sửa/xoá/đảo thứ tự). Hình dạng + hover nằm ở `.cx-icon-btn` trong
+ * nocturne.css — KHÔNG viền hộp, đúng như design; không tự chế state ở đây.
+ */
 export function IconButton({
   icon,
   title,
@@ -306,12 +320,7 @@ export function IconButton({
   tone?: 'neutral' | 'accent' | 'danger';
   disabled?: boolean;
 }): JSX.Element {
-  const color =
-    tone === 'danger'
-      ? '#f4a3a3'
-      : tone === 'accent'
-        ? 'var(--color-accent)'
-        : 'color-mix(in srgb, var(--color-text) 60%, transparent)';
+  const toneClass = tone === 'danger' ? 'cx-icon-btn-danger' : tone === 'accent' ? 'cx-icon-btn-accent' : '';
   return (
     <button
       type="button"
@@ -319,19 +328,9 @@ export function IconButton({
       aria-label={title}
       onClick={onClick}
       disabled={disabled}
-      className="cx-press flex shrink-0 items-center justify-center"
-      style={{
-        width: 30,
-        height: 30,
-        borderRadius: 10,
-        color,
-        background: 'transparent',
-        boxShadow: 'inset 0 0 0 1px var(--color-divider)',
-        opacity: disabled ? 0.4 : 1,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-      }}
+      className={`cx-icon-btn cx-press shrink-0 ${toneClass}`}
     >
-      <i className={`ph ${icon}`} style={{ fontSize: 15 }} aria-hidden />
+      <i className={`ph ${icon}`} style={{ fontSize: 16 }} aria-hidden />
     </button>
   );
 }

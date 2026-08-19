@@ -364,7 +364,8 @@
     "saveDraft": "Lưu nháp",
     "submit": "Nộp bài",
     "submittedSuccess": "Đã nộp bài thành công!",
-    "scoreTitle": "Điểm"
+    "scoreTitle": "Điểm",
+    "draftSaved": "Đã lưu nháp thành công!"
   },
   "learn": {
     "title": "Khu vực học tập",
@@ -432,7 +433,7 @@
     "addHeading": "Thêm hoạt động",
     "add": "Thêm",
     "editHeading": "Sửa hoạt động: {{type}}",
-    "titleField": "Tiêu đề hiển thị (không bắt buộc)",
+    "titleField": "Tiêu đề hiển thị cho học viên",
     "confirmRemove": "Gỡ hoạt động \"{{title}}\" khỏi bài học?",
     "moveUp": "Đưa lên trên",
     "moveDown": "Đưa xuống dưới",
@@ -451,12 +452,12 @@
     "refEmpty_quiz": "Khóa học chưa có bài trắc nghiệm nào — tạo ở tab Trắc nghiệm trước.",
     "refEmpty_coding": "Khóa học chưa có bài lập trình nào — tạo ở tab Lập trình trước.",
     "refEmpty_assignment": "Khóa học chưa có bài tập nộp nào — tạo ở tab Bài tập trước.",
-    "type_markdown": "Bài đọc",
-    "type_pdf": "Slide PDF",
+    "type_markdown": "Nội dung Markdown",
+    "type_pdf": "Tài liệu PDF",
     "type_video": "Video",
     "type_quiz": "Trắc nghiệm",
     "type_coding": "Bài lập trình",
-    "type_assignment": "Bài tập nộp",
+    "type_assignment": "Bài tập",
     "countInLesson": "{{count}} hoạt động trong bài học này",
     "backToLessons": "Về danh sách bài học",
     "orderHeading": "Thứ tự hoạt động",
@@ -464,10 +465,11 @@
     "previewHeading": "Xem trước như học viên thấy",
     "addNewHeading": "Thêm hoạt động mới",
     "addTyped": "Thêm {{type}}",
-    "titlePlaceholder": "Tiêu đề hiển thị cho học viên",
+    "titlePlaceholder": "Ví dụ: Chào mừng đến với Scratch",
     "dropzoneTitle": "Kéo thả file PDF vào đây",
-    "dropzoneHint": "hoặc chọn từ máy — tối đa {{size}} MB",
-    "choosePdf": "Chọn file PDF"
+    "dropzoneHint": "hoặc bấm để chọn từ máy · tối đa {{size}} MB",
+    "choosePdf": "Chọn file PDF",
+    "pdfPrivacyHint": "File lưu riêng tư, chỉ học viên trong lớp xem được."
   },
   "classStatus": {
     "planning": "Sắp khai giảng",

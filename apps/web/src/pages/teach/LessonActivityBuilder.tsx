@@ -108,15 +108,11 @@ export function LessonActivityBuilder({
         icon="ph-list-numbers"
         color="var(--cx-purple)"
         title={t('activity.orderHeading')}
-        count={activities.length}
+        hint={t('activity.orderHint')}
       >
-        <p className="text-muted m-0" style={{ fontSize: 12, marginTop: -6 }}>
-          {t('activity.orderHint')}
-        </p>
-
         {detail.data && activities.length === 0 && <EmptyHint icon="ph-stack">{t('activity.empty')}</EmptyHint>}
 
-        <ul className="flex list-none flex-col p-0" style={{ gap: 'var(--space-3)' }}>
+        <ul className="flex list-none flex-col p-0" style={{ gap: 'var(--space-5)' }}>
           {activities.map((a, i) => (
             <li key={a.id}>
               {editingId === a.id ? (
@@ -179,28 +175,28 @@ function ActivityRow({
       className="card"
       style={{
         borderRadius: 18,
-        padding: 'var(--space-5)',
-        gap: 'var(--space-3)',
+        padding: 'var(--space-6)',
+        gap: 'var(--space-5)',
         borderLeft: `3px solid ${meta.color}`,
       }}
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="cx-display text-muted shrink-0" style={{ fontSize: 13, width: 16 }}>
+      <div className="flex flex-wrap items-center" style={{ gap: 14 }}>
+        <span className="cx-display text-muted shrink-0 text-center" style={{ fontSize: 13, width: 14 }}>
           {index + 1}
         </span>
-        <IconTile icon={meta.icon} color={meta.color} size={38} />
-        <div className="min-w-0 flex-1">
+        <IconTile icon={meta.icon} color={meta.color} size={40} />
+        <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 5 }}>
           <div className="flex flex-wrap items-center gap-2">
             <span className="tag tag-outline shrink-0">{t(`activity.type_${activity.type}`)}</span>
             <p className="cx-display m-0 min-w-0 truncate" style={{ fontSize: 15 }}>
               {activity.title || t(`activity.type_${activity.type}`)}
             </p>
           </div>
-          <p className="text-muted m-0 truncate" style={{ fontSize: 11, marginTop: 2 }}>
+          <p className="text-muted m-0 truncate" style={{ fontSize: 12 }}>
             {summaryLine(activity, t)}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1">
           <IconButton
             icon="ph-arrow-up"
             title={t('activity.moveUp')}
@@ -227,13 +223,16 @@ function ActivityRow({
       {preview && (
         <div
           style={{
-            borderRadius: 14,
+            borderRadius: 16,
             background: 'var(--color-neutral-900)',
             boxShadow: 'inset 0 0 0 1px var(--color-divider)',
-            padding: 'var(--space-5)',
+            padding: 'var(--space-6)',
           }}
         >
-          <p className="text-muted m-0 flex items-center gap-1.5" style={{ fontSize: 11, marginBottom: 8 }}>
+          <p
+            className="text-muted m-0 flex items-center gap-1.5"
+            style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}
+          >
             <i className="ph ph-eye" aria-hidden /> {t('activity.previewHeading')}
           </p>
           <ActivityPreview activity={activity} />
@@ -278,10 +277,12 @@ function AddActivityForm({
 }): JSX.Element {
   const { t } = useTranslation();
   const [type, setType] = useState<LessonActivityTypeValue>('markdown');
+  // Đổi khi bấm "Hủy" → remount `ActivityFields` để xoá trắng các trường đang nhập.
+  const [resetKey, setResetKey] = useState(0);
   const add = useAddActivity(courseId, sectionId, lessonId);
 
   return (
-    <DetailSection icon="ph-plus-circle" color="var(--cx-teal)" title={t('activity.addNewHeading')}>
+    <DetailSection icon="ph-plus-circle" color="var(--cx-amber)" title={t('activity.addNewHeading')}>
       <div className="card" style={{ borderRadius: 20, padding: 'var(--space-6)', gap: 'var(--space-4)' }}>
         <div className="flex flex-wrap gap-2">
           {LESSON_ACTIVITY_TYPES.map((ty) => {
@@ -311,13 +312,14 @@ function AddActivityForm({
         </div>
 
         <ActivityFields
-          key={type}
+          key={`${type}-${resetKey}`}
           type={type}
           courseId={courseId}
           submitting={add.isPending}
           submitLabel={t('activity.addTyped', { type: t(`activity.type_${type}`) })}
           error={add.isError ? errMsg(add.error) : null}
           onSubmit={(body) => add.mutate({ ...body, type } as CreateLessonActivityRequest)}
+          onCancel={() => setResetKey((k) => k + 1)}
         />
       </div>
     </DetailSection>
@@ -347,7 +349,7 @@ function ActivityEditor({
       className="card"
       style={{
         borderRadius: 18,
-        padding: 'var(--space-5)',
+        padding: 'var(--space-6)',
         gap: 'var(--space-3)',
         borderLeft: `3px solid ${meta.color}`,
         outline: '1px solid var(--color-accent-700)',
@@ -533,19 +535,20 @@ function PdfDropZone({
           const f = e.dataTransfer.files?.[0];
           if (f) onPick(f);
         }}
-        className="flex flex-col items-center justify-center gap-2 text-center"
+        className="flex flex-col items-center justify-center text-center"
         style={{
+          gap: 10,
           borderRadius: 18,
           border: `1.5px dashed color-mix(in srgb, var(--cx-coral) ${dragging ? 90 : 55}%, transparent)`,
-          background: dragging ? 'color-mix(in srgb, var(--cx-coral) 10%, transparent)' : 'transparent',
-          padding: 'var(--space-7) var(--space-6)',
+          background: `color-mix(in srgb, var(--cx-coral) ${dragging ? 12 : 6}%, transparent)`,
+          padding: 'var(--space-8) var(--space-6)',
         }}
       >
-        <i className="ph-fill ph-file-pdf" style={{ fontSize: 32, color: 'var(--cx-coral)' }} aria-hidden />
-        <p className="m-0" style={{ fontSize: 14 }}>
+        <i className="ph-fill ph-file-pdf" style={{ fontSize: 34, color: 'var(--cx-coral)' }} aria-hidden />
+        <p className="cx-display m-0" style={{ fontSize: 15 }}>
           {t('activity.dropzoneTitle')}
         </p>
-        <p className="text-muted m-0" style={{ fontSize: 11 }}>
+        <p className="text-muted m-0" style={{ fontSize: 12 }}>
           {t('activity.dropzoneHint', { size: maxMb })}
         </p>
         <PillButton icon="ph-upload-simple" variant="secondary" disabled={uploading} onClick={() => inputRef.current?.click()}>
@@ -565,8 +568,9 @@ function PdfDropZone({
         />
       </div>
 
+      {/* Giới hạn dung lượng đã hiện trong drop zone → chỉ nhắc phần riêng tư. */}
       <p className="text-muted m-0" style={{ fontSize: 11 }}>
-        {t('activity.pdfHint', { size: maxMb })}
+        {t('activity.pdfPrivacyHint')}
       </p>
       {uploading && <p className="text-muted m-0 text-sm">{t('activity.uploading')}</p>}
       {error && <p className="m-0 text-sm" style={{ color: ERROR_COLOR }}>{error}</p>}

@@ -271,7 +271,7 @@ function ClassReportPanel({ classId }: { classId: string }): JSX.Element {
     <DetailColumn>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((k) => (
-          <div key={k.label} className="card cx-lift" style={{ borderRadius: 18, padding: 'var(--space-5)', gap: 8 }}>
+          <div key={k.label} className="card cx-lift" style={{ borderRadius: 18, padding: 'var(--space-6)', gap: 10 }}>
             <div className="flex items-center gap-2.5">
               <IconTile icon={k.icon} color={k.color} size={34} />
               <p className="text-muted m-0" style={{ fontSize: 11 }}>
@@ -527,7 +527,7 @@ function GatesPanel({
         <EmptyHint icon="ph-lock">{t('classes.gatesNeedCourse')}</EmptyHint>
       ) : (
         <>
-          <div className="card" style={{ borderRadius: 18, padding: 'var(--space-5)' }}>
+          <div className="card" style={{ borderRadius: 18, padding: 'var(--space-6)' }}>
             <div className="field">
               <label>{t('classes.gateCoursePicker')}</label>
               <select className="input" value={courseId ?? ''} onChange={(e) => setPicked(e.target.value || null)}>

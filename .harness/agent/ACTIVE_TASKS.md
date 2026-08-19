@@ -22,7 +22,7 @@ Updated: 2026-08-19
 | **P5** Gradebook & Certificate | tổng hợp điểm, cấp + verify chứng chỉ | ✅ Done (T5.0–T5.7 + review fixes) |
 | **P6** Polish & Gamification | notification, audit UI, báo cáo lớp, gamification thật, PDF cert, tech debt cleanup | ✅ Done (T6.1–T6.6 + D1–D5) |
 | **P7** Lesson Activities | bài học đa hoạt động: markdown/pdf slide/video/quiz/coding/assignment | ✅ Done (T7.0–T7.6) |
-| **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ⬅️ Next (chi tiết `HANDOFF_P8.md`) |
+| **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ✅ Done (T8.0–T8.5) |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -33,38 +33,41 @@ Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified
 
 ## Active Phase
 
+### Phase P8: Teach redesign — ✅ HOÀN THÀNH (2026-08-19)
+
+Khu vực Giảng dạy đã áp ngữ pháp layout của design handoff §7 (sidebar 308px + cột detail), khớp với
+Learn / Admin / Login đã playful từ trước. Chi tiết `CURRENT_STATE.md §P8`.
+
+- **T8.0** `TeachHome` teacher hero (số liệu thật từ `useClasses`/`useCourses`/`/classes/:id/report`) +
+  `.seg` 6 tab; bổ sung `.seg-btn`/`.seg-active` còn thiếu trong `nocturne.css`.
+- **T8.1** `teachUi.tsx` (bộ layout dùng chung) + `TeachCourses` §7a + `LessonActivityBuilder` §7f.
+- **T8.2** `TeachClasses` §7b (card lớp có progress, sub-tab Quản lý/Báo cáo, gate theo chương).
+- **T8.3** `TeachAssignments` §7c + `TeachCoding` §7d.
+- **T8.4** `TeachQuiz` §7e + `TeachGradebook` §7g (port khỏi `slate-*` thô).
+- **T8.5** `pnpm validate` 16/16 (api 183 test / 21 suite), i18n parity vi/en **473/473**.
+
+**Nợ nhỏ phát sinh — cần backend, KHÔNG làm trong task styling:**
+- `GET /submissions/pending-count` (hoặc `GET /teach/overview`) để hero hiện được "còn N bài chờ chấm"
+  như §7 mô tả. Hiện chip thứ 3 dùng "Khóa học" vì đếm chờ chấm toàn cục cần fan-out (lớp × bài tập).
+  Endpoint tổng hợp này cũng thay được N request `/classes/:id/report` mà hero đang gọi.
+- Thiếu hook FE cho các nút §7 mô tả: `useUpdateClass` ("Cài đặt lớp"), unassign khóa khỏi lớp,
+  `useUpdateAssignment` ("Sửa bài tập"), `useUpdateCodingProblem` ("Sửa đề"). Endpoint backend có thể đã
+  có — cần rà trước khi thêm hook.
+- **Tên file PDF upload bị mojibake** (`BÃ i 10...pdf`): `File.fileName` lưu từ `file.originalname` của
+  multer (latin1). Sửa ở `apps/api` (decode `Buffer.from(name,'latin1').toString('utf8')`) — ngoài scope P8.
+
+---
+
 ### Phase P7: Lesson Activities — ✅ HOÀN THÀNH (2026-08-19)
 
-Bài học đã chuyển từ "đơn nội dung" → **container activity có thứ tự**. Gốc bug user báo (không thêm được
-nội dung bài học) đã đóng: form FE giờ soạn được đủ 6 loại và `my-lessons` trả nội dung về.
-
-- **T7.0 contracts** `packages/contracts/src/lesson-activity.ts`: `LessonActivityTypeValue` (markdown/pdf/video/
-  quiz/coding/assignment) + `LessonActivityDto` (author) / `StudentLessonActivityDto` (student, có `refAvailable`)
-  + Create/Update/Reorder request + `FileUploadResponse` + hằng dùng chung `VIDEO_EMBED_HOSTS`,
-  `MAX_UPLOAD_BYTES` (20MB), `ALLOWED_UPLOAD_MIMES`. `MyLessonDto.activities`, `LessonDetail`,
-  `LessonSummary.activityCount`. `contentMd`/`videoUrl` cũ GIỮ làm legacy fallback.
-- **T7.1 schema** migration `p7_lesson_activities`: `LessonActivity(lessonId, order, type, title?, contentMd?,
-  fileId?, videoUrl?, refId?)` `@@unique([lessonId, order])` + `File.fileName`. Kèm **data migration** backfill
-  activity markdown/video từ `Lesson.contentMd/videoUrl` (DB dev: 0 bản ghi — đúng như chẩn đoán gốc bug).
-- **T7.2 module `files`**: `POST /files` multipart (`FileInterceptor`, `course.update`) — allowlist mime PDF +
-  **magic bytes `%PDF-`** + giới hạn 20MB ở CẢ multer lẫn service, `storageKey` do server sinh (`randomUUID`),
-  tên gốc chỉ để hiển thị. `GET /files/:id` stream private, guard: owner / `course.update` global /
-  thành viên active của lớp có gate ĐANG MỞ / instructor·TA của lớp đã gán khóa.
-- **T7.3 activities backend** (`courses/lesson-activities.service.ts`): CRUD + **reorder 2 pha qua dải âm**
-  (tránh đụng `@@unique`), IDOR course→section→lesson, validate theo loại (mỗi loại chỉ giữ cột của mình;
-  ref phải thuộc đúng khóa). Gắn activity ref sẽ set `lessonId` cho Quiz/CodingProblem/Assignment để luật gate
-  áp đúng bài; xoá activity KHÔNG xoá engine phía sau. Student đọc qua `my-lessons` (`listForStudent`).
-- **T7.4 FE Teach**: `LessonActivityBuilder` (nút "Nội dung" trong TeachCourses) — list sắp xếp được, xem trước,
-  sửa/xoá, editor con theo loại + upload PDF + picker quiz/coding/assignment.
-- **T7.5 FE Learn**: `LessonDetail` render activities theo `order`; markdown react-markdown, PDF iframe blob URL,
-  video iframe sandbox + allowlist, quiz/coding mở workspace cũ, assignment nhúng `StudentAssignmentCard`.
-- **Bonus**: `GET /assignments/for-class/:classId` (student-scope, membership + gate) — student không có
-  `assignment.read` nên không dùng được `GET /assignments`.
-
-**INVARIANT verify (live)**: XSS markdown (`<img onerror>` + `<script>`) render thành TEXT, không chạy;
-video ngoài allowlist + host giả tiền tố (`evil-youtube.com`) → 400; upload PNG và PDF-giả-mime → 400;
-trước gate `my-lessons` rỗng + `GET /files/:id` 403; người ngoài lớp 403; học viên POST activity/`/files` 403;
-quiz `published=false` → `refId`/`refTitle` = null + `refAvailable=false`.
+Bài học = **container activity có thứ tự** (markdown/pdf/video/quiz/coding/assignment). T7.0 contracts ·
+T7.1 migration `p7_lesson_activities` (+ backfill) · T7.2 module `files` (PDF: allowlist mime + magic bytes
++ 20MB, storageKey server sinh, guard owner/`course.update`/member lớp có gate mở) · T7.3
+`lesson-activities.service` (CRUD + reorder 2 pha, IDOR course→section→lesson) · T7.4 `LessonActivityBuilder`
+· T7.5 render activity trong `LessonDetail` · bonus `GET /assignments/for-class/:classId`.
+INVARIANT verify (live): XSS markdown render thành TEXT; video ngoài allowlist → 400; upload PNG / PDF giả
+mime → 400; trước gate `my-lessons` rỗng + file 403; ngoài lớp 403; HV POST activity/files 403; quiz draft →
+refId null. Chi tiết đầy đủ: `CURRENT_STATE.md §P7`.
 
 ---
 

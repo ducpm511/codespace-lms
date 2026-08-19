@@ -364,7 +364,8 @@
     "saveDraft": "Save draft",
     "submit": "Submit",
     "submittedSuccess": "Submitted successfully!",
-    "scoreTitle": "Score"
+    "scoreTitle": "Score",
+    "draftSaved": "Draft saved!"
   },
   "learn": {
     "title": "Learning area",
@@ -432,7 +433,7 @@
     "addHeading": "Add activity",
     "add": "Add",
     "editHeading": "Edit activity: {{type}}",
-    "titleField": "Display title (optional)",
+    "titleField": "Title shown to students",
     "confirmRemove": "Remove activity \"{{title}}\" from this lesson?",
     "moveUp": "Move up",
     "moveDown": "Move down",
@@ -451,8 +452,8 @@
     "refEmpty_quiz": "This course has no quizzes yet — create one in the Quiz tab first.",
     "refEmpty_coding": "This course has no coding problems yet — create one in the Coding tab first.",
     "refEmpty_assignment": "This course has no assignments yet — create one in the Assignments tab first.",
-    "type_markdown": "Reading",
-    "type_pdf": "PDF slides",
+    "type_markdown": "Markdown content",
+    "type_pdf": "PDF document",
     "type_video": "Video",
     "type_quiz": "Quiz",
     "type_coding": "Coding problem",
@@ -464,10 +465,11 @@
     "previewHeading": "Preview as a student sees it",
     "addNewHeading": "Add a new activity",
     "addTyped": "Add {{type}}",
-    "titlePlaceholder": "Title shown to students",
+    "titlePlaceholder": "e.g. Welcome to Scratch",
     "dropzoneTitle": "Drop a PDF file here",
-    "dropzoneHint": "or pick one from your device — up to {{size}} MB",
-    "choosePdf": "Choose PDF file"
+    "dropzoneHint": "or click to pick from your device · up to {{size}} MB",
+    "choosePdf": "Choose PDF file",
+    "pdfPrivacyHint": "Files are stored privately — only students in the class can open them."
   },
   "classStatus": {
     "planning": "Planned",

@@ -178,47 +178,54 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
   if (course.isError || !course.data) return <p className="text-sm" style={{ color: '#f4a3a3' }}>{t('common.error')}</p>;
   const c = course.data;
 
+  const lessonCount = c.sections.reduce((n, s) => n + s.lessons.length, 0);
+
+  // Header khóa học ở lại phía trên KHI mở builder (design §7f) — chỉ cây chương/bài bị thay chỗ.
+  const courseHeader = (
+    <DetailHeader
+      icon="ph-book-bookmark"
+      color={statusColor(c.status)}
+      title={c.title}
+      meta={
+        <span className="flex flex-wrap items-center gap-2">
+          <span>/{c.slug}</span>
+          <span aria-hidden>·</span>
+          <span>{t('courses.treeMeta', { sections: c.sections.length, lessons: lessonCount })}</span>
+        </span>
+      }
+      actions={
+        <>
+          <StatusBadge status={c.status} />
+          {c.status !== 'published' && (
+            <PillButton icon="ph-rocket-launch" onClick={() => publish.mutate()} disabled={publish.isPending}>
+              {t('courses.publish')}
+            </PillButton>
+          )}
+        </>
+      }
+    />
+  );
+
   if (openLesson) {
     const section = c.sections.find((s) => s.id === openLesson.sectionId);
     return (
-      <LessonActivityBuilder
-        courseId={courseId}
-        sectionId={openLesson.sectionId}
-        sectionTitle={section?.title}
-        lessonId={openLesson.lessonId}
-        lessonTitle={openLesson.title}
-        onClose={() => setOpenLesson(null)}
-      />
+      <DetailColumn>
+        {courseHeader}
+        <LessonActivityBuilder
+          courseId={courseId}
+          sectionId={openLesson.sectionId}
+          sectionTitle={section?.title}
+          lessonId={openLesson.lessonId}
+          lessonTitle={openLesson.title}
+          onClose={() => setOpenLesson(null)}
+        />
+      </DetailColumn>
     );
   }
 
-  const lessonCount = c.sections.reduce((n, s) => n + s.lessons.length, 0);
-
   return (
     <DetailColumn>
-      <DetailHeader
-        icon="ph-book-bookmark"
-        color={statusColor(c.status)}
-        title={c.title}
-        meta={
-          <span className="flex flex-wrap items-center gap-2">
-            <span>/{c.slug}</span>
-            <span aria-hidden>·</span>
-            <span>{t('courses.treeMeta', { sections: c.sections.length, lessons: lessonCount })}</span>
-          </span>
-        }
-        actions={
-          <>
-            <StatusBadge status={c.status} />
-            {c.status !== 'published' && (
-              <PillButton icon="ph-rocket-launch" onClick={() => publish.mutate()} disabled={publish.isPending}>
-                {t('courses.publish')}
-              </PillButton>
-            )}
-          </>
-        }
-      />
-
+      {courseHeader}
       <DetailSection
         icon="ph-tree-structure"
         color="var(--cx-purple)"

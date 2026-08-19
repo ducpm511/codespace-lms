@@ -41,7 +41,7 @@ export function StudentAssignmentCard({
       },
       {
         onSuccess: () => {
-          setSuccessMsg(t('submissions.draftSaved', { defaultValue: 'Đã lưu nháp thành công!' }));
+          setSuccessMsg(t('submissions.draftSaved'));
         },
       },
     );
