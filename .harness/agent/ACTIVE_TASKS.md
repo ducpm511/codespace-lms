@@ -23,6 +23,7 @@ Updated: 2026-08-19
 | **P6** Polish & Gamification | notification, audit UI, báo cáo lớp, gamification thật, PDF cert, tech debt cleanup | ✅ Done (T6.1–T6.6 + D1–D5) |
 | **P7** Lesson Activities | bài học đa hoạt động: markdown/pdf slide/video/quiz/coding/assignment | ✅ Done (T7.0–T7.6) |
 | **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ✅ Done (T8.0–T8.5) |
+| **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ⬅️ Next (chi tiết `HANDOFF_P9.md`) |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -32,6 +33,26 @@ Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified
 ---
 
 ## Active Phase
+
+### Phase P9: Production readiness — ⬅️ TIẾP THEO
+
+Nghiệp vụ đã đủ cho pilot; cái chặn deploy là **hạ tầng vận hành**, không phải tính năng.
+Kế hoạch đầy đủ + hiện trạng đã xác minh: `HANDOFF_P9.md`.
+
+- **T9.0** Khởi động an toàn: validate env fail-fast ở prod, `helmet`, rate limit `/auth/login` + `/auth/refresh`,
+  vá `.env.example` (thiếu `CODE_RUNNER_PROVIDER`/`CODE_QUEUE_DRIVER`/`SEED_ADMIN_*`/`STORAGE_DRIVER`, cổng DB/Redis sai).
+- **T9.1** Quản trị user trên UI — `AdminHome` hiện CHỈ ĐỌC; backend `POST /users`, `PATCH /users/:id`,
+  `POST/DELETE /users/:id/roles` đã có sẵn, chỉ thiếu FE + phân trang server-side.
+- **T9.2** Vòng đời mật khẩu: đổi mật khẩu (self-service) + admin đặt lại, revoke refresh token, AuditLog cùng transaction.
+- **T9.3** Storage bền: `STORAGE_DRIVER=local|s3` + `S3StorageAdapter` (R2) cho file bài học và PDF chứng chỉ.
+- **T9.4** Đóng gói & triển khai: Dockerfile api/web, `docker-compose.prod.yml`, `prisma migrate deploy`, CI chạy `pnpm validate`, runbook.
+- **T9.5** Chấm code thật: Piston self-host + `CODE_QUEUE_DRIVER=bull` (tách được nếu pilot chưa cần).
+- **T9.6** Vận hành: backup/restore Postgres, log, quên-mật-khẩu qua email (cần chốt provider).
+
+**Cần người chốt trước khi mở session P9**: storage (volume hay R2), có cần chấm code thật trong pilot không,
+đích deploy (1 VM + compose hay platform), đã có email provider chưa.
+
+---
 
 ### Phase P8: Teach redesign — ✅ HOÀN THÀNH (2026-08-19)
 
