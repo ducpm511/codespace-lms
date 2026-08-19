@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassMemberRoleValue } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
+import { useUserLookup } from '../../features/users/lookup';
 import {
   useAssignCourse,
   useClass,
@@ -294,8 +295,13 @@ function MembersPanel({
 }): JSX.Element {
   const { t } = useTranslation();
   const enroll = useEnrollMember(classId);
-  const [userId, setUserId] = useState('');
+  const [email, setEmail] = useState('');
   const [role, setRole] = useState<ClassMemberRoleValue>('student');
+  // Tra userId từ email thay vì bắt giáo viên nhập id thô (giáo viên không có quyền `user.read`).
+  const lookup = useUserLookup(email);
+  const found = lookup.data;
+  // `members[].id` là id của ClassMember, không phải userId → đối chiếu bằng email (email là unique).
+  const alreadyMember = !!found && members.some((m) => m.email.toLowerCase() === found.email.toLowerCase());
 
   return (
     <div className="card gap-2">
@@ -314,18 +320,43 @@ function MembersPanel({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          enroll.mutate({ userId: userId.trim(), roleInClass: role }, { onSuccess: () => setUserId('') });
+          if (!found) return;
+          enroll.mutate({ userId: found.id, roleInClass: role }, { onSuccess: () => setEmail('') });
         }}
         className="space-y-2"
       >
-        <input className="input" value={userId} onChange={(e) => setUserId(e.target.value)} placeholder={t('classes.userId')} required />
+        <input
+          className="input"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder={t('classes.memberEmail')}
+          required
+        />
+
+        {/* Xác nhận đúng người trước khi thêm — tránh thêm nhầm do gõ sai email. */}
+        {lookup.isFetching && <p className="text-muted text-xs">{t('classes.lookingUp')}</p>}
+        {found && (
+          <p className="text-xs" style={{ color: alreadyMember ? undefined : 'var(--color-accent-300)' }}>
+            <i className={`ph ${alreadyMember ? 'ph-info' : 'ph-user-check'}`} aria-hidden />{' '}
+            {alreadyMember
+              ? t('classes.alreadyMember', { name: found.fullName || found.email })
+              : t('classes.foundUser', { name: found.fullName || found.email })}
+          </p>
+        )}
+        {lookup.isError && <p className="text-xs text-red-400">{t('classes.userNotFound')}</p>}
+
         <div className="flex gap-2">
           <select className="input flex-1" value={role} onChange={(e) => setRole(e.target.value as ClassMemberRoleValue)}>
             <option value="student">{t('roleInClass.student')}</option>
             <option value="ta">{t('roleInClass.ta')}</option>
             <option value="instructor">{t('roleInClass.instructor')}</option>
           </select>
-          <button type="submit" disabled={enroll.isPending} className="btn btn-secondary shrink-0">
+          <button
+            type="submit"
+            disabled={enroll.isPending || !found || alreadyMember}
+            className="btn btn-secondary shrink-0"
+          >
             {t('classes.enroll')}
           </button>
         </div>

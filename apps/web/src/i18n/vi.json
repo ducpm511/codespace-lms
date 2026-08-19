@@ -96,12 +96,16 @@
     "assignCourse": "Gán",
     "members": "Thành viên",
     "noMembers": "Chưa có thành viên.",
-    "userId": "ID người dùng",
     "enroll": "Thêm",
     "lessonGates": "Mở bài theo tiến độ",
     "gatesNeedCourse": "Gán khóa học cho lớp trước để mở bài.",
     "gateOpen": "Đang mở",
-    "gateClosed": "Đang khóa"
+    "gateClosed": "Đang khóa",
+    "memberEmail": "Email học viên",
+    "lookingUp": "Đang tìm...",
+    "foundUser": "Sẽ thêm: {{name}}",
+    "alreadyMember": "{{name}} đã ở trong lớp này",
+    "userNotFound": "Không tìm thấy người dùng với email này"
   },
   "admin": {
     "title": "Bảng điều khiển quản trị",

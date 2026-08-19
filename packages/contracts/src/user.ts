@@ -11,6 +11,17 @@ export interface UserSummary {
   createdAt: string;
 }
 
+/**
+ * Kết quả tra cứu người dùng theo email CHÍNH XÁC, dùng khi thêm học viên vào lớp.
+ * Cố ý tối giản: KHÔNG lộ role/status/thời điểm tạo — surface này mở cho giáo viên
+ * (quyền `class.manage`), rộng hơn `user.read` của admin.
+ */
+export interface UserLookupDto {
+  id: string;
+  email: string;
+  fullName: string;
+}
+
 export interface UserDetail extends UserSummary {
   avatarUrl?: string | null;
   lastLoginAt?: string | null;

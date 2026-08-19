@@ -125,6 +125,23 @@ lẫn chủ sở hữu (trước là 500). Phát hiện khi verify P7, **không 
 
 ---
 
+## 👥 Thêm học viên vào lớp bằng EMAIL — ✅ ĐÃ VÁ (2026-08-19)
+
+Nợ từ P1: form enroll ở `TeachClasses` bắt nhập **userId thô**, mà giáo viên KHÔNG có `user.read` (chỉ admin có)
+→ không có cách nào tra id từ trong UI.
+
+**Đã vá**: `GET /users/lookup?email=` — khớp email **CHÍNH XÁC** (không tìm gần đúng/tiền tố, hạn chế dò danh sách
+user), chuẩn hóa lowercase+trim, trả `UserLookupDto` tối giản `{id, email, fullName}` (KHÔNG lộ role/status).
+Quyền dùng `class.manage` (giáo viên có) thay vì nới `user.read`. Route đặt TRƯỚC `:id`.
+FE: ô nhập đổi sang **email**, tra ngầm khi chuỗi đã giống email, hiện tên xác nhận trước khi thêm
+("Sẽ thêm: X" / "X đã ở trong lớp này" / "Không tìm thấy"), nút Thêm disable tới khi tra ra người hợp lệ.
+Bỏ key i18n `classes.userId`, thêm `memberEmail/lookingUp/foundUser/alreadyMember/userNotFound` (vi+en).
+
+Live: GV tra đúng email → 200; HOA/thừa khoảng trắng → vẫn 200; email lạ → 404; sai định dạng → 400;
+học viên (không có `class.manage`) → 403. UI: thêm được học viên bằng email, danh sách cập nhật, ô nhập tự xóa.
+
+---
+
 ## Nợ kỹ thuật đã giải quyết (Phase P6 Tech Debt Cleaned)
 
 - ✅ **P5 L2**: Trang verify công khai đã gỡ bỏ `finalScore` (D2 fix).

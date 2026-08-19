@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { hash } from 'bcryptjs';
 import { Prisma } from '@lms/database';
-import type { Paginated, UserDetail, UserSummary } from '@lms/contracts';
+import type { Paginated, UserDetail, UserLookupDto, UserSummary } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
@@ -29,6 +29,23 @@ export class UsersService {
       this.prisma.user.count(),
     ]);
     return { items: rows.map(toSummary), total, page, pageSize };
+  }
+
+  /**
+   * Tra người dùng theo email CHÍNH XÁC (dùng khi thêm học viên vào lớp).
+   * Cố ý KHÔNG cho tìm gần đúng/tiền tố: chỉ khớp tuyệt đối để hạn chế dò danh sách user
+   * (surface này mở cho giáo viên có `class.manage`, rộng hơn `user.read`).
+   * Email chuẩn hóa lowercase + trim để khớp với dữ liệu lưu.
+   */
+  async lookupByEmail(email: string): Promise<UserLookupDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+      select: { id: true, email: true, fullName: true },
+    });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng với email này');
+    }
+    return user;
   }
 
   async create(dto: CreateUserDto): Promise<UserDetail> {

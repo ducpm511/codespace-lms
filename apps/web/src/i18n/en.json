@@ -96,12 +96,16 @@
     "assignCourse": "Assign",
     "members": "Members",
     "noMembers": "No members yet.",
-    "userId": "User ID",
     "enroll": "Add",
     "lessonGates": "Lesson gating",
     "gatesNeedCourse": "Assign a course to the class first to gate lessons.",
     "gateOpen": "Open",
-    "gateClosed": "Locked"
+    "gateClosed": "Locked",
+    "memberEmail": "Student email",
+    "lookingUp": "Searching...",
+    "foundUser": "Will add: {{name}}",
+    "alreadyMember": "{{name}} is already in this class",
+    "userNotFound": "No user found with this email"
   },
   "admin": {
     "title": "Admin dashboard",
