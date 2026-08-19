@@ -44,13 +44,23 @@ Kế hoạch đầy đủ + hiện trạng đã xác minh: `HANDOFF_P9.md`.
 - **T9.1** Quản trị user trên UI — `AdminHome` hiện CHỈ ĐỌC; backend `POST /users`, `PATCH /users/:id`,
   `POST/DELETE /users/:id/roles` đã có sẵn, chỉ thiếu FE + phân trang server-side.
 - **T9.2** Vòng đời mật khẩu: đổi mật khẩu (self-service) + admin đặt lại, revoke refresh token, AuditLog cùng transaction.
-- **T9.3** Storage bền: `STORAGE_DRIVER=local|s3` + `S3StorageAdapter` (R2) cho file bài học và PDF chứng chỉ.
-- **T9.4** Đóng gói & triển khai: Dockerfile api/web, `docker-compose.prod.yml`, `prisma migrate deploy`, CI chạy `pnpm validate`, runbook.
-- **T9.5** Chấm code thật: Piston self-host + `CODE_QUEUE_DRIVER=bull` (tách được nếu pilot chưa cần).
-- **T9.6** Vận hành: backup/restore Postgres, log, quên-mật-khẩu qua email (cần chốt provider).
+- **T9.3** Storage **Cloudinary** — `STORAGE_DRIVER=local|cloudinary`, upload `resource_type: raw` +
+  `type: authenticated`, KHÔNG trả URL Cloudinary về client (giữ nguyên guard `ensureCanRead`).
+- **T9.4** Deploy **Render (API) + Vercel (web)**: `vercel.json` rewrite `/api/*` → Render, `prisma migrate deploy`,
+  CI chạy `pnpm validate`, runbook.
+- **T9.5** Chấm code thật: Piston + `CODE_QUEUE_DRIVER=bull`.
+- **T9.6** Vận hành: backup/restore Postgres, log; quên-mật-khẩu qua email khi có provider (gợi ý Resend).
 
-**Cần người chốt trước khi mở session P9**: storage (volume hay R2), có cần chấm code thật trong pilot không,
-đích deploy (1 VM + compose hay platform), đã có email provider chưa.
+**Đã chốt (2026-08-19)**: Cloudinary · chấm code thật ngay · Render + Vercel · chưa có email provider.
+
+**⚠️ Bốn cảnh báo phải xử lý — chi tiết `HANDOFF_P9.md` §A–§D:**
+- §A Cloudinary mặc định là CDN công khai → phải dùng `type: authenticated`, không thì vỡ invariant #5.
+- §B **Piston KHÔNG chạy được trên Render** (cần container privileged) → phải thuê VPS nhỏ riêng, hoặc viết
+  adapter Judge0 mới (hiện `runner.module.ts` chỉ biết `piston` và `stub`).
+- §C Vercel ↔ Render là **cross-site** → cookie refresh `sameSite: lax` không được gửi, user bị đá ra sau 15
+  phút. Cách rẻ nhất: Vercel rewrite `/api/*` để trình duyệt chỉ thấy một origin.
+- §D Render free tier ngủ ⇒ worker BullMQ (chạy in-process) chết ⇒ bài nộp treo ở `queued`. Cần gói trả phí
+  hoặc tách worker ra Background Worker riêng.
 
 ---
 
