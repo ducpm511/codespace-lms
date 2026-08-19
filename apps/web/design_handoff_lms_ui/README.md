@@ -1,7 +1,7 @@
 # Handoff: CodeSpace LMS — Playful redesign (Nocturne design system)
 
 ## Overview
-A **playful, gamified visual redesign** of the CodeSpace LMS web app (`apps/web`: React + Vite + Tailwind + TanStack Query + react-i18next). It re-skins every existing screen — login, student **Học tập** (Learn), teacher **Giảng dạy** (Teach), and **Quản trị** (Admin) — on top of the **Nocturne** dark design system plus CodeSpace brand assets (logo + the "Cody" mascot).
+A **playful, gamified visual redesign** of the CodeSpace LMS web app (`apps/web`: React + Vite + Tailwind + TanStack Query + react-i18next). It re-skins every existing screen — login, student **Học tập** (Learn), teacher **Giảng dạy** (Teach) with all six real tabs plus the lesson **activity builder**, and **Quản trị** (Admin) — on top of the **Nocturne** dark design system plus CodeSpace brand assets (logo + the "Cody" mascot).
 
 Target users: teachers and students aged 7–16. This iteration deliberately pushes **more playful** than the first pass: a gamified Learn dashboard (greeting hero with streak / XP / badges / level ring), a category color system, chunky rounded "sticker" cards, a friendlier display typeface (Baloo 2) for headings, and light micro-motion (mascot float/bob, decorative blobs, shooting stars, pop-in celebration) — all still inside Nocturne's dark, low-chroma discipline.
 
@@ -10,7 +10,7 @@ Target users: teachers and students aged 7–16. This iteration deliberately pus
 ## About the Design Files
 `CodeSpace-LMS-design.html` is a **design reference** — a single self-contained, clickable HTML prototype (inline state, no build step) showing intended look, layout, copy, and interaction flow. **It is not production code to port in.** Recreate the design inside `apps/web`'s existing React + Tailwind environment using its established patterns (the `src/features/*/hooks.ts` TanStack Query hooks, `react-i18next`, the existing route/page/component structure) — do **not** copy the prototype's inline-style markup verbatim.
 
-Open the file in a browser and click through: login → app shell → switch **Học tập / Giảng dạy / Quản trị** → within Learn, expand/collapse chapters, filter Bài tập, open a lesson (see its assigned exercises + discussion), take a quiz, open a coding problem → within Teach, switch Lớp học / Bài tập & chấm điểm / Trắc nghiệm, reassign a course, toggle lesson gates, publish a quiz, open the grading dialog.
+Open the file in a browser and click through: login → app shell → switch **Học tập / Giảng dạy / Quản trị** → within Learn, expand/collapse chapters, filter Bài tập, open a lesson (see its assigned exercises + discussion), take a quiz, open a coding problem → within Teach, switch all six tabs (Khóa học / Lớp học / Bài tập & chấm điểm / Bài lập trình / Trắc nghiệm / Sổ điểm & chứng chỉ), open a lesson's **Hoạt động** builder and switch activity types, flip the class Báo cáo & thống kê sub-tab, pick a submission and grade it, toggle lesson gates, publish a quiz.
 
 ## Fidelity
 **High-fidelity.** All colors, spacing, radii, and base type come from Nocturne's token sheet (`nocturne-tokens.css`, bundled) — use the exact `var(--color-*)`, `var(--space-*)`, `var(--radius-*)`, `--font-*` values (key ones reproduced under **Design Tokens**), not approximations from screenshots. Nocturne's component classes (`.btn`, `.card`, `.tag`, `.field`/`.input`, `.radio`, `.seg`, `.table`, `.dialog`, `.nav`) are defined in that sheet — port them as a Tailwind `@layer components` layer or CSS module, keeping the exact values. The **playful layer on top** (see below) is a small set of custom tokens + utilities, not part of Nocturne — reproduce those exactly too.
@@ -95,23 +95,61 @@ Back button, then a 2-col grid (`1fr 1fr`, gap `--space-6`):
 - Hooks: `useCodingProblem`, `useCodingAttempt`, `useSubmitCoding`, `useSampleRunner` (Pyodide worker — already wired).
 
 ### 7. Teach — shell + tabs (`src/pages/TeachHome.tsx`)
-h1 `.cx-display` "Khu vực giảng dạy" + a right-aligned `.seg`: **Lớp học** / **Bài tập & chấm điểm** / **Trắc nghiệm**.
+*(Rewritten in this pass — the teach area now mirrors the real `TeachHome` tab set instead of the earlier 3-tab simplification.)*
 
-#### 7a. Lớp học (`src/pages/teach/TeachClasses.tsx`, `TeachCourses.tsx`)
-Grid `320px 1fr`:
-- Left: pill `btn-secondary.btn-block` "Tạo lớp mới" (`useCreateClass`), then class `.cx-lift` card buttons — a category-colored `ph-users-three` tile + name + "{code} · N học viên"; selected card = `--color-accent-900` bg + inset accent-700 ring + accent-100 title.
-- Right: header `.card` (name h2 + code + `tag-outline` "Đang diễn ra"); a 2-col grid of:
-  - **"Khóa học của lớp"** — now a **course `<select>` dropdown** (`.input`) to **reassign the class's course** (wire to `useAssignCourse(classId)`), with a `ph-arrows-clockwise` helper line. *(new — was a static chip.)*
-  - **"Thành viên"** — member name/role rows, plus an **"Thêm học viên vào lớp"** button (both a header icon button and a full-width ghost button; wire to `useEnrollMember(classId)`). *(new.)*
-- Full-width **"Mở bài theo tiến độ"** `.card` — lesson-gate rows grouped by chapter, each a title + a `.cx-toggle` switch ("Đang mở"/"Đang khóa"); wire to `useGates(classId)` + `useSetGate(classId)`.
+- **Teacher hero** (new) — same construction as the Learn hero (`.cx-dots`, `--cx-radius`, section gradient, teal `.cx-blob`): eyebrow "Khu vực giảng dạy", h1 `.cx-display` 38px "Chào Cô Trang! 🍎", a line stating how many submissions are waiting, and **3 stat chips** (`ph-users-three` số lớp / `ph-student` số học viên / `ph-clipboard-text` chờ chấm). Right: a 132px conic **average-progress ring** (`--cx-amber`, 64%) with `mascot-laptop.png` (92px, `.cx-bob`) peeking bottom-right — the ring wrapper needs `margin-right` so the mascot isn't clipped.
+- **Tabs** — a left-aligned wrapping `.seg` with all six real tabs and their icons: **Khóa học** (`ph-books`) / **Lớp học** (`ph-users-three`) / **Bài tập & chấm điểm** (`ph-clipboard-text`) / **Bài lập trình** (`ph-code`) / **Trắc nghiệm** (`ph-check-square-offset`) / **Sổ điểm & chứng chỉ** (`ph-trophy`). Keys map 1:1 to the existing `Tab` union and `teach.tab_*` i18n keys.
 
-#### 7b. Trắc nghiệm (`src/pages/teach/TeachQuiz.tsx`)
-Grid `300px 1fr`:
-- Left: pill `btn-secondary.btn-block` "Tạo bài trắc nghiệm" (`useCreateQuiz`), then quiz card buttons ("{N} câu · Đã xuất bản/Bản nháp"), same selected-state treatment.
-- Right: header `.card` — title + question count + a **publish `.cx-toggle`** ("Đã xuất bản"/"Bản nháp"; wire to `useUpdateQuiz(id)` with `published`). Then one `.card` per question: "{n}. {text}" + an edit `btn-icon.btn-ghost`, and its options listed with `ph-check-circle` (accent-300) marking the correct one / `ph-circle` (neutral) otherwise. A `btn-secondary` "Thêm câu hỏi" (`useUpsertQuestion(quizId)`).
+Every tab shares one layout grammar: a **308px sidebar** (section header with a colored icon chip → list of "sticker" cards → a pill create button at the bottom) + a **detail column** (`minmax(0,1fr)`, `gap: --space-6`) that opens with a header `.card` (52px colored icon tile + title + meta + actions) and continues as icon-chip-headed `<section>`s. Selected sidebar cards use `color-mix(<category> 14%, surface)` + a 1.5px inset ring in the same hue (replacing the old accent-900 treatment) so selection reads in the item's own color.
+
+#### 7a. Khóa học (`src/pages/teach/TeachCourses.tsx`)
+- Sidebar: course cards — `ph-book-bookmark` tile tinted by status, title, "{N} chương · {M} bài", and a status `.tag` (`tag-accent` published / `tag-outline` draft / `tag-neutral` archived). Pill "Tạo khóa học" (`useCreateCourse`).
+- Detail header: title + `/{slug}` + status tag + a `btn-primary` **"Xuất bản"** shown only when `status !== 'published'` (`usePublishCourse`).
+- **"Chương & bài học"** section with a "Thêm chương" pill (`useAddSection`). Each section is a `.card` (radius 20, padding `--space-6`): a numbered badge + chapter title + "{N} bài" tag + edit/delete icon buttons (`useUpdateSection` / `useRemoveSection`); then one row per lesson separated by `border-top` — a 34px type-colored icon tile (video/interactive/reading), title, "{type} · {N} hoạt động" meta, and actions: **"Hoạt động"** (opens the builder, §7f), edit, delete (`useUpdateLesson` / `useRemoveLesson`). Footer: ghost "Thêm bài học vào chương" (`useAddLesson`).
+
+#### 7b. Lớp học (`src/pages/teach/TeachClasses.tsx`)
+- Sidebar: class cards with a category-colored `ph-users-three` tile, name, "{code} · N học viên", and a 6px **progress bar** with a % label.
+- Detail header `.card`: 52px class tile + name + "Mã lớp {code} · N học viên" + `tag-accent` "Đang diễn ra" + "Cài đặt lớp"; below it a full-width progress bar with "{N}% tiến độ trung bình"; below that the **sub-tab `.seg`: "Quản lý lớp" / "Báo cáo & thống kê"** (matches `ClassDetailPanel`'s `tab` state).
+- **Quản lý lớp**:
+  - **"Khóa học & thành viên"** section, 2 auto-fit cards.
+    - *Khóa học của lớp* — the list of **assigned courses** as blue-tinted rows with an unassign `ph-x` button, plus a `<select>` + "Gán" pill to attach another (`useAssignCourse(classId)`; the class can hold several courses, as in `c.courses`).
+    - *Thành viên* — member rows with a colored initial avatar, name, and a role `.tag`; a divided footer form: email `.input`, the **lookup confirmation line** (`ph-user-check` "Tìm thấy: …", from `useUserLookup`), a role `<select>` (student / ta / instructor) and a `btn-primary` "Thêm" (`useEnrollMember`).
+  - **"Mở bài theo tiến độ"** section — a course picker card first (gates are per assigned course), then **one card per chapter** with gate rows (lesson title + state label + `.cx-toggle`), wired to `useGates` / `useSetGate`.
+- **Báo cáo & thống kê** (`useClassReport`): 4 KPI cards (Tổng học viên + "{N} đang hoạt động", Tỷ lệ hoàn thành in amber, Điểm TB lớp in teal, Chứng chỉ đã cấp in purple), a **"Phân phối điểm số"** card (auto-fit tiles per range), and a **"Tiến độ bài học đã mở"** card — per-lesson label + "{done}/{total} · {rate}%" + an 8px amber→teal bar.
 
 #### 7c. Bài tập & chấm điểm (`src/pages/teach/TeachAssignments.tsx`)
-Grid `300px 1fr`: left = assignment card buttons (title + "Hạn {date} · N bài đã nộp"); right = header `.card` (title + max score) + a `.table` of submissions (Học viên / Nộp lúc / Trạng thái tag / Điểm / "Chấm điểm" ghost button). "Chấm điểm" opens the grading dialog (§9). Hooks: `useAssignments`, `useSubmissions`, `useGradeSubmission`.
+- A **picker card** on top: Khóa học + Lớp chấm điểm `<select>`s (`activeCourseId` / `activeClassId`; changing course resets the selected assignment).
+- Sidebar: assignment cards colored by state — amber when submissions are still ungraded, teal when all graded — with title, "Hạn {date}", and two tags ("{N} đã nộp" + "{N} chờ chấm" / "Đã chấm hết"). Pill "Tạo bài tập" (`useCreateAssignment`; the real create form's fields — max score, submission type, due date, allow-late — belong in a dialog or the sidebar form as today).
+- Detail header: 52px amber tile + title + "Hạn nộp {date} · Điểm tối đa {N}" + "Sửa bài tập", then **3 metric chips** (học viên / chờ chấm / điểm tối đa).
+- **"Chấm bài"** section — a two-column grading workspace (`minmax(0,260px) minmax(0,1fr)`) matching `SubmissionsGradingPanel`: left, one selectable card per submission (name + email + status tag); right, a grading `.card` — student name/email + status tag, a **"Nội dung bài làm"** panel (`--color-neutral-900`, `white-space: pre-wrap`, renders text/link/file content), a score `.field` labelled "/ {maxScore} điểm", a feedback `textarea`, and a `btn-primary.btn-block` "Lưu điểm & gửi nhận xét" (`useGradeSubmission`).
+
+#### 7d. Bài lập trình (`src/pages/teach/TeachCoding.tsx`) — new in this pass
+- Course picker card, then sidebar problem cards: `ph-terminal-window` tile tinted by difficulty, title, "{maxScore} điểm · {N} test", and a difficulty tag colored teal/amber/coral (Dễ / Trung bình / Khó). Pill "Tạo bài lập trình" (`useCreateCodingProblem`).
+- Detail header: 52px amber tile + title + "{language} · {maxScore} điểm · Bài học: {lesson}" + difficulty tag + "Sửa đề", then an **"Đề bài"** panel (neutral-900, statement markdown).
+- **"Test case"** section (count tag + "Thêm test" pill): one card per case — numbered badge, name, a kind tag (`tag-outline` "Ví dụ (học viên thấy)" / `tag-neutral` "Ẩn (dùng để chấm)"), delete button, and a 2-col grid of monospace **Đầu vào** / **Kết quả mong đợi** panels (expected in teal). Wire to `useUpsertTestCase` / `useDeleteTestCase`.
+
+#### 7e. Trắc nghiệm (`src/pages/teach/TeachQuiz.tsx`)
+- Course picker card (quizzes are per course, not per class), then sidebar quiz cards: status icon tile (teal check when published, amber pencil when draft), title, and three tags ("{N} câu", "{M} điểm", published/draft).
+- Detail header: 52px teal tile + title + a **full meta line** ("{N} câu · Tối đa {M}đ · Đạt {P}đ · {A} lượt làm · {T} phút" or "Không giới hạn thời gian") + "Gắn với bài: {lesson}"; right cluster = the **publish `.cx-toggle`** in a pill frame (`useUpdateQuiz({published})`), "Cài đặt" (opens `QuizSettingsDialog`), and a ghost delete (`useDeleteQuiz`). Below, `tag-neutral` shuffle badges ("Trộn câu hỏi" / "Trộn đáp án") when those flags are on.
+- One `.card` per question: numbered purple badge, question text, a `tag-outline` **question-type** label (Một đáp án / Nhiều đáp án / Đúng–Sai / Trả lời ngắn / Điền code — the `QUESTION_TYPES` union) + a `tag-neutral` points tag, edit/delete buttons, and the options indented 40px with `ph-check-circle` (accent-300) on the correct one. Footer pill "Thêm câu hỏi" (`useUpsertQuestion`).
+
+#### 7f. Trình soạn hoạt động của bài học (`src/pages/teach/LessonActivityBuilder.tsx`) — new in this pass
+Opened from a lesson row's **"Hoạt động"** button; it **replaces the course-tree column** (same in-place swap as the real component, no new route) and animates in with `cx-pop`.
+- **Header band** — a small `.cx-dots` panel on `linear-gradient(135deg, color-mix(--cx-purple 26%, surface), surface)` with a purple blob: 52px `ph-stack` tile, kicker "Soạn nội dung bài học · {chương}", lesson title, "{N} hoạt động trong bài học này", and a pill "Về danh sách bài học" (`onClose`).
+- **"Thứ tự hoạt động"** section (with the muted hint "Học viên sẽ đi lần lượt từ trên xuống"): one card per activity, **left-railed 3px in its type color** (matching `activityMeta(type).color`) — order number, 38px type icon tile, a `tag-outline` type label + title, a truncated summary line (`summaryLine()`: markdown excerpt / fileName / videoUrl / refTitle), and the action cluster **↑ ↓ 👁 ✏️ 🗑** (`useReorderActivities`, preview toggle, `useUpdateActivity`, `useRemoveActivity`). Toggling the eye expands an inline **"Xem trước như học viên thấy"** panel under the row (render the real `MarkdownBlock` / `PdfBlock` / `VideoBlock`; ref types show the hint line).
+- **"Thêm hoạt động mới"** card: the six activity types as **pill chips** (`LESSON_ACTIVITY_TYPES`: Nội dung Markdown, Tài liệu PDF, Video, Trắc nghiệm, Bài lập trình, Bài tập) — the active chip is filled with its own type color at 15% + a 1.5px ring; then a shared "Tiêu đề hiển thị cho học viên" `.input` and **type-dependent fields**:
+  - *markdown* — a monospace `textarea` (7 rows, resizable) + a Markdown-support hint.
+  - *pdf* — a **dashed coral drop zone** (`ph-file-pdf`, "Kéo thả file PDF vào đây", "tối đa 20 MB" from `MAX_UPLOAD_BYTES`, "Chọn file PDF" button) → `useUploadFile`; after upload show the file chip.
+  - *video* — a URL `.input` with a YouTube/Vimeo hint.
+  - *quiz / coding / assignment* — the `RefPicker` `<select>` of existing items in the course + the note that the activity only links to them.
+  - Footer: `btn-primary` **"Thêm {loại}"** (`useAddActivity`, disabled until the type's required field is filled) + ghost "Hủy".
+- Editing an activity reuses the same field set inline (as `ActivityEditor` does), with an accent outline on the card.
+
+### 7g. Sổ điểm & chứng chỉ (`src/pages/teach/TeachGradebook.tsx`) — new in this pass
+- Header `.card`: 52px amber `ph-trophy` tile + "Sổ điểm & chứng chỉ" + subtitle + a class `<select>` (`useClasses`).
+- **"Bảng điểm lớp {tên}"** section (row-count tag) — a padding-0 `.card` wrapping a scrollable `.table` (`min-width: 720px`, `overflow:auto`) built from `useClassGradebook`: first column = student name + email; one column per gradebook item with a **type icon** (`ph-clipboard-text` blue assignment / `ph-list-checks` teal quiz / `ph-code` amber coding) and a "Tối đa {N}đ" sub-label; score cells are accent-tinted pills, missing scores an em dash; then "Tổng" (amber `.cx-display` %), "Hoàn thành" (teal outline tag), and an action cell — `tag-accent` "Đã cấp" or a `btn-primary` "Cấp chứng chỉ" (`useIssueCertificate`, opens the template-picker modal).
+- **"Chứng chỉ đã cấp"** section — the same table treatment over `useClassCertificates`: monospace serial in accent-200, student, course, final score, issue date, a status tag ("Hợp lệ" / "Đã thu hồi"), and per-row "Xác thực" (link to `/verify/{code}`) + "Thu hồi" (`useRevokeCertificate`, reason dialog).
+- Note: this page is currently the one screen still written in raw slate-* Tailwind classes — porting it onto Nocturne tokens + the shared `.card`/`.table`/`.tag` classes is part of this handoff.
 
 ### 8. Admin — Users (`src/pages/AdminHome.tsx`)
 h1 `.cx-display` "Bảng điều khiển quản trị", a toolbar (`.input` search + pill `btn-secondary` filter + pill `btn-primary` "Thêm người dùng" pushed right), then a padding-0 `.card` wrapping a `.table` (Email / Họ tên / Trạng thái tag / Vai trò).
@@ -127,6 +165,7 @@ h1 `.cx-display` "Bảng điều khiển quản trị", a toolbar (`.input` sear
 - **Complete lesson** → return to list + celebration banner (wire to `useUpdateProgress().onSuccess`).
 - **Quiz submit** → in-place result annotation + score (`useSubmitQuizAttempt`).
 - **Course reassign / add member / gate toggle / quiz publish** → existing mutations (`useAssignCourse`, `useEnrollMember`, `useSetGate`, `useUpdateQuiz`), with optimistic UI on the toggles.
+- **Teach tab state** — `tab: 'courses' | 'classes' | 'assignments' | 'coding' | 'quiz' | 'gradebook'` (unchanged from `TeachHome`), plus per-tab `selectedId` and the course/class pickers already in each page. New local state only: the class detail's `'manage' | 'report'` sub-tab, the activity builder's `openLesson`, its `addActivityType` chip, and a `previewActivityId` for the inline preview.
 - **Motion**: keep it subtle and gate the looping animations behind `prefers-reduced-motion: reduce` (disable `.cx-float`/`.cx-bob`/`.cx-shoot`/blob drift; keep hover/press/pop which are short and intentful). Hover/press/focus for standard controls come from Nocturne's CSS — don't add ad-hoc states.
 
 ## State Management
