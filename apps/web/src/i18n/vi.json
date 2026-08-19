@@ -127,7 +127,13 @@
     "tab_assignments": "Bài tập & Chấm điểm",
     "tab_coding": "Bài lập trình",
     "tab_quiz": "Trắc nghiệm",
-    "tab_gradebook": "Sổ điểm & Chứng chỉ"
+    "tab_gradebook": "Sổ điểm & Chứng chỉ",
+    "heroTitle": "Chào {{name}}! 🍎",
+    "heroMotivation": "Hôm nay lớp của bạn sẽ học gì nào?",
+    "statClasses": "Lớp học",
+    "statStudents": "Học viên",
+    "statCourses": "Khóa học",
+    "avgProgress": "Tiến độ TB"
   },
   "quiz": {
     "heading": "Bài trắc nghiệm",

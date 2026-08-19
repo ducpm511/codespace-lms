@@ -127,7 +127,13 @@
     "tab_assignments": "Assignments & Grading",
     "tab_coding": "Coding",
     "tab_quiz": "Quiz",
-    "tab_gradebook": "Gradebook & Certificates"
+    "tab_gradebook": "Gradebook & Certificates",
+    "heroTitle": "Hi {{name}}! 🍎",
+    "heroMotivation": "What will your classes learn today?",
+    "statClasses": "Classes",
+    "statStudents": "Students",
+    "statCourses": "Courses",
+    "avgProgress": "Avg progress"
   },
   "quiz": {
     "heading": "Quizzes",
