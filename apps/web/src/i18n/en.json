@@ -115,7 +115,29 @@
     "lookingUp": "Searching...",
     "foundUser": "Will add: {{name}}",
     "alreadyMember": "{{name}} is already in this class",
-    "userNotFound": "No user found with this email"
+    "userNotFound": "No user found with this email",
+    "studentCount": "{{count}} students",
+    "codeLabel": "Class code {{code}}",
+    "avgProgress": "{{rate}}% average progress",
+    "manageTab": "Manage class",
+    "reportTab": "Reports & stats",
+    "coursesAndMembers": "Courses & members",
+    "gateCoursePicker": "Course to unlock",
+    "reportLoading": "Loading report...",
+    "reportError": "Could not load the class report.",
+    "kpiStudents": "Total students",
+    "kpiStudentsHint": "{{count}} active",
+    "kpiCompletion": "Completion rate",
+    "kpiCompletionHint": "across unlocked lessons",
+    "kpiAvgScore": "Class average",
+    "kpiAvgScoreHint": "out of 100",
+    "kpiCertificates": "Certificates issued",
+    "kpiCertificatesHint": "completion certificates",
+    "gradeDistribution": "Score distribution",
+    "scoreRange": "{{range}} pts",
+    "studentsUnit": "students",
+    "lessonProgressHeading": "Progress on unlocked lessons",
+    "noGatesOpen": "No lesson has been unlocked for this class yet."
   },
   "admin": {
     "title": "Admin dashboard",
@@ -417,5 +439,11 @@
     "dropzoneTitle": "Drop a PDF file here",
     "dropzoneHint": "or pick one from your device — up to {{size}} MB",
     "choosePdf": "Choose PDF file"
+  },
+  "classStatus": {
+    "planning": "Planned",
+    "active": "In progress",
+    "finished": "Finished",
+    "archived": "Archived"
   }
 }

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClassMemberRoleValue } from '@lms/contracts';
+import type { ClassCourseDto, ClassMemberDto, ClassMemberRoleValue, ClassReportDto } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import { useUserLookup } from '../../features/users/lookup';
 import {
@@ -13,73 +13,112 @@ import {
   useSetGate,
 } from '../../features/classes/hooks';
 import { useCourse, useCourses } from '../../features/courses/hooks';
+import { useClassReport, useClassReports } from '../../features/reports/useClassReport';
+import {
+  DetailColumn,
+  DetailHeader,
+  DetailSection,
+  EmptyHint,
+  IconTile,
+  PillButton,
+  ProgressBar,
+  Sidebar,
+  SidebarCard,
+  TeachShell,
+} from './teachUi';
 
-const dividerBorder = { borderColor: 'var(--color-divider)' } as const;
+const ERROR_COLOR = '#f4a3a3';
+const CLASS_COLOR = 'var(--cx-teal)';
 
 export function TeachClasses(): JSX.Element {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const classes = useClasses();
 
-  return (
-    <div className="grid gap-4 md:grid-cols-[18rem_1fr]">
-      <div className="space-y-4">
-        <CreateClassForm onCreated={(id) => setSelected(id)} />
-        <div className="panel overflow-hidden">
-          <div className="panel-head flex items-center gap-2">
-            {t('classes.heading')}
-            {classes.data && <span className="text-muted">({classes.data.total})</span>}
-          </div>
-          {classes.isLoading && <p className="text-muted px-3 py-4 text-sm">{t('common.loading')}</p>}
-          {classes.data?.items.length === 0 && (
-            <p className="text-muted px-3 py-4 text-sm">{t('classes.empty')}</p>
-          )}
-          <ul className="space-y-1 p-2">
-            {classes.data?.items.map((c) => {
-              const active = selected === c.id;
-              return (
-                <li key={c.id}>
-                  <button
-                    onClick={() => setSelected(c.id)}
-                    className="cx-lift flex w-full items-center gap-2.5 rounded-2xl px-2.5 py-2 text-left"
-                    style={
-                      active
-                        ? { background: 'var(--color-accent-900)', boxShadow: 'inset 0 0 0 1px var(--color-accent-700)' }
-                        : undefined
-                    }
-                  >
-                    <span
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                      style={{ background: 'color-mix(in srgb, var(--cx-purple) 22%, transparent)', color: 'var(--cx-purple)' }}
-                    >
-                      <i className="ph-fill ph-users-three" aria-hidden />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm" style={active ? { color: 'var(--color-accent-100)' } : undefined}>{c.name}</span>
-                      <span className="text-muted block truncate text-xs">{c.code}</span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </div>
+  const classIds = useMemo(() => (classes.data?.items ?? []).map((c) => c.id), [classes.data]);
+  // Dùng chung cache với hero Giảng dạy → không phát sinh request mới.
+  const reports = useClassReports(classIds);
+  const reportById = useMemo(() => {
+    const m = new Map<string, ClassReportDto>();
+    reports.forEach((r) => {
+      if (r.data) m.set(r.data.classId, r.data);
+    });
+    return m;
+  }, [reports]);
 
-      <div>
-        {selected ? (
-          <ClassDetailPanel classId={selected} />
-        ) : (
-          <p className="text-muted rounded-lg border border-dashed px-4 py-10 text-center text-sm" style={dividerBorder}>
-            {t('classes.selectHint')}
-          </p>
-        )}
-      </div>
-    </div>
+  return (
+    <TeachShell
+      sidebar={
+        <Sidebar
+          icon="ph-users-three"
+          color={CLASS_COLOR}
+          title={t('classes.heading')}
+          count={classes.data?.total}
+          footer={
+            creating ? (
+              <CreateClassForm
+                onCancel={() => setCreating(false)}
+                onCreated={(id) => {
+                  setSelected(id);
+                  setCreating(false);
+                }}
+              />
+            ) : (
+              <PillButton icon="ph-plus" onClick={() => setCreating(true)}>
+                {t('classes.create')}
+              </PillButton>
+            )
+          }
+        >
+          {classes.isLoading && <p className="text-muted text-sm">{t('common.loading')}</p>}
+          {classes.data?.items.length === 0 && <EmptyHint icon="ph-users-three">{t('classes.empty')}</EmptyHint>}
+          {classes.data?.items.map((c) => {
+            const report = reportById.get(c.id);
+            return (
+              <SidebarCard
+                key={c.id}
+                icon="ph-users-three"
+                color={CLASS_COLOR}
+                title={c.name}
+                meta={
+                  report
+                    ? `${c.code} · ${t('classes.studentCount', { count: report.totalStudents })}`
+                    : c.code
+                }
+                selected={selected === c.id}
+                onClick={() => setSelected(c.id)}
+              >
+                {report && (
+                  <span className="flex w-full items-center gap-2">
+                    <ProgressBar value={report.courseCompletionRate} />
+                    <span className="text-muted shrink-0" style={{ fontSize: 11 }}>
+                      {report.courseCompletionRate}%
+                    </span>
+                  </span>
+                )}
+              </SidebarCard>
+            );
+          })}
+        </Sidebar>
+      }
+    >
+      {selected ? (
+        <ClassDetailPanel classId={selected} />
+      ) : (
+        <EmptyHint icon="ph-hand-pointing">{t('classes.selectHint')}</EmptyHint>
+      )}
+    </TeachShell>
   );
 }
 
-function CreateClassForm({ onCreated }: { onCreated: (id: string) => void }): JSX.Element {
+function CreateClassForm({
+  onCreated,
+  onCancel,
+}: {
+  onCreated: (id: string) => void;
+  onCancel: () => void;
+}): JSX.Element {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -100,176 +139,257 @@ function CreateClassForm({ onCreated }: { onCreated: (id: string) => void }): JS
         );
       }}
       className="card gap-2"
+      style={{ borderRadius: 18 }}
     >
-      <p className="card-title">{t('classes.create')}</p>
+      <p className="cx-display m-0" style={{ fontSize: 14 }}>
+        {t('classes.create')}
+      </p>
       <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('classes.name')} required />
       <input className="input" value={code} onChange={(e) => setCode(e.target.value)} placeholder={t('classes.code')} required />
-      <button type="submit" disabled={create.isPending} className="btn btn-primary btn-block">
-        {t('classes.add')}
-      </button>
-      {create.isError && <p className="text-xs text-red-400">{errMsg(create.error)}</p>}
+      <div className="flex gap-2">
+        <PillButton type="submit" icon="ph-plus" disabled={create.isPending}>
+          {t('classes.add')}
+        </PillButton>
+        <PillButton variant="secondary" onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
+      </div>
+      {create.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(create.error)}</p>}
     </form>
   );
 }
-
-import { useClassReport } from '../../features/reports/useClassReport';
 
 function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
   const { t } = useTranslation();
   const [tab, setTab] = useState<'manage' | 'report'>('manage');
   const cls = useClass(classId);
+  const report = useClassReport(classId);
+
   if (cls.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
-  if (cls.isError || !cls.data) return <p className="text-sm text-red-400">{t('common.error')}</p>;
+  if (cls.isError || !cls.data) return <p className="text-sm" style={{ color: ERROR_COLOR }}>{t('common.error')}</p>;
   const c = cls.data;
+  const rate = report.data?.courseCompletionRate;
 
   return (
-    <div className="space-y-4">
-      <div className="card" style={{ borderRadius: 'var(--radius-lg)' }}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="cx-display text-xl">{c.name}</h2>
-            <p className="text-muted text-xs">{c.code}</p>
+    <DetailColumn>
+      <DetailHeader
+        icon="ph-users-three"
+        color={CLASS_COLOR}
+        title={c.name}
+        meta={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>{t('classes.codeLabel', { code: c.code })}</span>
+            {report.data && (
+              <>
+                <span aria-hidden>·</span>
+                <span>{t('classes.studentCount', { count: report.data.totalStudents })}</span>
+              </>
+            )}
+          </span>
+        }
+        actions={<span className="tag tag-accent">{t(`classStatus.${c.status}`, { defaultValue: c.status })}</span>}
+      >
+        {rate !== undefined && (
+          <div className="flex flex-col gap-1.5">
+            <ProgressBar value={rate} height={8} />
+            <p className="text-muted m-0" style={{ fontSize: 11 }}>
+              {t('classes.avgProgress', { rate })}
+            </p>
           </div>
-          <div className="seg">
-            <button
-              className={`seg-btn cx-press ${tab === 'manage' ? 'seg-active' : ''}`}
-              onClick={() => setTab('manage')}
-            >
-              <i className="ph ph-gear mr-1.5" aria-hidden /> Quản lý lớp
-            </button>
-            <button
-              className={`seg-btn cx-press ${tab === 'report' ? 'seg-active' : ''}`}
-              onClick={() => setTab('report')}
-            >
-              <i className="ph ph-chart-bar mr-1.5" aria-hidden /> Báo cáo & Thống kê
-            </button>
-          </div>
+        )}
+
+        <div className="seg flex-wrap">
+          <button className={`seg-btn cx-press ${tab === 'manage' ? 'seg-active' : ''}`} onClick={() => setTab('manage')}>
+            <i className="ph ph-gear" aria-hidden /> {t('classes.manageTab')}
+          </button>
+          <button className={`seg-btn cx-press ${tab === 'report' ? 'seg-active' : ''}`} onClick={() => setTab('report')}>
+            <i className="ph ph-chart-bar" aria-hidden /> {t('classes.reportTab')}
+          </button>
         </div>
-      </div>
+      </DetailHeader>
 
       {tab === 'manage' && (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
-            <CoursesPanel classId={classId} courses={c.courses} />
-            <MembersPanel classId={classId} members={c.members} />
-          </div>
+          <DetailSection icon="ph-books" color="var(--cx-blue)" title={t('classes.coursesAndMembers')}>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <CoursesPanel classId={classId} courses={c.courses} />
+              <MembersPanel classId={classId} members={c.members} />
+            </div>
+          </DetailSection>
 
           <GatesPanel classId={classId} assignedCourses={c.courses} />
         </>
       )}
 
       {tab === 'report' && <ClassReportPanel classId={classId} />}
-    </div>
+    </DetailColumn>
   );
 }
 
 function ClassReportPanel({ classId }: { classId: string }): JSX.Element {
+  const { t } = useTranslation();
   const { data: report, isLoading, isError } = useClassReport(classId);
 
-  if (isLoading) return <p className="text-muted text-sm py-6">Đang tải báo cáo...</p>;
-  if (isError || !report) return <p className="text-sm text-red-400 py-6">Không thể tải báo cáo lớp học.</p>;
+  if (isLoading) return <p className="text-muted py-6 text-sm">{t('classes.reportLoading')}</p>;
+  if (isError || !report) {
+    return <p className="py-6 text-sm" style={{ color: ERROR_COLOR }}>{t('classes.reportError')}</p>;
+  }
+
+  const kpis = [
+    {
+      icon: 'ph-users-three',
+      color: 'var(--cx-blue)',
+      label: t('classes.kpiStudents'),
+      value: String(report.totalStudents),
+      hint: t('classes.kpiStudentsHint', { count: report.activeStudents }),
+      hintColor: 'var(--cx-teal)',
+    },
+    {
+      icon: 'ph-chart-line-up',
+      color: 'var(--cx-amber)',
+      label: t('classes.kpiCompletion'),
+      value: `${report.courseCompletionRate}%`,
+      hint: t('classes.kpiCompletionHint'),
+    },
+    {
+      icon: 'ph-star',
+      color: 'var(--cx-teal)',
+      label: t('classes.kpiAvgScore'),
+      value: String(report.avgFinalScore),
+      hint: t('classes.kpiAvgScoreHint'),
+    },
+    {
+      icon: 'ph-certificate',
+      color: 'var(--cx-purple)',
+      label: t('classes.kpiCertificates'),
+      value: String(report.totalCertificatesIssued),
+      hint: t('classes.kpiCertificatesHint'),
+    },
+  ];
 
   return (
-    <div className="space-y-5">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="card p-4 rounded-xl text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
-          <p className="text-muted text-xs">Tổng học viên</p>
-          <p className="cx-display text-2xl mt-1">{report.totalStudents}</p>
-          <p className="text-[11px] mt-1" style={{ color: 'var(--cx-teal)' }}>{report.activeStudents} đang hoạt động</p>
-        </div>
-        <div className="card p-4 rounded-xl text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
-          <p className="text-muted text-xs">Tỷ lệ hoàn thành</p>
-          <p className="cx-display text-2xl mt-1" style={{ color: 'var(--cx-amber)' }}>{report.courseCompletionRate}%</p>
-          <p className="text-muted text-[11px] mt-1">trên các bài đã mở</p>
-        </div>
-        <div className="card p-4 rounded-xl text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
-          <p className="text-muted text-xs">Điểm TB lớp</p>
-          <p className="cx-display text-2xl mt-1" style={{ color: 'var(--cx-teal)' }}>{report.avgFinalScore}</p>
-          <p className="text-muted text-[11px] mt-1">thang điểm 100</p>
-        </div>
-        <div className="card p-4 rounded-xl text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
-          <p className="text-muted text-xs">Chứng chỉ đã cấp</p>
-          <p className="cx-display text-2xl mt-1" style={{ color: 'var(--cx-purple)' }}>{report.totalCertificatesIssued}</p>
-          <p className="text-muted text-[11px] mt-1">chứng nhận hoàn thành</p>
-        </div>
-      </div>
-
-      {/* Phân phối điểm số */}
-      <div className="card rounded-xl p-4 text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
-        <p className="card-title text-sm font-semibold mb-3">Phân phối điểm số</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {report.gradeDistribution.map((gd) => (
-            <div key={gd.range} className="p-3 rounded-lg text-center" style={{ background: 'color-mix(in srgb, var(--color-text) 5%, transparent)', border: '1px solid var(--color-divider)' }}>
-              <span className="text-muted text-xs font-mono">{gd.range} điểm</span>
-              <p className="cx-display text-lg mt-1">{gd.count} <span className="text-muted text-xs font-normal">học viên</span></p>
+    <DetailColumn>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {kpis.map((k) => (
+          <div key={k.label} className="card cx-lift" style={{ borderRadius: 18, padding: 'var(--space-5)', gap: 8 }}>
+            <div className="flex items-center gap-2.5">
+              <IconTile icon={k.icon} color={k.color} size={34} />
+              <p className="text-muted m-0" style={{ fontSize: 11 }}>
+                {k.label}
+              </p>
             </div>
-          ))}
-        </div>
+            <p className="cx-display m-0" style={{ fontSize: 26, lineHeight: 1.1, color: k.color }}>
+              {k.value}
+            </p>
+            <p className="text-muted m-0" style={{ fontSize: 11, color: k.hintColor }}>
+              {k.hint}
+            </p>
+          </div>
+        ))}
       </div>
 
-      {/* Tiến độ hoàn thành từng bài */}
-      <div className="card rounded-xl p-4 text-left" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-divider)' }}>
-        <p className="card-title text-sm font-semibold mb-3">Tiến độ bài học đã mở ({report.lessonProgressStats.length})</p>
-        {report.lessonProgressStats.length === 0 ? (
-          <p className="text-muted text-xs py-4">Chưa có bài học nào được mở gate cho lớp này.</p>
-        ) : (
-          <div className="space-y-3">
-            {report.lessonProgressStats.map((stat) => (
-              <div key={stat.lessonId} className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="font-medium truncate max-w-md">{stat.title}</span>
-                  <span className="font-mono shrink-0" style={{ color: 'var(--cx-amber)' }}>{stat.completedCount}/{report.totalStudents} ({stat.completionRate}%)</span>
-                </div>
-                <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: 'var(--color-neutral-800)' }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{
-                      width: `${stat.completionRate}%`,
-                      background: 'linear-gradient(90deg, var(--cx-amber), var(--cx-teal))',
-                    }}
-                  />
-                </div>
+      <DetailSection icon="ph-chart-bar" color="var(--cx-coral)" title={t('classes.gradeDistribution')}>
+        <div className="card" style={{ borderRadius: 20, padding: 'var(--space-6)' }}>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {report.gradeDistribution.map((gd) => (
+              <div
+                key={gd.range}
+                className="text-center"
+                style={{
+                  borderRadius: 14,
+                  padding: 'var(--space-4)',
+                  background: 'color-mix(in srgb, var(--color-text) 5%, transparent)',
+                  boxShadow: 'inset 0 0 0 1px var(--color-divider)',
+                }}
+              >
+                <span className="text-muted font-mono" style={{ fontSize: 11 }}>
+                  {t('classes.scoreRange', { range: gd.range })}
+                </span>
+                <p className="cx-display m-0" style={{ fontSize: 18, marginTop: 4 }}>
+                  {gd.count}{' '}
+                  <span className="text-muted" style={{ fontSize: 11 }}>
+                    {t('classes.studentsUnit')}
+                  </span>
+                </p>
               </div>
             ))}
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      </DetailSection>
+
+      <DetailSection
+        icon="ph-list-checks"
+        color="var(--cx-amber)"
+        title={t('classes.lessonProgressHeading')}
+        count={report.lessonProgressStats.length}
+      >
+        <div className="card" style={{ borderRadius: 20, padding: 'var(--space-6)', gap: 'var(--space-4)' }}>
+          {report.lessonProgressStats.length === 0 ? (
+            <p className="text-muted m-0 py-2 text-xs">{t('classes.noGatesOpen')}</p>
+          ) : (
+            report.lessonProgressStats.map((stat) => (
+              <div key={stat.lessonId} className="flex flex-col gap-1.5">
+                <div className="flex justify-between gap-3 text-xs">
+                  <span className="min-w-0 truncate">{stat.title}</span>
+                  <span className="shrink-0 font-mono" style={{ color: 'var(--cx-amber)' }}>
+                    {stat.completedCount}/{report.totalStudents} · {stat.completionRate}%
+                  </span>
+                </div>
+                <ProgressBar value={stat.completionRate} height={8} />
+              </div>
+            ))
+          )}
+        </div>
+      </DetailSection>
+    </DetailColumn>
   );
 }
 
-function CoursesPanel({
-  classId,
-  courses,
-}: {
-  classId: string;
-  courses: { id: string; courseId: string; title: string }[];
-}): JSX.Element {
+function CoursesPanel({ classId, courses }: { classId: string; courses: ClassCourseDto[] }): JSX.Element {
   const { t } = useTranslation();
   const allCourses = useCourses();
   const assign = useAssignCourse(classId);
   const [courseId, setCourseId] = useState('');
 
   return (
-    <div className="card gap-2">
-      <p className="card-title text-sm">{t('classes.courses')}</p>
-      <ul className="space-y-1 text-sm">
+    <div className="card" style={{ borderRadius: 20, padding: 'var(--space-6)', gap: 'var(--space-4)' }}>
+      <p className="cx-display m-0" style={{ fontSize: 15 }}>
+        {t('classes.courses')}
+      </p>
+
+      <div className="flex flex-col gap-2">
         {courses.map((cc) => (
-          <li key={cc.id} className="chip">
-            {cc.title}
-          </li>
+          <div
+            key={cc.id}
+            className="flex items-center gap-2.5"
+            style={{
+              borderRadius: 14,
+              padding: '8px 12px',
+              background: 'color-mix(in srgb, var(--cx-blue) 12%, transparent)',
+              boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--cx-blue) 30%, transparent)',
+            }}
+          >
+            <i className="ph-fill ph-book-bookmark shrink-0" style={{ color: 'var(--cx-blue)' }} aria-hidden />
+            <span className="min-w-0 flex-1 truncate text-sm">{cc.title}</span>
+          </div>
         ))}
-        {courses.length === 0 && <li className="text-muted text-xs">{t('classes.noCourses')}</li>}
-      </ul>
+        {courses.length === 0 && <p className="text-muted m-0 text-xs">{t('classes.noCourses')}</p>}
+      </div>
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
           if (courseId) assign.mutate({ courseId }, { onSuccess: () => setCourseId('') });
         }}
-        className="flex gap-2"
+        className="flex flex-wrap items-center gap-2"
+        style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 'var(--space-4)' }}
       >
-        <select className="input flex-1" value={courseId} onChange={(e) => setCourseId(e.target.value)} required>
+        <select
+          className="input min-w-[160px] flex-1"
+          value={courseId}
+          onChange={(e) => setCourseId(e.target.value)}
+          required
+        >
           <option value="">{t('classes.selectCourse')}</option>
           {allCourses.data?.items.map((c) => (
             <option key={c.id} value={c.id}>
@@ -277,22 +397,19 @@ function CoursesPanel({
             </option>
           ))}
         </select>
-        <button type="submit" disabled={assign.isPending} className="btn btn-secondary shrink-0">
+        <PillButton type="submit" icon="ph-link" disabled={assign.isPending}>
           {t('classes.assignCourse')}
-        </button>
+        </PillButton>
       </form>
-      {assign.isError && <p className="text-xs text-red-400">{errMsg(assign.error)}</p>}
+      {assign.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(assign.error)}</p>}
     </div>
   );
 }
 
-function MembersPanel({
-  classId,
-  members,
-}: {
-  classId: string;
-  members: { id: string; email: string; fullName: string; roleInClass: string }[];
-}): JSX.Element {
+/** Màu avatar chữ cái đầu — quay vòng theo bảng màu category để mỗi người một tông. */
+const AVATAR_COLORS = ['var(--cx-purple)', 'var(--cx-teal)', 'var(--cx-amber)', 'var(--cx-coral)', 'var(--cx-blue)'];
+
+function MembersPanel({ classId, members }: { classId: string; members: ClassMemberDto[] }): JSX.Element {
   const { t } = useTranslation();
   const enroll = useEnrollMember(classId);
   const [email, setEmail] = useState('');
@@ -304,26 +421,48 @@ function MembersPanel({
   const alreadyMember = !!found && members.some((m) => m.email.toLowerCase() === found.email.toLowerCase());
 
   return (
-    <div className="card gap-2">
-      <p className="card-title text-sm">{t('classes.members')}</p>
-      <ul className="space-y-1 text-sm">
-        {members.map((m) => (
-          <li key={m.id} className="chip flex items-center justify-between">
-            <span className="truncate">{m.fullName || m.email}</span>
-            <span className="text-muted text-xs">
-              {t(`roleInClass.${m.roleInClass}`, { defaultValue: m.roleInClass })}
-            </span>
-          </li>
-        ))}
-        {members.length === 0 && <li className="text-muted text-xs">{t('classes.noMembers')}</li>}
-      </ul>
+    <div className="card" style={{ borderRadius: 20, padding: 'var(--space-6)', gap: 'var(--space-4)' }}>
+      <p className="cx-display m-0" style={{ fontSize: 15 }}>
+        {t('classes.members')}
+      </p>
+
+      <div className="flex flex-col gap-2">
+        {members.map((m, i) => {
+          const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
+          const name = m.fullName || m.email;
+          return (
+            <div key={m.id} className="flex items-center gap-2.5">
+              <span
+                className="cx-display flex shrink-0 items-center justify-center"
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 10,
+                  fontSize: 13,
+                  color,
+                  background: `color-mix(in srgb, ${color} 20%, transparent)`,
+                }}
+              >
+                {name.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
+              <span className="tag tag-neutral shrink-0">
+                {t(`roleInClass.${m.roleInClass}`, { defaultValue: m.roleInClass })}
+              </span>
+            </div>
+          );
+        })}
+        {members.length === 0 && <p className="text-muted m-0 text-xs">{t('classes.noMembers')}</p>}
+      </div>
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
           if (!found) return;
           enroll.mutate({ userId: found.id, roleInClass: role }, { onSuccess: () => setEmail('') });
         }}
-        className="space-y-2"
+        className="flex flex-col gap-2"
+        style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 'var(--space-4)' }}
       >
         <input
           className="input"
@@ -335,33 +474,33 @@ function MembersPanel({
         />
 
         {/* Xác nhận đúng người trước khi thêm — tránh thêm nhầm do gõ sai email. */}
-        {lookup.isFetching && <p className="text-muted text-xs">{t('classes.lookingUp')}</p>}
+        {lookup.isFetching && <p className="text-muted m-0 text-xs">{t('classes.lookingUp')}</p>}
         {found && (
-          <p className="text-xs" style={{ color: alreadyMember ? undefined : 'var(--color-accent-300)' }}>
+          <p className="m-0 text-xs" style={{ color: alreadyMember ? undefined : 'var(--color-accent-300)' }}>
             <i className={`ph ${alreadyMember ? 'ph-info' : 'ph-user-check'}`} aria-hidden />{' '}
             {alreadyMember
               ? t('classes.alreadyMember', { name: found.fullName || found.email })
               : t('classes.foundUser', { name: found.fullName || found.email })}
           </p>
         )}
-        {lookup.isError && <p className="text-xs text-red-400">{t('classes.userNotFound')}</p>}
+        {lookup.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{t('classes.userNotFound')}</p>}
 
-        <div className="flex gap-2">
-          <select className="input flex-1" value={role} onChange={(e) => setRole(e.target.value as ClassMemberRoleValue)}>
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="input min-w-[120px] flex-1"
+            value={role}
+            onChange={(e) => setRole(e.target.value as ClassMemberRoleValue)}
+          >
             <option value="student">{t('roleInClass.student')}</option>
             <option value="ta">{t('roleInClass.ta')}</option>
             <option value="instructor">{t('roleInClass.instructor')}</option>
           </select>
-          <button
-            type="submit"
-            disabled={enroll.isPending || !found || alreadyMember}
-            className="btn btn-secondary shrink-0"
-          >
+          <PillButton type="submit" icon="ph-user-plus" disabled={enroll.isPending || !found || alreadyMember}>
             {t('classes.enroll')}
-          </button>
+          </PillButton>
         </div>
       </form>
-      {enroll.isError && <p className="text-xs text-red-400">{errMsg(enroll.error)}</p>}
+      {enroll.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(enroll.error)}</p>}
     </div>
   );
 }
@@ -371,7 +510,7 @@ function GatesPanel({
   assignedCourses,
 }: {
   classId: string;
-  assignedCourses: { courseId: string; title: string }[];
+  assignedCourses: ClassCourseDto[];
 }): JSX.Element {
   const { t } = useTranslation();
   const [picked, setPicked] = useState<string | null>(null);
@@ -383,65 +522,73 @@ function GatesPanel({
   const activeSet = new Set(gates.data?.filter((g) => g.isActive).map((g) => g.lessonId));
 
   return (
-    <div className="card gap-2">
-      <p className="card-title text-sm">{t('classes.lessonGates')}</p>
+    <DetailSection icon="ph-lock-open" color="var(--cx-amber)" title={t('classes.lessonGates')}>
       {assignedCourses.length === 0 ? (
-        <p className="text-muted text-xs">{t('classes.gatesNeedCourse')}</p>
+        <EmptyHint icon="ph-lock">{t('classes.gatesNeedCourse')}</EmptyHint>
       ) : (
         <>
-          <select
-            className="input md:w-72"
-            value={courseId ?? ''}
-            onChange={(e) => setPicked(e.target.value || null)}
-          >
-            {assignedCourses.map((cc) => (
-              <option key={cc.courseId} value={cc.courseId}>
-                {cc.title}
-              </option>
-            ))}
-          </select>
+          <div className="card" style={{ borderRadius: 18, padding: 'var(--space-5)' }}>
+            <div className="field">
+              <label>{t('classes.gateCoursePicker')}</label>
+              <select className="input" value={courseId ?? ''} onChange={(e) => setPicked(e.target.value || null)}>
+                {assignedCourses.map((cc) => (
+                  <option key={cc.courseId} value={cc.courseId}>
+                    {cc.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {course.data?.sections.map((s) => (
-            <div key={s.id} className="mt-1">
-              <p className="text-muted text-xs font-medium">{s.title}</p>
-              <ul>
-                {s.lessons.map((l) => {
-                  const on = activeSet.has(l.id);
-                  return (
-                    <li
-                      key={l.id}
-                      className="flex items-center justify-between py-1.5 text-sm"
-                      style={{ borderTop: '1px solid var(--color-divider)' }}
-                    >
-                      <span>{l.title}</span>
-                      <GateToggle
-                        on={on}
-                        disabled={setGate.isPending}
-                        onChange={(v) => setGate.mutate({ lessonId: l.id, isActive: v })}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
+            <div key={s.id} className="card" style={{ borderRadius: 20, padding: 'var(--space-6)', gap: 'var(--space-2)' }}>
+              <p className="cx-display m-0" style={{ fontSize: 14 }}>
+                {s.title}
+              </p>
+              {s.lessons.length === 0 && <p className="text-muted m-0 text-xs">{t('courses.noLessons')}</p>}
+              {s.lessons.map((l) => {
+                const on = activeSet.has(l.id);
+                return (
+                  <div
+                    key={l.id}
+                    className="flex items-center justify-between gap-3"
+                    style={{ borderTop: '1px solid var(--color-divider)', padding: 'var(--space-3) 0' }}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm">{l.title}</span>
+                    <span className="text-muted shrink-0" style={{ fontSize: 11 }}>
+                      {on ? t('classes.gateOpen') : t('classes.gateClosed')}
+                    </span>
+                    <GateToggle
+                      on={on}
+                      label={on ? t('classes.gateOpen') : t('classes.gateClosed')}
+                      disabled={setGate.isPending}
+                      onChange={(v) => setGate.mutate({ lessonId: l.id, isActive: v })}
+                    />
+                  </div>
+                );
+              })}
             </div>
           ))}
         </>
       )}
-      {setGate.isError && <p className="text-xs text-red-400">{errMsg(setGate.error)}</p>}
-    </div>
+      {setGate.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(setGate.error)}</p>}
+    </DetailSection>
   );
 }
 
 function GateToggle({
   on,
+  label,
   disabled,
   onChange,
 }: {
   on: boolean;
+  label: string;
   disabled?: boolean;
   onChange: (v: boolean) => void;
 }): JSX.Element {
   return (
-    <label className="cx-toggle" aria-label={on ? 'Đang mở' : 'Đang khóa'}>
+    <label className="cx-toggle shrink-0" aria-label={label}>
       <input type="checkbox" checked={on} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span className="cx-toggle-thumb" />
     </label>

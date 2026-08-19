@@ -115,7 +115,29 @@
     "lookingUp": "Đang tìm...",
     "foundUser": "Sẽ thêm: {{name}}",
     "alreadyMember": "{{name}} đã ở trong lớp này",
-    "userNotFound": "Không tìm thấy người dùng với email này"
+    "userNotFound": "Không tìm thấy người dùng với email này",
+    "studentCount": "{{count}} học viên",
+    "codeLabel": "Mã lớp {{code}}",
+    "avgProgress": "{{rate}}% tiến độ trung bình",
+    "manageTab": "Quản lý lớp",
+    "reportTab": "Báo cáo & thống kê",
+    "coursesAndMembers": "Khóa học & thành viên",
+    "gateCoursePicker": "Khóa học áp dụng",
+    "reportLoading": "Đang tải báo cáo...",
+    "reportError": "Không thể tải báo cáo lớp học.",
+    "kpiStudents": "Tổng học viên",
+    "kpiStudentsHint": "{{count}} đang hoạt động",
+    "kpiCompletion": "Tỷ lệ hoàn thành",
+    "kpiCompletionHint": "trên các bài đã mở",
+    "kpiAvgScore": "Điểm TB lớp",
+    "kpiAvgScoreHint": "thang điểm 100",
+    "kpiCertificates": "Chứng chỉ đã cấp",
+    "kpiCertificatesHint": "chứng nhận hoàn thành",
+    "gradeDistribution": "Phân phối điểm số",
+    "scoreRange": "{{range}} điểm",
+    "studentsUnit": "học viên",
+    "lessonProgressHeading": "Tiến độ bài học đã mở",
+    "noGatesOpen": "Chưa có bài học nào được mở gate cho lớp này."
   },
   "admin": {
     "title": "Bảng điều khiển quản trị",
@@ -417,5 +439,11 @@
     "dropzoneTitle": "Kéo thả file PDF vào đây",
     "dropzoneHint": "hoặc chọn từ máy — tối đa {{size}} MB",
     "choosePdf": "Chọn file PDF"
+  },
+  "classStatus": {
+    "planning": "Sắp khai giảng",
+    "active": "Đang diễn ra",
+    "finished": "Đã kết thúc",
+    "archived": "Đã lưu trữ"
   }
 }
