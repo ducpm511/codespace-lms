@@ -45,22 +45,29 @@ Kế hoạch đầy đủ + hiện trạng đã xác minh: `HANDOFF_P9.md`.
   `POST/DELETE /users/:id/roles` đã có sẵn, chỉ thiếu FE + phân trang server-side.
 - **T9.2** Vòng đời mật khẩu: đổi mật khẩu (self-service) + admin đặt lại, revoke refresh token, AuditLog cùng transaction.
 - **T9.3** Storage **Cloudinary** — `STORAGE_DRIVER=local|cloudinary`, upload `resource_type: raw` +
-  `type: authenticated`, KHÔNG trả URL Cloudinary về client (giữ nguyên guard `ensureCanRead`).
-- **T9.4** Deploy **Render (API) + Vercel (web)**: `vercel.json` rewrite `/api/*` → Render, `prisma migrate deploy`,
-  CI chạy `pnpm validate`, runbook.
-- **T9.5** Chấm code thật: Piston + `CODE_QUEUE_DRIVER=bull`.
-- **T9.6** Vận hành: backup/restore Postgres, log; quên-mật-khẩu qua email khi có provider (gợi ý Resend).
+  `type: authenticated`, KHÔNG trả URL Cloudinary về client (giữ guard `ensureCanRead`).
+- **T9.4** **Cấu hình lean cho 2 GB** (phần tối ưu trong code): bỏ Redis (`CODE_QUEUE_DRIVER=inline` — Redis
+  chỉ phục vụ queue chấm bài, đã xác minh), gộp `GET /teach/overview` thay N request `/classes/:id/report`,
+  Node `--max-old-space-size=384`, Postgres `shared_buffers=128MB`, cache tĩnh brotli + immutable cho
+  `/monaco/*` `/pyodide/*` (giữ Monaco nên phải bù bằng cache).
+- **T9.5** Deploy **1 VPS** (2 vCPU / 2 GB / 30 GB): compose caddy + api + postgres + piston, Caddy vừa serve
+  static vừa proxy `/api` (cùng origin), 2 docker network tách Piston khỏi Postgres, ufw/fail2ban.
+- **T9.6** Vận hành: `pg_dump` hằng ngày + thử restore, xoay log; email khi có provider (gợi ý Resend).
 
-**Đã chốt (2026-08-19)**: Cloudinary · chấm code thật ngay · Render + Vercel · chưa có email provider.
+**Đã chốt (2026-08-19)**: 1 VPS 2 GB (~6.3 USD/tháng, **rẻ hơn Frappe 9 USD đang dùng**) · chấm code thật
+bằng Piston self-host · Cloudinary · **giữ Monaco** · chưa có email provider.
 
-**⚠️ Bốn cảnh báo phải xử lý — chi tiết `HANDOFF_P9.md` §A–§D:**
-- §A Cloudinary mặc định là CDN công khai → phải dùng `type: authenticated`, không thì vỡ invariant #5.
-- §B **Piston KHÔNG chạy được trên Render** (cần container privileged) → phải thuê VPS nhỏ riêng, hoặc viết
-  adapter Judge0 mới (hiện `runner.module.ts` chỉ biết `piston` và `stub`).
-- §C Vercel ↔ Render là **cross-site** → cookie refresh `sameSite: lax` không được gửi, user bị đá ra sau 15
-  phút. Cách rẻ nhất: Vercel rewrite `/api/*` để trình duyệt chỉ thấy một origin.
-- §D Render free tier ngủ ⇒ worker BullMQ (chạy in-process) chết ⇒ bài nộp treo ở `queued`. Cần gói trả phí
-  hoặc tách worker ra Background Worker riêng.
+**Ngân sách RAM là ràng buộc cứng**: mục tiêu ~1.1 GB lúc thường / ~1.4 GB đỉnh (bảng chi tiết trong
+`HANDOFF_P9.md`). Không thêm service thường trú nào nếu chưa đo được nó tốn bao nhiêu.
+
+**⚠️ Hai cảnh báo còn lại — chi tiết `HANDOFF_P9.md` §A–§B:**
+- §A Cloudinary mặc định là CDN công khai → phải `type: authenticated`, không thì vỡ INVARIANT #5.
+- §B Piston chạy mã học viên **cùng host với Postgres** → bắt buộc tách docker network, không map port ra
+  host, `--memory=192m`, concurrency 1. Nếu phải cắt Piston thì TẮT HẲN tính năng bài lập trình, tuyệt đối
+  không chạy code bằng subprocess trần.
+
+Quyết định "1 VPS" đã xoá 3 cảnh báo của bản plan Render+Vercel: Piston chạy được, cookie refresh cùng origin
+nên không vỡ, và không còn spin-down làm treo queue.
 
 ---
 
@@ -118,64 +125,10 @@ refId null. Chi tiết đầy đủ: `CURRENT_STATE.md §P7`.
 
 ---
 
-## 🛡️ Lỗi bảo mật P5 phát hiện khi làm P7 — ✅ ĐÃ VÁ (2026-08-19)
+## Bản vá đã hoàn thành
 
-`@CurrentUser()` trả `AuthPrincipal { userId }`, nhưng `certificates.service.ts` + `grading.service.ts` khai kiểu
-`AuthUser` rồi đọc `currentUser.id`/`currentUser.roles` → **luôn `undefined` lúc chạy**. Hậu quả đã xác nhận
-trên DB dev TRƯỚC khi vá:
-
-1. `RbacService.getEffectivePermissions(undefined)` → `userRole.findMany({ where: { userId: undefined } })` —
-   Prisma **bỏ qua filter** → trả toàn bộ user_roles → hợp nhất quyền mọi role ≈ super_admin. Mọi kiểm quyền
-   trong `certificates` đều pass.
-2. `certificates.listMine` `where: { userId: undefined }` → trả **MỌI chứng chỉ của mọi học viên**.
-3. `POST /certificates/:id/revoke` (chỉ `JwtAuthGuard`, scope kiểm trong service) → user bất kỳ thu hồi được
-   chứng chỉ người khác. `GET /certificates/:id/pdf` IDOR mở tương tự.
-4. `GET /classes/:classId/my-gradebook` **500** `PrismaClientValidationError` (endpoint hỏng hoàn toàn).
-
-**Đã vá**: `certificates`/`grading` dùng `AuthPrincipal` + `currentUser.userId`; bỏ shortcut `currentUser.roles`
-(admin/super_admin nhận quyền ở phạm vi GLOBAL nên `hasPermission` đã phủ — đối chiếu seed);
-`getEffectivePermissions` trả quyền RỖNG khi `userId` falsy (phòng thủ chiều sâu, không chạm DB).
-Test hồi quy: rbac userId rỗng, revoke 403 + tra đúng userId, `listMine` lọc đúng userId, `getPdfBuffer` IDOR.
-Live sau vá: `my-gradebook` 200; HV không sở hữu `/certificates/mine` = 0 (chủ sở hữu = 1);
-`GET /:id/pdf` 403; `POST /:id/revoke` 403; GV vẫn đọc được `/certificates/class/:id` + gradebook (200).
-**KHÔNG do P7 gây ra.**
-
-## 🖨️ PDF chứng chỉ chết với tiếng Việt (P6/D1) — ✅ ĐÃ VÁ (2026-08-19)
-
-Trước vá: `GET /certificates/:id/pdf` trả **500** — `WinAnsi cannot encode "ơ" (0x01a1)`. `pdf-lib`
-`StandardFonts` (Helvetica) mã hóa WinAnsi nên mọi tên học viên / tiêu đề khóa có dấu đều làm sinh PDF chết —
-tính năng chứng chỉ PDF thực tế hỏng với dữ liệu tiếng Việt. (Nhãn tĩnh trong generator trước đây đã phải
-**bỏ dấu** để né lỗi: "CHUNG NHAN HOAN THANH…".)
-
-**Đã vá**: nhúng **Roboto** (Apache-2.0, phủ đủ Vietnamese) qua `@pdf-lib/fontkit` —
-`registerFontkit` + `embedFont(bytes, { subset: true })`. Font lấy từ npm `roboto-fontface` (WOFF —
-`@pdf-lib/fontkit` đọc trực tiếp), nạp bằng `require.resolve` + cache buffer ở module scope →
-**không commit binary vào repo, không cần cấu hình copy asset cho `nest build`**. Nhãn tĩnh đã khôi phục
-dấu đầy đủ.
-
-Verify: 3 unit test mới (`certificate-pdf.generator.spec.ts`) — tên/khóa có dấu, dải dấu đầy đủ
-(ơ ư ạ ế ữ Đ ỗ ằ), ASCII thuần. Kiểm glyph bằng `fontkit.layout()`: **0 `.notdef`** trên mọi chuỗi thật
-(không có ô vuông tofu). Live: `GET /certificates/:id/pdf` **200 application/pdf ~18KB** cho cả GV có quyền
-lẫn chủ sở hữu (trước là 500). Phát hiện khi verify P7, **không do P7**.
-
----
-
-## 👥 Thêm học viên vào lớp bằng EMAIL — ✅ ĐÃ VÁ (2026-08-19)
-
-Nợ từ P1: form enroll ở `TeachClasses` bắt nhập **userId thô**, mà giáo viên KHÔNG có `user.read` (chỉ admin có)
-→ không có cách nào tra id từ trong UI.
-
-**Đã vá**: `GET /users/lookup?email=` — khớp email **CHÍNH XÁC** (không tìm gần đúng/tiền tố, hạn chế dò danh sách
-user), chuẩn hóa lowercase+trim, trả `UserLookupDto` tối giản `{id, email, fullName}` (KHÔNG lộ role/status).
-Quyền dùng `class.manage` (giáo viên có) thay vì nới `user.read`. Route đặt TRƯỚC `:id`.
-FE: ô nhập đổi sang **email**, tra ngầm khi chuỗi đã giống email, hiện tên xác nhận trước khi thêm
-("Sẽ thêm: X" / "X đã ở trong lớp này" / "Không tìm thấy"), nút Thêm disable tới khi tra ra người hợp lệ.
-Bỏ key i18n `classes.userId`, thêm `memberEmail/lookingUp/foundUser/alreadyMember/userNotFound` (vi+en).
-
-Live: GV tra đúng email → 200; HOA/thừa khoảng trắng → vẫn 200; email lạ → 404; sai định dạng → 400;
-học viên (không có `class.manage`) → 403. UI: thêm được học viên bằng email, danh sách cập nhật, ô nhập tự xóa.
-
----
+Ba bản vá của phiên P7 (lỗi bảo mật P5 `currentUser.id`, PDF chứng chỉ tiếng Việt, thêm học viên bằng
+email) đã chuyển sang [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md](../../docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md).
 
 ## Nợ kỹ thuật đã giải quyết (Phase P6 Tech Debt Cleaned)
 
