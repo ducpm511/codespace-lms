@@ -16,7 +16,12 @@ COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.production"
 
 echo "== 1/5 Sao lưu trước khi đổi schema =="
 # Migration hỏng giữa chừng mà không có bản dump ngay trước đó thì không lùi được.
-ops/backup.sh
+# Lần deploy ĐẦU TIÊN chưa có gì để sao lưu -> bỏ qua thay vì chết ở dòng đầu.
+if ${COMPOSE} ps --status running --services 2>/dev/null | grep -qx postgres; then
+  ops/backup.sh
+else
+  echo "   (postgres chưa chạy — lần deploy đầu, bỏ qua sao lưu)"
+fi
 
 echo "== 2/5 Lấy code mới =="
 git pull --ff-only
@@ -35,13 +40,23 @@ echo "== 5/5 Đổi container =="
 ${COMPOSE} up -d
 
 echo "== Chờ health check =="
+# Hỏi thẳng docker inspect thay vì bóc chuỗi từ `compose ps --format json`: định dạng JSON đó
+# đổi theo phiên bản Compose, còn .State.Health.Status thì không.
+healthy=""
 for _ in $(seq 1 30); do
-  if [ "$(${COMPOSE} ps --format json api | grep -c '"Health":"healthy"')" -ge 1 ]; then
+  cid="$(${COMPOSE} ps -q api)"
+  if [ -n "${cid}" ] && [ "$(docker inspect --format '{{.State.Health.Status}}' "${cid}")" = "healthy" ]; then
+    healthy="yes"
     echo "api healthy."
     break
   fi
   sleep 5
 done
+if [ -z "${healthy}" ]; then
+  echo "api KHÔNG healthy sau 150 giây. Xem log:" >&2
+  echo "  ${COMPOSE} logs --tail=50 api" >&2
+  exit 1
+fi
 
 ${COMPOSE} ps
 echo
