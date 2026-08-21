@@ -1,5 +1,9 @@
 # HANDOFF — P9: Production readiness (1 VPS 2 GB, cấu hình lean)
 
+> ✅ **P9 ĐÃ XONG (2026-08-21).** File này giữ lại làm hồ sơ quyết định — §A (Cloudinary private) và
+> §B (cách ly Piston) vẫn là ràng buộc còn hiệu lực. Trạng thái hiện tại và việc còn lại:
+> `CURRENT_STATE.md` + `ACTIVE_TASKS.md`. Quy trình vận hành: `docs/RUNBOOK.md`.
+
 > Prompt sẵn-để-dán cho session mới. Copy khối trong ``` vào session P9.
 > Bối cảnh: P0–P8 ✅ xong — nghiệp vụ dạy–học chạy được đầu-cuối, UI đã re-skin toàn bộ.
 > Cái còn thiếu KHÔNG phải tính năng mà là **hạ tầng vận hành**.

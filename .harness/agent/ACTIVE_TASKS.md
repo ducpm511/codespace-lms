@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-08-19
+Updated: 2026-08-21
 
 ## Quy ước đặt tên
 
@@ -23,7 +23,7 @@ Updated: 2026-08-19
 | **P6** Polish & Gamification | notification, audit UI, báo cáo lớp, gamification thật, PDF cert, tech debt cleanup | ✅ Done (T6.1–T6.6 + D1–D5) |
 | **P7** Lesson Activities | bài học đa hoạt động: markdown/pdf slide/video/quiz/coding/assignment | ✅ Done (T7.0–T7.6) |
 | **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ✅ Done (T8.0–T8.5) |
-| **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ⬅️ Next (chi tiết `HANDOFF_P9.md`) |
+| **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ✅ Done (T9.0–T9.6) |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -34,40 +34,45 @@ Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified
 
 ## Active Phase
 
-### Phase P9: Production readiness — ⬅️ TIẾP THEO
+### Không còn phase code nào đang mở
 
-Nghiệp vụ đã đủ cho pilot; cái chặn deploy là **hạ tầng vận hành**, không phải tính năng.
-Kế hoạch đầy đủ + hiện trạng đã xác minh: `HANDOFF_P9.md`.
+P0–P9 ✅ xong. Việc chặn pilot bây giờ là **mua hạ tầng + chạy runbook**, không phải viết thêm code.
 
-- **T9.0** Khởi động an toàn: validate env fail-fast ở prod, `helmet`, rate limit `/auth/login` + `/auth/refresh`,
-  vá `.env.example` (thiếu `CODE_RUNNER_PROVIDER`/`CODE_QUEUE_DRIVER`/`SEED_ADMIN_*`/`STORAGE_DRIVER`, cổng DB/Redis sai).
-- **T9.1** Quản trị user trên UI — `AdminHome` hiện CHỈ ĐỌC; backend `POST /users`, `PATCH /users/:id`,
-  `POST/DELETE /users/:id/roles` đã có sẵn, chỉ thiếu FE + phân trang server-side.
-- **T9.2** Vòng đời mật khẩu: đổi mật khẩu (self-service) + admin đặt lại, revoke refresh token, AuditLog cùng transaction.
-- **T9.3** Storage **Cloudinary** — `STORAGE_DRIVER=local|cloudinary`, upload `resource_type: raw` +
-  `type: authenticated`, KHÔNG trả URL Cloudinary về client (giữ guard `ensureCanRead`).
-- **T9.4** **Cấu hình lean cho 2 GB** (phần tối ưu trong code): bỏ Redis (`CODE_QUEUE_DRIVER=inline` — Redis
-  chỉ phục vụ queue chấm bài, đã xác minh), gộp `GET /teach/overview` thay N request `/classes/:id/report`,
-  Node `--max-old-space-size=384`, Postgres `shared_buffers=128MB`, cache tĩnh brotli + immutable cho
-  `/monaco/*` `/pyodide/*` (giữ Monaco nên phải bù bằng cache).
-- **T9.5** Deploy **1 VPS** (2 vCPU / 2 GB / 30 GB): compose caddy + api + postgres + piston, Caddy vừa serve
-  static vừa proxy `/api` (cùng origin), 2 docker network tách Piston khỏi Postgres, ufw/fail2ban.
-- **T9.6** Vận hành: `pg_dump` hằng ngày + thử restore, xoay log; email khi có provider (gợi ý Resend).
+#### Việc phải làm bởi người (không agent nào làm thay được)
 
-**Đã chốt (2026-08-19)**: 1 VPS 2 GB (~6.3 USD/tháng, **rẻ hơn Frappe 9 USD đang dùng**) · chấm code thật
-bằng Piston self-host · Cloudinary · **giữ Monaco** · chưa có email provider.
+| # | Việc | Chặn cái gì |
+|---|---|---|
+| H1 | Mua VPS Ubuntu 24.04 (2 vCPU / 2 GB / 30 GB), trỏ A record về IP | Toàn bộ T9.5 |
+| H2 | Chạy `docs/RUNBOOK.md` mục 1–2 (bootstrap + deploy lần đầu + cài runtime Piston) | Pilot |
+| H3 | Tạo tài khoản Cloudinary, điền `CLOUDINARY_*`, đặt `STORAGE_DRIVER=cloudinary` | Xác minh T9.3 thật |
+| H4 | Chốt email provider (gợi ý Resend free ~3.000 mail/tháng) | Quên-mật-khẩu |
+| H5 | Cấu hình `rclone` cho backup ngoài máy + đặt cron | Sao lưu thật |
 
-**Ngân sách RAM là ràng buộc cứng**: mục tiêu ~1.1 GB lúc thường / ~1.4 GB đỉnh (bảng chi tiết trong
-`HANDOFF_P9.md`). Không thêm service thường trú nào nếu chưa đo được nó tốn bao nhiêu.
+#### Việc còn lại sau khi có máy (agent làm được)
 
-**⚠️ Hai cảnh báo còn lại — chi tiết `HANDOFF_P9.md` §A–§B:**
-- §A Cloudinary mặc định là CDN công khai → phải `type: authenticated`, không thì vỡ INVARIANT #5.
-- §B Piston chạy mã học viên **cùng host với Postgres** → bắt buộc tách docker network, không map port ra
-  host, `--memory=192m`, concurrency 1. Nếu phải cắt Piston thì TẮT HẲN tính năng bài lập trình, tuyệt đối
-  không chạy code bằng subprocess trần.
+- **V1 — Smoke sau deploy trên máy thật.** Danh sách đầy đủ ở `docs/RUNBOOK.md` §4. Quan trọng nhất:
+  chờ access token hết hạn rồi thao tác tiếp -> phải TỰ refresh; URL Cloudinary thô -> phải KHÔNG tải được;
+  nộp bài lập trình -> nhận điểm THẬT (không phải stub).
+- **V2 — Đo RAM thật** bằng `docker stats` lúc nhàn rỗi và lúc 5 học viên nộp bài cùng lúc, điền vào bảng
+  trống ở `docs/RUNBOOK.md` §4. Ngân sách: ~1.1 GB thường / ~1.4 GB đỉnh.
+- **V3 — Thử restore một lần**: `ops/restore.sh <file>` phục hồi vào database tạm và in số bản ghi; phải khớp
+  với hệ thống đang chạy. **Backup chưa restore thử coi như chưa có.**
+- **V4 — Đo cache tĩnh** bằng DevTools: mở bài lập trình lần đầu (~37 MB), tải lại -> `/monaco/*`,
+  `/pyodide/*`, `/assets/*` phải là `from disk cache`.
+- **V5 — Quên mật khẩu qua email** (sau H4). Trước đó admin đặt lại mật khẩu (T9.2) đã đủ cho pilot.
 
-Quyết định "1 VPS" đã xoá 3 cảnh báo của bản plan Render+Vercel: Piston chạy được, cookie refresh cùng origin
-nên không vỡ, và không còn spin-down làm treo queue.
+#### Nợ kỹ thuật đã ghi nhận (không chặn pilot)
+
+- **Khu Giảng dạy chưa giới hạn theo giáo viên.** `GET /classes` trả MỌI lớp cho bất kỳ ai có `class.read`,
+  nên sidebar và `GET /teach/overview` đều đang hiện toàn hệ thống. Design §7 ("lớp của bạn") muốn thu hẹp
+  theo lớp mình phụ trách. Phải sửa **cùng lúc** `GET /classes` + sidebar + hero, và quyết trước xem admin
+  không dạy lớp nào thì quản lý lớp ở đâu — nếu không sẽ khoá admin ra ngoài. Đã thử thu hẹp riêng
+  `/teach/overview` trong P9 và phải hoàn lại vì hero báo 0 trong khi sidebar liệt kê 10 lớp.
+- `DELETE /classes/:classId/courses/:courseId` trả 404 khi khóa đã được gỡ; nhấn hai lần ở UI sẽ hiện lỗi.
+  Nên làm idempotent (204) hoặc nuốt 404 ở FE.
+- Ảnh API 544 MB (chủ yếu là Prisma engine + node_modules). Còn giảm được bằng `pnpm deploy` hoặc
+  distroless, nhưng chưa cần thiết cho 30 GB đĩa.
+- Chưa có E2E tự động (Playwright); mọi smoke vẫn làm tay.
 
 ---
 
@@ -84,15 +89,9 @@ Learn / Admin / Login đã playful từ trước. Chi tiết `CURRENT_STATE.md �
 - **T8.4** `TeachQuiz` §7e + `TeachGradebook` §7g (port khỏi `slate-*` thô).
 - **T8.5** `pnpm validate` 16/16 (api 183 test / 21 suite), i18n parity vi/en **473/473**.
 
-**Nợ nhỏ phát sinh — cần backend, KHÔNG làm trong task styling:**
-- `GET /submissions/pending-count` (hoặc `GET /teach/overview`) để hero hiện được "còn N bài chờ chấm"
-  như §7 mô tả. Hiện chip thứ 3 dùng "Khóa học" vì đếm chờ chấm toàn cục cần fan-out (lớp × bài tập).
-  Endpoint tổng hợp này cũng thay được N request `/classes/:id/report` mà hero đang gọi.
-- Thiếu hook FE cho các nút §7 mô tả: `useUpdateClass` ("Cài đặt lớp"), unassign khóa khỏi lớp,
-  `useUpdateAssignment` ("Sửa bài tập"), `useUpdateCodingProblem` ("Sửa đề"). Endpoint backend có thể đã
-  có — cần rà trước khi thêm hook.
-- **Tên file PDF upload bị mojibake** (`BÃ i 10...pdf`): `File.fileName` lưu từ `file.originalname` của
-  multer (latin1). Sửa ở `apps/api` (decode `Buffer.from(name,'latin1').toString('utf8')`) — ngoài scope P8.
+**Nợ nhỏ của P8 — ✅ đã trả hết trong P9:** `GET /teach/overview` (gộp N request + chip "chờ chấm"),
+`useUpdateClass` / gỡ khóa khỏi lớp / `useUpdateAssignment` (`useUpdateCodingProblem` hoá ra đã có sẵn),
+và tên file PDF mojibake (vá lúc upload ở P8 + script dọn dữ liệu cũ ở P9).
 
 ---
 
