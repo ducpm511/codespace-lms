@@ -3,12 +3,18 @@ import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import type { AuthUser, LoginResponse, RefreshResponse } from '@lms/contracts';
 import { AuthService } from './auth.service';
+import {
+  REFRESH_COOKIE_NAME,
+  ThrottleAuth,
+  loginTracker,
+  refreshTracker,
+} from '../common/throttling/auth-throttle';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { AuthenticatedRequest, AuthPrincipal, RequestMeta } from './auth.types';
 
-const REFRESH_COOKIE = 'refresh_token';
+const REFRESH_COOKIE = REFRESH_COOKIE_NAME;
 const REFRESH_COOKIE_PATH = '/api/auth';
 
 @Controller('auth')
@@ -19,6 +25,7 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @ThrottleAuth(loginTracker)
   async login(
     @Body() dto: LoginDto,
     @Req() req: AuthenticatedRequest,
@@ -34,6 +41,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @ThrottleAuth(refreshTracker)
   async refresh(
     @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) res: Response,
