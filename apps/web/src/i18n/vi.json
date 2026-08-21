@@ -138,7 +138,13 @@
     "scoreRange": "{{range}} điểm",
     "studentsUnit": "học viên",
     "lessonProgressHeading": "Tiến độ bài học đã mở",
-    "noGatesOpen": "Chưa có bài học nào được mở gate cho lớp này."
+    "noGatesOpen": "Chưa có bài học nào được mở gate cho lớp này.",
+    "settings": "Cài đặt lớp",
+    "codeLocked": "Mã lớp không đổi được — học viên đang dùng mã này để vào lớp.",
+    "description": "Mô tả",
+    "status": "Trạng thái",
+    "unassignCourse": "Gỡ khóa học khỏi lớp",
+    "unassignConfirm": "Gỡ khóa \"{{title}}\" khỏi lớp? Các bài của khóa này sẽ không còn hiện với học viên."
   },
   "admin": {
     "title": "Bảng điều khiển quản trị",
@@ -379,7 +385,8 @@
     "scoreOutOf": "/ {{max}} điểm",
     "pickStudent": "Chọn một học viên để xem bài và chấm điểm.",
     "gradeSaved": "Đã lưu điểm thành công!",
-    "noSubmissionsYet": "Chưa có bài nộp"
+    "noSubmissionsYet": "Chưa có bài nộp",
+    "edit": "Sửa bài tập"
   },
   "submissions": {
     "status_draft": "Bản nháp",

@@ -49,7 +49,7 @@ describe('TeachService.getOverview', () => {
     ]);
   };
 
-  it('không phụ trách lớp nào -> tất cả bằng 0, KHÔNG truy vấn thêm', async () => {
+  it('chưa có lớp nào -> tất cả bằng 0, KHÔNG truy vấn thêm', async () => {
     prisma.class.findMany.mockResolvedValue([]);
 
     const res = await service.getOverview('teacher-1');
@@ -115,27 +115,11 @@ describe('TeachService.getOverview', () => {
     expect(res.avgProgress).toBe(18);
   });
 
-  it('chỉ tính lớp người dùng phụ trách — tự tạo hoặc là instructor/ta', async () => {
+  it('lấy đúng tập lớp mà GET /classes trả về — hero và sidebar phải khớp số', async () => {
     prisma.class.findMany.mockResolvedValue([]);
     await service.getOverview('teacher-1');
 
-    expect(prisma.class.findMany).toHaveBeenCalledWith({
-      where: {
-        OR: [
-          { createdById: 'teacher-1' },
-          {
-            members: {
-              some: {
-                userId: 'teacher-1',
-                status: 'active',
-                roleInClass: { in: ['instructor', 'ta'] },
-              },
-            },
-          },
-        ],
-      },
-      select: { id: true },
-    });
+    expect(prisma.class.findMany).toHaveBeenCalledWith({ select: { id: true } });
   });
 
   it('đếm hoàn thành bằng MỘT query, mỗi lớp một nhánh OR đúng học viên + đúng bài mở gate', async () => {

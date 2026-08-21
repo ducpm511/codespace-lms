@@ -138,7 +138,13 @@
     "scoreRange": "{{range}} pts",
     "studentsUnit": "students",
     "lessonProgressHeading": "Progress on unlocked lessons",
-    "noGatesOpen": "No lesson has been unlocked for this class yet."
+    "noGatesOpen": "No lesson has been unlocked for this class yet.",
+    "settings": "Class settings",
+    "codeLocked": "The class code cannot be changed — students use it to join.",
+    "description": "Description",
+    "status": "Status",
+    "unassignCourse": "Remove course from class",
+    "unassignConfirm": "Remove \"{{title}}\" from this class? Its lessons will no longer be visible to students."
   },
   "admin": {
     "title": "Admin dashboard",
@@ -379,7 +385,8 @@
     "scoreOutOf": "/ {{max}} points",
     "pickStudent": "Pick a student to review and grade their work.",
     "gradeSaved": "Grade saved successfully!",
-    "noSubmissionsYet": "No submissions yet"
+    "noSubmissionsYet": "No submissions yet",
+    "edit": "Edit assignment"
   },
   "submissions": {
     "status_draft": "Draft",

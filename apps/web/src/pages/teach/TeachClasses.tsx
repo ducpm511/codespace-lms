@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   ClassCourseDto,
+  ClassDetail,
   ClassMemberDto,
   ClassMemberRoleValue,
+  ClassStatusValue,
   TeachClassStatDto,
 } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
@@ -14,6 +16,8 @@ import {
   useClasses,
   useCreateClass,
   useEnrollMember,
+  useUnassignCourse,
+  useUpdateClass,
   useGates,
   useSetGate,
 } from '../../features/classes/hooks';
@@ -24,6 +28,7 @@ import {
   DetailHeader,
   DetailSection,
   EmptyHint,
+  IconButton,
   IconTile,
   PillButton,
   ProgressBar,
@@ -165,6 +170,7 @@ function CreateClassForm({
 function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
   const { t } = useTranslation();
   const [tab, setTab] = useState<'manage' | 'report'>('manage');
+  const [editing, setEditing] = useState(false);
   const cls = useClass(classId);
   const report = useClassReport(classId);
 
@@ -190,7 +196,16 @@ function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
             )}
           </span>
         }
-        actions={<span className="tag tag-accent">{t(`classStatus.${c.status}`, { defaultValue: c.status })}</span>}
+        actions={
+          <span className="flex items-center gap-2">
+            <span className="tag tag-accent">
+              {t(`classStatus.${c.status}`, { defaultValue: c.status })}
+            </span>
+            <PillButton variant="secondary" icon="ph-sliders" onClick={() => setEditing(true)}>
+              {t('classes.settings')}
+            </PillButton>
+          </span>
+        }
       >
         {rate !== undefined && (
           <div className="flex flex-col gap-1.5">
@@ -225,7 +240,88 @@ function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
       )}
 
       {tab === 'report' && <ClassReportPanel classId={classId} />}
+
+      {editing && <ClassSettingsDialog cls={c} onClose={() => setEditing(false)} />}
     </DetailColumn>
+  );
+}
+
+const CLASS_STATUSES: ClassStatusValue[] = ['planning', 'active', 'finished', 'archived'];
+
+/** Sửa thông tin lớp. Mã lớp KHÔNG đổi được — backend không nhận, và nó là mã học viên đang dùng. */
+function ClassSettingsDialog({ cls, onClose }: { cls: ClassDetail; onClose: () => void }): JSX.Element {
+  const { t } = useTranslation();
+  const [name, setName] = useState(cls.name);
+  const [description, setDescription] = useState(cls.description ?? '');
+  const [status, setStatus] = useState<ClassStatusValue>(cls.status as ClassStatusValue);
+  const update = useUpdateClass(cls.id);
+
+  return (
+    <div className="dialog-backdrop" onClick={onClose}>
+      <form
+        className="dialog"
+        style={{ borderRadius: 'var(--cx-radius)' }}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          update.mutate(
+            { name: name.trim(), description: description.trim() || null, status },
+            { onSuccess: onClose },
+          );
+        }}
+      >
+        <p className="dialog-title cx-display">{t('classes.settings')}</p>
+
+        <div className="field">
+          <label>{t('classes.name')}</label>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+        </div>
+
+        <div className="field">
+          <label>{t('classes.code')}</label>
+          <input className="input" value={cls.code} disabled />
+          <p className="text-muted mt-1 text-xs">{t('classes.codeLocked')}</p>
+        </div>
+
+        <div className="field">
+          <label>{t('classes.description')}</label>
+          <textarea
+            className="input"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+          />
+        </div>
+
+        <div className="field">
+          <label>{t('classes.status')}</label>
+          <select
+            className="input"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as ClassStatusValue)}
+          >
+            {CLASS_STATUSES.map((v) => (
+              <option key={v} value={v}>
+                {t(`classStatus.${v}`, { defaultValue: v })}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {update.isError && (
+          <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(update.error)}</p>
+        )}
+
+        <div className="dialog-actions">
+          <PillButton variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton type="submit" icon="ph-check" disabled={update.isPending}>
+            {t('common.save')}
+          </PillButton>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -352,6 +448,7 @@ function CoursesPanel({ classId, courses }: { classId: string; courses: ClassCou
   const { t } = useTranslation();
   const allCourses = useCourses();
   const assign = useAssignCourse(classId);
+  const unassign = useUnassignCourse(classId);
   const [courseId, setCourseId] = useState('');
 
   return (
@@ -374,6 +471,18 @@ function CoursesPanel({ classId, courses }: { classId: string; courses: ClassCou
           >
             <i className="ph-fill ph-book-bookmark shrink-0" style={{ color: 'var(--cx-blue)' }} aria-hidden />
             <span className="min-w-0 flex-1 truncate text-sm">{cc.title}</span>
+            <IconButton
+              icon="ph-x"
+              title={t('classes.unassignCourse')}
+              tone="danger"
+              disabled={unassign.isPending}
+              onClick={() => {
+                // Gỡ khóa là ẩn luôn các bài của khóa đó khỏi lớp -> hỏi lại trước khi làm.
+                if (window.confirm(t('classes.unassignConfirm', { title: cc.title }))) {
+                  unassign.mutate(cc.courseId);
+                }
+              }}
+            />
           </div>
         ))}
         {courses.length === 0 && <p className="text-muted m-0 text-xs">{t('classes.noCourses')}</p>}

@@ -9,6 +9,7 @@ import type {
   MyLessonDto,
   Paginated,
   SetLessonGateRequest,
+  UpdateClassRequest,
   UpdateProgressRequest,
 } from '@lms/contracts';
 import { apiFetch } from '../../lib/api';
@@ -47,3 +48,10 @@ export const updateProgress = (
     method: 'PUT',
     body: JSON.stringify(body),
   });
+
+export const updateClass = (id: string, body: UpdateClassRequest): Promise<ClassDetail> =>
+  apiFetch<ClassDetail>(`/classes/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+
+/** Gỡ một khóa học khỏi lớp. Không xóa khóa học, chỉ bỏ liên kết với lớp. */
+export const unassignCourse = (classId: string, courseId: string): Promise<ClassDetail> =>
+  apiFetch<ClassDetail>(`/classes/${classId}/courses/${courseId}`, { method: 'DELETE' });
