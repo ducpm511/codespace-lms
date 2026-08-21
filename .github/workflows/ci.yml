@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # lint + typecheck + test + build. Không cần database: test là unit test với Prisma mock,
+      # còn `prisma generate` chỉ đọc schema.
+      - run: pnpm validate
+
+      # Bộ key vi/en phải khớp nhau — chuỗi thiếu bản dịch sẽ hiện ra key thô cho học viên.
+      - name: i18n parity vi/en
+        run: node scripts/check-i18n-parity.mjs

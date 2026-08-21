@@ -5,6 +5,7 @@ import type {
   EnrollMemberRequest,
   ProgressStatusValue,
   SetLessonGateRequest,
+  UpdateClassRequest,
 } from '@lms/contracts';
 import * as api from './api';
 
@@ -35,6 +36,31 @@ export function useCreateClass() {
   return useMutation({
     mutationFn: (body: CreateClassRequest) => api.createClass(body),
     onSuccess: () => void qc.invalidateQueries({ queryKey: classesKey }),
+  });
+}
+
+export function useUpdateClass(classId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpdateClassRequest) => api.updateClass(classId, body),
+    onSuccess: (data) => {
+      qc.setQueryData(classKey(classId), data);
+      // Tên/trạng thái lớp hiện cả ở sidebar -> danh sách phải làm mới theo.
+      void qc.invalidateQueries({ queryKey: classesKey });
+    },
+  });
+}
+
+/** Gỡ khóa học khỏi lớp. Tiến độ đã ghi nhận KHÔNG mất — chỉ bỏ liên kết. */
+export function useUnassignCourse(classId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (courseId: string) => api.unassignCourse(classId, courseId),
+    onSuccess: (data) => {
+      qc.setQueryData(classKey(classId), data);
+      // Gate bám theo bài của khóa vừa gỡ -> buộc nạp lại thay vì hiện danh sách cũ.
+      void qc.invalidateQueries({ queryKey: gatesKey(classId) });
+    },
   });
 }
 

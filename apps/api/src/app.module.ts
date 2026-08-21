@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { RbacModule } from './rbac/rbac.module';
 import { AuthModule } from './auth/auth.module';
@@ -17,13 +19,31 @@ import { GamificationModule } from './gamification/gamification.module';
 import { AuditModule } from './audit/audit.module';
 import { CommentsModule } from './comments/comments.module';
 import { FilesModule } from './files/files.module';
+import { TeachModule } from './teach/teach.module';
 import { StorageModule } from './common/storage/storage.module';
 import { HealthController } from './health/health.controller';
+import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
     // Nạp env: ưu tiên .env root monorepo, rồi .env cục bộ app. Biến shell (nếu có) vẫn thắng.
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }),
+    // `validate` chạy lúc boot: env thiếu/sai -> throw -> API chết ngay (xem env.validation.ts).
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['../../.env', '.env'],
+      validate: validateEnv,
+    }),
+    // Trần chung cho mọi route, chỉ để chặn quét/scrape. Ngưỡng siết riêng cho /auth/login và
+    // /auth/refresh nằm ở auth.controller.ts (xem common/throttling/auth-throttle.ts).
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: 60_000,
+          limit: Number(config.get<string>('RATE_LIMIT_PER_MINUTE') ?? 600),
+        },
+      ],
+    }),
     StorageModule,
     PrismaModule,
     RbacModule,
@@ -42,8 +62,9 @@ import { HealthController } from './health/health.controller';
     AuditModule,
     CommentsModule,
     FilesModule,
+    TeachModule,
   ],
   controllers: [HealthController],
-  providers: [],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

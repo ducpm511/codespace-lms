@@ -28,3 +28,21 @@ export interface LoginResponse {
 export interface RefreshResponse {
   accessToken: string;
 }
+
+/** Độ dài mật khẩu tối thiểu — dùng chung cho DTO ở API và validate form ở web. */
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 200;
+
+/** Body đổi mật khẩu tự phục vụ (`POST /auth/change-password`). */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * Kết quả đổi/đặt lại mật khẩu. `revokedSessions` = số refresh token bị thu hồi:
+ * đổi mật khẩu là đá TẤT CẢ thiết bị ra, kể cả thiết bị đang thao tác.
+ */
+export interface PasswordChangeResult {
+  revokedSessions: number;
+}

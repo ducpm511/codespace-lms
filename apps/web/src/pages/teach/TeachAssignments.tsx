@@ -9,6 +9,7 @@ import {
   useAssignments,
   useCreateAssignment,
   useGradeSubmission,
+  useUpdateAssignment,
   useSubmissions,
   useSubmissionsByAssignments,
 } from '../../features/assessments/hooks';
@@ -186,6 +187,7 @@ function AssignmentDetail({
   stats?: { submitted: number; pending: number };
 }): JSX.Element {
   const { t } = useTranslation();
+  const [editing, setEditing] = useState(false);
   const due = fmtDate(assignment.dueAt);
 
   const chips = [
@@ -222,6 +224,11 @@ function AssignmentDetail({
             <span>{t('assignments.maxScoreValue', { score: assignment.maxScore })}</span>
           </span>
         }
+        actions={
+          <PillButton variant="secondary" icon="ph-pencil-simple" onClick={() => setEditing(true)}>
+            {t('assignments.edit')}
+          </PillButton>
+        }
       >
         <div className="flex flex-wrap gap-2.5">
           {chips.map((c) => (
@@ -252,8 +259,113 @@ function AssignmentDetail({
       <DetailSection icon="ph-check-square-offset" color={DONE_COLOR} title={t('assignments.gradingHeading')}>
         <SubmissionsGradingPanel classId={classId} assignment={assignment} />
       </DetailSection>
+
+      {editing && (
+        <EditAssignmentDialog assignment={assignment} onClose={() => setEditing(false)} />
+      )}
     </DetailColumn>
   );
+}
+
+/**
+ * Sửa bài tập. `courseId` KHÔNG đổi được ở đây: chuyển bài tập sang khóa khác sẽ làm mồ côi
+ * các bài đã nộp theo lớp cũ — muốn vậy thì tạo bài mới.
+ */
+function EditAssignmentDialog({
+  assignment,
+  onClose,
+}: {
+  assignment: AssignmentSummary;
+  onClose: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const [title, setTitle] = useState(assignment.title);
+  const [maxScore, setMaxScore] = useState(assignment.maxScore);
+  const [allowLate, setAllowLate] = useState(assignment.allowLate);
+  const [dueAt, setDueAt] = useState(assignment.dueAt ? toLocalInput(assignment.dueAt) : '');
+  const update = useUpdateAssignment();
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    update.mutate(
+      {
+        id: assignment.id,
+        body: {
+          title: title.trim(),
+          maxScore: Number(maxScore),
+          allowLate,
+          dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+        },
+      },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <div className="dialog-backdrop" onClick={onClose}>
+      <form
+        className="dialog"
+        style={{ borderRadius: 'var(--cx-radius)' }}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={submit}
+      >
+        <p className="dialog-title cx-display">{t('assignments.edit')}</p>
+
+        <div className="field">
+          <label>{t('assignments.title')}</label>
+          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        </div>
+
+        <div className="flex gap-2">
+          <div className="field flex-1">
+            <label>{t('assignments.maxScore')}</label>
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={1000}
+              value={maxScore}
+              onChange={(e) => setMaxScore(Number(e.target.value))}
+            />
+          </div>
+          <div className="field flex-1">
+            <label>{t('assignments.dueAt')}</label>
+            <input
+              className="input"
+              type="datetime-local"
+              value={dueAt}
+              onChange={(e) => setDueAt(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <label className="radio">
+          <input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} />
+          <span>{t('assignments.allowLate')}</span>
+        </label>
+
+        {update.isError && (
+          <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(update.error)}</p>
+        )}
+
+        <div className="dialog-actions">
+          <PillButton variant="secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton type="submit" icon="ph-check" disabled={update.isPending}>
+            {t('common.save')}
+          </PillButton>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/** ISO -> giá trị cho <input type="datetime-local"> theo giờ địa phương của người dùng. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const offsetMs = d.getTimezoneOffset() * 60_000;
+  return new Date(d.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
 function CreateAssignmentForm({

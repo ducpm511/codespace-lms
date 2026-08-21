@@ -138,7 +138,13 @@
     "scoreRange": "{{range}} điểm",
     "studentsUnit": "học viên",
     "lessonProgressHeading": "Tiến độ bài học đã mở",
-    "noGatesOpen": "Chưa có bài học nào được mở gate cho lớp này."
+    "noGatesOpen": "Chưa có bài học nào được mở gate cho lớp này.",
+    "settings": "Cài đặt lớp",
+    "codeLocked": "Mã lớp không đổi được — học viên đang dùng mã này để vào lớp.",
+    "description": "Mô tả",
+    "status": "Trạng thái",
+    "unassignCourse": "Gỡ khóa học khỏi lớp",
+    "unassignConfirm": "Gỡ khóa \"{{title}}\" khỏi lớp? Các bài của khóa này sẽ không còn hiện với học viên."
   },
   "admin": {
     "title": "Bảng điều khiển quản trị",
@@ -151,7 +157,34 @@
     "empty": "Chưa có người dùng nào.",
     "searchPlaceholder": "Tìm theo email hoặc tên…",
     "filter": "Bộ lọc",
-    "addUser": "Thêm người dùng"
+    "addUser": "Thêm người dùng",
+    "actions": "Thao tác",
+    "editUser": "Sửa người dùng",
+    "emailLocked": "Email là khoá đăng nhập nên không đổi được sau khi tạo.",
+    "initialPassword": "Mật khẩu ban đầu",
+    "passwordHint": "Tối thiểu {{min}} ký tự. Hãy chuyển mật khẩu này cho người dùng qua kênh riêng.",
+    "allStatuses": "Tất cả trạng thái",
+    "allRoles": "Tất cả vai trò",
+    "pageOf": "Trang {{page}}/{{lastPage}} · {{total}} người dùng",
+    "prevPage": "Trước",
+    "nextPage": "Sau",
+    "resetPassword": "Đặt lại mật khẩu",
+    "resetPasswordConfirm": "Đặt lại",
+    "resetPasswordBody": "Đặt mật khẩu mới cho {{name}} ({{email}}). Tất cả thiết bị của người này sẽ bị đăng xuất.",
+    "resetPasswordHint": "Tối thiểu {{min}} ký tự. Hệ thống chưa gửi email được — hãy tự chuyển mật khẩu cho người dùng.",
+    "resetPasswordDone": "Đã đặt lại mật khẩu",
+    "resetPasswordDoneBody": "Mật khẩu của {{name}} đã đổi. Đã thu hồi {{count}} phiên đăng nhập.",
+    "auditAction": "Hành động",
+    "auditActionPlaceholder": "Lọc theo action (vd: certificate.issue)…",
+    "auditTime": "Thời gian",
+    "auditActor": "Người thực hiện",
+    "auditEntity": "Thực thể",
+    "auditEntityId": "ID thực thể",
+    "auditDetail": "Chi tiết",
+    "auditViewJson": "Xem JSON",
+    "auditSystem": "Hệ thống",
+    "auditEmpty": "Không có bản ghi nhật ký nào.",
+    "newPassword": "Mật khẩu mới"
   },
   "teach": {
     "title": "Khu vực giảng dạy",
@@ -166,7 +199,8 @@
     "statClasses": "Lớp học",
     "statStudents": "Học viên",
     "statCourses": "Khóa học",
-    "avgProgress": "Tiến độ TB"
+    "avgProgress": "Tiến độ TB",
+    "statPendingGrading": "Chờ chấm"
   },
   "quiz": {
     "heading": "Bài trắc nghiệm",
@@ -351,7 +385,8 @@
     "scoreOutOf": "/ {{max}} điểm",
     "pickStudent": "Chọn một học viên để xem bài và chấm điểm.",
     "gradeSaved": "Đã lưu điểm thành công!",
-    "noSubmissionsYet": "Chưa có bài nộp"
+    "noSubmissionsYet": "Chưa có bài nộp",
+    "edit": "Sửa bài tập"
   },
   "submissions": {
     "status_draft": "Bản nháp",
@@ -515,5 +550,19 @@
     "revokeConfirm": "Xác nhận thu hồi",
     "revoking": "Đang xử lý...",
     "revokeError": "Không thu hồi được chứng chỉ."
+  },
+  "userStatus": {
+    "invited": "Đã mời",
+    "active": "Đang hoạt động",
+    "suspended": "Đã khoá"
+  },
+  "account": {
+    "changePassword": "Đổi mật khẩu",
+    "changePasswordBody": "Sau khi đổi, tất cả thiết bị (kể cả thiết bị này) sẽ bị đăng xuất và bạn cần đăng nhập lại.",
+    "currentPassword": "Mật khẩu hiện tại",
+    "newPassword": "Mật khẩu mới",
+    "confirmPassword": "Nhập lại mật khẩu mới",
+    "passwordMismatch": "Hai mật khẩu mới không khớp.",
+    "passwordHint": "Tối thiểu {{min}} ký tự."
   }
 }

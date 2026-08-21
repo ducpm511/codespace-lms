@@ -1,9 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMe } from '../features/auth/hooks';
-import { useClasses } from '../features/classes/hooks';
-import { useCourses } from '../features/courses/hooks';
-import { useClassReports } from '../features/reports/useClassReport';
+import { useTeachOverview } from '../features/reports/useClassReport';
 import { TeachCourses } from './teach/TeachCourses';
 import { TeachClasses } from './teach/TeachClasses';
 import { TeachAssignments } from './teach/TeachAssignments';
@@ -54,32 +52,25 @@ export function TeachHome(): JSX.Element {
   );
 }
 
-/* ═══════════════ Teacher hero — số liệu thật từ /classes, /courses, /classes/:id/report ═══ */
+/* ═══════════════ Teacher hero — MỘT request /teach/overview cho cả 5 con số ═══════════════ */
 function TeacherHero(): JSX.Element {
   const { t } = useTranslation();
   const { data: user } = useMe();
-  const classes = useClasses();
-  const courses = useCourses();
+  const { data: overview, isLoading } = useTeachOverview();
 
-  const classIds = useMemo(() => (classes.data?.items ?? []).map((c) => c.id), [classes.data]);
-  const reports = useClassReports(classIds);
-
-  const loaded = reports.filter((r) => r.data).map((r) => r.data!);
-  const studentCount = loaded.reduce((sum, r) => sum + r.totalStudents, 0);
-  const avgProgress = loaded.length
-    ? Math.round(loaded.reduce((sum, r) => sum + r.courseCompletionRate, 0) / loaded.length)
-    : 0;
-  // Chưa có report nào về → hiện dấu gạch thay vì số 0 gây hiểu nhầm.
-  const pending = classIds.length > 0 && loaded.length === 0;
-  const num = (v: number) => (pending ? '—' : String(v));
+  // Chưa có số liệu → hiện dấu gạch thay vì số 0 gây hiểu nhầm.
+  const num = (v: number | undefined) => (isLoading || v === undefined ? '—' : String(v));
+  const avgProgress = overview?.avgProgress ?? 0;
 
   const greetName = user?.fullName || user?.email || '';
   const ringTurn = avgProgress / 100;
 
   const stats = [
-    { icon: 'ph-users-three', color: 'var(--cx-teal)', value: String(classIds.length), label: t('teach.statClasses') },
-    { icon: 'ph-student', color: 'var(--cx-amber)', value: num(studentCount), label: t('teach.statStudents') },
-    { icon: 'ph-books', color: 'var(--cx-coral)', value: String(courses.data?.items.length ?? 0), label: t('teach.statCourses') },
+    { icon: 'ph-users-three', color: 'var(--cx-teal)', value: num(overview?.classCount), label: t('teach.statClasses') },
+    { icon: 'ph-student', color: 'var(--cx-amber)', value: num(overview?.studentCount), label: t('teach.statStudents') },
+    // Chip "chờ chấm" là chip thứ 3 theo design §7 — trước đây phải mượn "Khóa học"
+    // vì đếm bài chờ chấm toàn cục cần fan-out qua từng lớp.
+    { icon: 'ph-clipboard-text', color: 'var(--cx-coral)', value: num(overview?.pendingGradingCount), label: t('teach.statPendingGrading') },
   ];
 
   return (
@@ -134,7 +125,7 @@ function TeacherHero(): JSX.Element {
             }}
           >
             <div className="grid place-items-center rounded-full" style={{ width: 104, height: 104, background: 'var(--color-section)' }}>
-              <span className="cx-display" style={{ fontSize: 28, lineHeight: 1 }}>{pending ? '—' : `${avgProgress}%`}</span>
+              <span className="cx-display" style={{ fontSize: 28, lineHeight: 1 }}>{isLoading ? '—' : `${avgProgress}%`}</span>
               <span className="text-[11px]" style={{ opacity: 0.7 }}>{t('teach.avgProgress')}</span>
             </div>
           </div>

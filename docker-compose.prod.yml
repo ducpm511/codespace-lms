@@ -1,0 +1,116 @@
+# Production: MỘT VPS 2 vCPU / 2 GB RAM / 30 GB đĩa chạy tất cả.
+# Chạy: docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+# Quy trình đầy đủ + số đo RAM thực tế: docs/RUNBOOK.md
+#
+# KHÔNG có Redis ở đây. Redis chỉ phục vụ hàng đợi chấm bài, mà production chạy
+# CODE_QUEUE_DRIVER=inline -> tiết kiệm 128–256 MB. docker-compose.yml (dev) vẫn giữ Redis
+# để còn test được đường bull.
+
+networks:
+  # api <-> postgres. Piston TUYỆT ĐỐI không nằm trong network này.
+  lms-data:
+    driver: bridge
+  # api <-> piston. Piston chạy mã tùy ý học viên gửi lên; nếu nó thoát được container mà
+  # cùng mạng với database thì mất sạch dữ liệu (HANDOFF_P9 §B).
+  lms-runner:
+    driver: bridge
+    internal: true # không có đường ra internet
+  # caddy <-> api.
+  lms-edge:
+    driver: bridge
+
+volumes:
+  pgdata:
+  caddy_data: # chứng chỉ ACME — mất là bị Let's Encrypt rate limit khi xin lại
+  caddy_config:
+
+services:
+  caddy:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: lms-web:latest
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      LMS_DOMAIN: ${LMS_DOMAIN:?can thiet lap LMS_DOMAIN}
+      LMS_ACME_EMAIL: ${LMS_ACME_EMAIL:?can thiet lap LMS_ACME_EMAIL}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [lms-edge]
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 96m
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: lms-api:latest
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      API_PORT: '3000'
+      CODE_QUEUE_DRIVER: inline
+      CODE_RUNNER_PROVIDER: piston
+      CODE_RUNNER_URL: http://piston:2000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lms}:${POSTGRES_PASSWORD:?can thiet lap POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lms}?schema=public&connection_limit=10
+    # KHÔNG map cổng ra host: chỉ Caddy được vào.
+    networks: [lms-edge, lms-data, lms-runner]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?can thiet lap POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-lms}
+    # Mặc định của Postgres nhắm tới máy chủ chuyên dụng. Trên 2 GB dùng chung với API,
+    # Caddy và Piston thì phải kéo xuống, nếu không nó một mình ăn 0.5–1 GB.
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=384MB
+      -c maintenance_work_mem=32MB
+      -c work_mem=4MB
+      -c max_connections=20
+      -c wal_compression=on
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # KHÔNG map cổng ra host. Muốn psql thì `docker compose exec postgres psql`.
+    networks: [lms-data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-lms} -d ${POSTGRES_DB:-lms}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 448m
+
+  # Chạy mã học viên. Cách ly theo HANDOFF_P9 §B.
+  piston:
+    image: ghcr.io/engineer-man/piston:latest
+    restart: unless-stopped
+    # Piston cần privileged để dựng sandbox riêng cho từng lần chạy — đó chính là thứ
+    # giữ mã học viên trong hộp, nên KHÔNG bỏ đi để "cho an toàn".
+    privileged: true
+    environment:
+      PISTON_LOG_LEVEL: WARN
+      # Một lần chạy tại một thời điểm: 2 vCPU không gánh nổi nhiều hơn.
+      PISTON_MAX_CONCURRENT_JOBS: '1'
+      PISTON_COMPILE_TIMEOUT: '10000'
+      PISTON_RUN_TIMEOUT: '5000'
+      PISTON_RUN_MEMORY_LIMIT: '134217728' # 128 MB cho tiến trình của học viên
+    volumes:
+      - ./ops/piston-packages:/piston/packages
+    # KHÔNG map cổng ra host, KHÔNG nằm cùng network với postgres.
+    networks: [lms-runner]
+    mem_limit: 192m

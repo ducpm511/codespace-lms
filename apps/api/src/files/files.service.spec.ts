@@ -32,7 +32,7 @@ describe('FilesService', () => {
     classMember: { findFirst: jest.Mock };
   };
   let rbac: { getEffectivePermissions: jest.Mock; hasPermission: jest.Mock };
-  let storage: { put: jest.Mock; get: jest.Mock; delete: jest.Mock };
+  let storage: { provider: string; put: jest.Mock; get: jest.Mock; delete: jest.Mock };
   let service: FilesService;
 
   beforeEach(() => {
@@ -50,7 +50,12 @@ describe('FilesService', () => {
       getEffectivePermissions: jest.fn().mockResolvedValue({ global: new Set<string>(), byClass: new Map() }),
       hasPermission: jest.fn().mockReturnValue(false),
     };
-    storage = { put: jest.fn().mockResolvedValue('key'), get: jest.fn().mockResolvedValue(pdfBuffer()), delete: jest.fn() };
+    storage = {
+      provider: 'cloudinary',
+      put: jest.fn().mockResolvedValue('key'),
+      get: jest.fn().mockResolvedValue(pdfBuffer()),
+      delete: jest.fn(),
+    };
     service = new FilesService(
       prisma as unknown as PrismaService,
       rbac as unknown as RbacService,
@@ -67,7 +72,14 @@ describe('FilesService', () => {
       expect(key).toMatch(/^lesson-files\/[0-9a-f-]{36}\.pdf$/);
       expect(prisma.file.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ ownerId: 'owner1', visibility: 'private', fileName: 'passwd.pdf' }),
+          data: expect.objectContaining({
+            ownerId: 'owner1',
+            visibility: 'private',
+            fileName: 'passwd.pdf',
+            // File.provider phải theo driver đang chạy, không phải hằng 'local' — nếu không,
+            // sau này không biết bytes của bản ghi cũ nằm ở đâu để đối soát/di trú.
+            provider: 'cloudinary',
+          }),
         }),
       );
       expect(res.id).toBe('file1');

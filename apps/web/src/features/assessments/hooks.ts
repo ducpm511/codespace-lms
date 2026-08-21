@@ -3,6 +3,7 @@ import type {
   CreateAssignmentRequest,
   GradeSubmissionRequest,
   SaveSubmissionRequest,
+  UpdateAssignmentRequest,
 } from '@lms/contracts';
 import * as api from './api';
 
@@ -45,6 +46,18 @@ export function useCreateAssignment() {
     onSuccess: (res) => {
       void qc.invalidateQueries({ queryKey: assignmentsKey(res.courseId) });
       void qc.invalidateQueries({ queryKey: ['assignments'] });
+    },
+  });
+}
+
+export function useUpdateAssignment(courseId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateAssignmentRequest }) =>
+      api.updateAssignment(id, body),
+    onSuccess: (data) => {
+      qc.setQueryData(assignmentKey(data.id), data);
+      void qc.invalidateQueries({ queryKey: assignmentsKey(courseId) });
     },
   });
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AuthUser, LoginRequest } from '@lms/contracts';
-import { getMe, login, logout } from './api';
+import type { AuthUser, ChangePasswordRequest, LoginRequest } from '@lms/contracts';
+import { changePassword, getMe, login, logout } from './api';
 
 export const meKey = ['auth', 'me'] as const;
 
@@ -28,6 +28,20 @@ export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => logout(),
+    onSuccess: () => {
+      qc.clear();
+    },
+  });
+}
+
+/**
+ * Đổi mật khẩu tự phục vụ. Thành công là mọi phiên bị thu hồi, kể cả phiên đang mở —
+ * xoá sạch cache để không còn dữ liệu của phiên cũ; caller điều hướng về /login.
+ */
+export function useChangePassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ChangePasswordRequest) => changePassword(body),
     onSuccess: () => {
       qc.clear();
     },
