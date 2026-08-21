@@ -1,0 +1,56 @@
+# Caddy cho CodeSpace LMS trên 1 VPS. TLS tự động qua Let's Encrypt.
+# `LMS_DOMAIN` và `LMS_ACME_EMAIL` do docker-compose.prod.yml truyền vào.
+{
+	email {$LMS_ACME_EMAIL}
+	# Log gọn: 30 GB đĩa không dành cho access log dạng dài.
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}
+
+{$LMS_DOMAIN} {
+	encode zstd gzip
+
+	# API đi trước file tĩnh, nếu không `/api/...` sẽ rơi vào fallback SPA.
+	# Caddy tự gắn X-Forwarded-For / -Proto. Phía API, main.ts bật `trust proxy` để đọc chúng;
+	# thiếu bước đó thì mọi request đều mang IP của Caddy và rate limit gộp cả lớp vào một khoá.
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Tài sản có hash trong tên -> đổi nội dung là đổi tên, cache vĩnh viễn an toàn.
+	#
+	# Vì sao quan trọng: lần đầu mở một bài lập trình, học viên phải kéo Monaco (~24 MB) +
+	# Pyodide (~13 MB). Một lớp 30 em không cache là ~1.1 GB băng thông cho MỘT buổi học.
+	@immutable path /assets/* /monaco/* /pyodide/*
+	handle @immutable {
+		header Cache-Control "public, max-age=31536000, immutable"
+		root * /srv
+		file_server
+	}
+
+	# Ảnh thương hiệu: tên KHÔNG có hash -> cache ngắn để còn thay được logo.
+	@brand path /brand/*
+	handle @brand {
+		header Cache-Control "public, max-age=86400"
+		root * /srv
+		file_server
+	}
+
+	# SPA: mọi đường dẫn còn lại trả index.html. index.html KHÔNG được cache, nếu không
+	# người dùng sẽ nạp mãi bản cũ trỏ tới bundle đã bị xoá.
+	handle {
+		header Cache-Control "no-cache"
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+}

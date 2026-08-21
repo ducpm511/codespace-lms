@@ -1,0 +1,2 @@
+Piston tải runtime ngôn ngữ vào đây (bind mount). Giữ thư mục để container không tự tạo
+với quyền root ở nơi khác. Nội dung thật KHÔNG commit — xem .gitignore.

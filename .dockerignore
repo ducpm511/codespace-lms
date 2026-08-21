@@ -1,0 +1,17 @@
+# Giữ build context nhỏ — node_modules của monorepo này rất lớn và image tự cài lại từ lockfile.
+**/node_modules
+**/dist
+**/.turbo
+packages/database/generated
+.git
+.github
+.claude
+.harness
+docs
+uploads
+*.log
+.env
+.env.*
+!.env.example
+ops/piston-packages/*
+!ops/piston-packages/.gitkeep

@@ -22,3 +22,7 @@ uploads/
 # claude local
 .claude/settings.local.json
 .claude/worktrees/
+
+# Piston tải runtime ngôn ngữ vào đây lúc chạy — không commit
+ops/piston-packages/*
+!ops/piston-packages/.gitkeep

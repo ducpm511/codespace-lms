@@ -226,7 +226,6 @@ importers:
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
-    devDependencies:
       prisma:
         specifier: ^5.22.0
         version: 5.22.0

@@ -1,0 +1,20 @@
+# Override DÙNG MỘT LẦN để cài runtime ngôn ngữ cho Piston.
+#
+# `lms-runner` là network internal (không có đường ra internet) đúng theo HANDOFF_P9 §B, nên
+# Piston lúc chạy thật không tải được gì. Nhưng lần đầu nó PHẢI tải được gói Python.
+# File này mở tạm một đường ra, chỉ trong lúc cài:
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.piston-install.yml up -d piston
+#   docker compose exec piston sh -c 'curl -fsS -X POST http://127.0.0.1:2000/api/v2/packages \
+#       -H "Content-Type: application/json" -d "{\"language\":\"python\",\"version\":\"3.12.0\"}"'
+#   docker compose -f docker-compose.prod.yml up -d --force-recreate piston   # đóng đường ra lại
+#
+# Kiểm chứng đã đóng: `docker compose exec piston sh -c 'curl -m 5 https://example.com'` phải HỎNG.
+
+networks:
+  piston-install:
+    driver: bridge
+
+services:
+  piston:
+    networks: [lms-runner, piston-install]
