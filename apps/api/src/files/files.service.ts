@@ -62,7 +62,7 @@ export class FilesService {
     const row = await this.prisma.file.create({
       data: {
         ownerId,
-        provider: 'local',
+        provider: this.storage.provider,
         storageKey,
         fileName: sanitizeFileName(decodeMultipartFileName(file.originalname)),
         mime: file.mimetype,

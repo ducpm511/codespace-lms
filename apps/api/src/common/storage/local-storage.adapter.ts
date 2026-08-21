@@ -5,6 +5,7 @@ import { StorageAdapter } from './storage.interface';
 
 @Injectable()
 export class LocalStorageAdapter implements StorageAdapter {
+  readonly provider = 'local';
   private readonly baseDir: string;
 
   constructor() {
