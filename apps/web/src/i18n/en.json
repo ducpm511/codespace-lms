@@ -193,7 +193,8 @@
     "statClasses": "Classes",
     "statStudents": "Students",
     "statCourses": "Courses",
-    "avgProgress": "Avg progress"
+    "avgProgress": "Avg progress",
+    "statPendingGrading": "To grade"
   },
   "quiz": {
     "heading": "Quizzes",

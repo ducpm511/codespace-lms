@@ -193,7 +193,8 @@
     "statClasses": "Lớp học",
     "statStudents": "Học viên",
     "statCourses": "Khóa học",
-    "avgProgress": "Tiến độ TB"
+    "avgProgress": "Tiến độ TB",
+    "statPendingGrading": "Chờ chấm"
   },
   "quiz": {
     "heading": "Bài trắc nghiệm",

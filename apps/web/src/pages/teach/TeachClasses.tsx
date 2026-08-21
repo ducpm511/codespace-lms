@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClassCourseDto, ClassMemberDto, ClassMemberRoleValue, ClassReportDto } from '@lms/contracts';
+import type {
+  ClassCourseDto,
+  ClassMemberDto,
+  ClassMemberRoleValue,
+  TeachClassStatDto,
+} from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import { useUserLookup } from '../../features/users/lookup';
 import {
@@ -13,7 +18,7 @@ import {
   useSetGate,
 } from '../../features/classes/hooks';
 import { useCourse, useCourses } from '../../features/courses/hooks';
-import { useClassReport, useClassReports } from '../../features/reports/useClassReport';
+import { useClassReport, useTeachOverview } from '../../features/reports/useClassReport';
 import {
   DetailColumn,
   DetailHeader,
@@ -36,16 +41,14 @@ export function TeachClasses(): JSX.Element {
   const [creating, setCreating] = useState(false);
   const classes = useClasses();
 
-  const classIds = useMemo(() => (classes.data?.items ?? []).map((c) => c.id), [classes.data]);
-  // Dùng chung cache với hero Giảng dạy → không phát sinh request mới.
-  const reports = useClassReports(classIds);
-  const reportById = useMemo(() => {
-    const m = new Map<string, ClassReportDto>();
-    reports.forEach((r) => {
-      if (r.data) m.set(r.data.classId, r.data);
-    });
+  // Dùng chung cache với hero Giảng dạy → mở tab này KHÔNG phát sinh request mới.
+  // (Trước đây là một request /classes/:id/report cho MỖI lớp.)
+  const overview = useTeachOverview();
+  const statsById = useMemo(() => {
+    const m = new Map<string, TeachClassStatDto>();
+    (overview.data?.classes ?? []).forEach((c) => m.set(c.classId, c));
     return m;
-  }, [reports]);
+  }, [overview.data]);
 
   return (
     <TeachShell
@@ -74,7 +77,7 @@ export function TeachClasses(): JSX.Element {
           {classes.isLoading && <p className="text-muted text-sm">{t('common.loading')}</p>}
           {classes.data?.items.length === 0 && <EmptyHint icon="ph-users-three">{t('classes.empty')}</EmptyHint>}
           {classes.data?.items.map((c) => {
-            const report = reportById.get(c.id);
+            const stat = statsById.get(c.id);
             return (
               <SidebarCard
                 key={c.id}
@@ -82,18 +85,18 @@ export function TeachClasses(): JSX.Element {
                 color={CLASS_COLOR}
                 title={c.name}
                 meta={
-                  report
-                    ? `${c.code} · ${t('classes.studentCount', { count: report.totalStudents })}`
+                  stat
+                    ? `${c.code} · ${t('classes.studentCount', { count: stat.studentCount })}`
                     : c.code
                 }
                 selected={selected === c.id}
                 onClick={() => setSelected(c.id)}
               >
-                {report && (
+                {stat && (
                   <span className="flex w-full items-center gap-2">
-                    <ProgressBar value={report.courseCompletionRate} />
+                    <ProgressBar value={stat.progress} />
                     <span className="text-muted shrink-0" style={{ fontSize: 11 }}>
-                      {report.courseCompletionRate}%
+                      {stat.progress}%
                     </span>
                   </span>
                 )}
