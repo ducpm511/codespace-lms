@@ -26,3 +26,6 @@ uploads/
 # Piston tải runtime ngôn ngữ vào đây lúc chạy — không commit
 ops/piston-packages/*
 !ops/piston-packages/.gitkeep
+
+# File tạm Vite sinh ra khi nạp lại config
+*.timestamp-*.mjs
