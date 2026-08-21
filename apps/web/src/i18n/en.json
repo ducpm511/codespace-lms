@@ -151,7 +151,34 @@
     "empty": "No users yet.",
     "searchPlaceholder": "Search by email or name…",
     "filter": "Filter",
-    "addUser": "Add user"
+    "addUser": "Add user",
+    "actions": "Actions",
+    "editUser": "Edit user",
+    "emailLocked": "Email is the login key and cannot be changed after creation.",
+    "initialPassword": "Initial password",
+    "passwordHint": "At least {{min}} characters. Pass it to the user through a private channel.",
+    "allStatuses": "All statuses",
+    "allRoles": "All roles",
+    "pageOf": "Page {{page}}/{{lastPage}} · {{total}} users",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "resetPassword": "Reset password",
+    "resetPasswordConfirm": "Reset",
+    "resetPasswordBody": "Set a new password for {{name}} ({{email}}). Every device of theirs will be signed out.",
+    "resetPasswordHint": "At least {{min}} characters. Email delivery is not set up yet — hand the password over yourself.",
+    "resetPasswordDone": "Password reset",
+    "resetPasswordDoneBody": "{{name}}'s password has been changed. {{count}} session(s) revoked.",
+    "auditAction": "Action",
+    "auditActionPlaceholder": "Filter by action (e.g. certificate.issue)…",
+    "auditTime": "Time",
+    "auditActor": "Actor",
+    "auditEntity": "Entity",
+    "auditEntityId": "Entity ID",
+    "auditDetail": "Details",
+    "auditViewJson": "View JSON",
+    "auditSystem": "System",
+    "auditEmpty": "No audit records.",
+    "newPassword": "New password"
   },
   "teach": {
     "title": "Teaching area",
@@ -515,5 +542,19 @@
     "revokeConfirm": "Confirm revoke",
     "revoking": "Working...",
     "revokeError": "Could not revoke the certificate."
+  },
+  "userStatus": {
+    "invited": "Invited",
+    "active": "Active",
+    "suspended": "Suspended"
+  },
+  "account": {
+    "changePassword": "Change password",
+    "changePasswordBody": "After changing it, every device — including this one — is signed out and you will need to log in again.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordMismatch": "The two new passwords do not match.",
+    "passwordHint": "At least {{min}} characters."
   }
 }

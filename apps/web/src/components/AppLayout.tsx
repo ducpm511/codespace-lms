@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLogout, useMe } from '../features/auth/hooks';
+import { ChangePasswordDialog } from '../features/auth/ChangePasswordDialog';
 import { useMyGamification } from '../features/gamification/useGamification';
 import { NotificationBell } from '../features/notifications/NotificationBell';
 import { allowedAreas } from '../lib/roles';
@@ -24,6 +26,19 @@ export function AppLayout(): JSX.Element {
   const { data: user } = useMe();
   const { data: gamification } = useMyGamification();
   const logout = useLogout();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Đóng menu khi bấm ra ngoài — cùng cách NotificationBell đang làm.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onDown = (e: MouseEvent): void => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [menuOpen]);
 
   const areas = user ? allowedAreas(user.roles) : [];
   const displayName = user?.fullName || user?.email || '';
@@ -79,16 +94,52 @@ export function AppLayout(): JSX.Element {
             </span>
             <NotificationBell />
             {user && (
-              <span className="flex items-center gap-2 text-sm">
-                <span
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
-                  style={{ background: 'linear-gradient(150deg, var(--cx-purple), var(--cx-coral))' }}
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 text-sm"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
                   title={displayName}
                 >
-                  {initials(displayName)}
-                </span>
-                <span className="hidden max-w-[10rem] truncate text-[var(--color-text)]/80 md:inline">{displayName}</span>
-              </span>
+                  <span
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
+                    style={{ background: 'linear-gradient(150deg, var(--cx-purple), var(--cx-coral))' }}
+                  >
+                    {initials(displayName)}
+                  </span>
+                  <span className="hidden max-w-[10rem] truncate text-[var(--color-text)]/80 md:inline">
+                    {displayName}
+                  </span>
+                </button>
+
+                {menuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-50 mt-2 w-56 overflow-hidden p-1"
+                    style={{
+                      background: 'var(--color-surface)',
+                      border: '1px solid var(--color-divider)',
+                      borderRadius: 'var(--radius-lg)',
+                      boxShadow: 'var(--shadow-lg)',
+                    }}
+                  >
+                    <p className="text-muted truncate px-3 py-2 text-xs">{user.email}</p>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="btn btn-secondary !w-full !justify-start !border-transparent"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setChangingPassword(true);
+                      }}
+                    >
+                      <i className="ph ph-key" aria-hidden /> {t('account.changePassword')}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
             <button onClick={onLogout} disabled={logout.isPending} className="btn btn-secondary !rounded-full">
               {t('nav.logout')}
@@ -99,6 +150,8 @@ export function AppLayout(): JSX.Element {
       <main className="mx-auto max-w-6xl px-4 py-8">
         <Outlet />
       </main>
+
+      {changingPassword && <ChangePasswordDialog onClose={() => setChangingPassword(false)} />}
     </div>
   );
 }
