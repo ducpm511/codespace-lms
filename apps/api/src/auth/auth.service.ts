@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { compare } from 'bcryptjs';
-import type { AuthUser } from '@lms/contracts';
+import { compare, hash } from 'bcryptjs';
+import type { AuthUser, PasswordChangeResult } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 import type { RequestMeta } from './auth.types';
 
@@ -85,6 +85,82 @@ export class AuthService {
     });
   }
 
+  /**
+   * Đổi mật khẩu tự phục vụ. Phải nhập đúng mật khẩu hiện tại — nếu không, ai mượn được
+   * máy đang đăng nhập là chiếm luôn tài khoản.
+   */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    meta: RequestMeta,
+  ): Promise<PasswordChangeResult> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Người dùng không tồn tại');
+    }
+    const ok = await compare(currentPassword, user.passwordHash);
+    if (!ok) {
+      throw new UnauthorizedException('Mật khẩu hiện tại không đúng');
+    }
+    if (currentPassword === newPassword) {
+      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại');
+    }
+
+    return this.setPassword({
+      userId,
+      newPassword,
+      actorId: userId,
+      action: 'user.password_change',
+      ip: meta.ip,
+    });
+  }
+
+  /**
+   * Đặt mật khẩu mới + thu hồi TOÀN BỘ refresh token + ghi audit, trong CÙNG một transaction
+   * (INVARIANT #6). Thu hồi hết là cố ý: đổi mật khẩu vì nghi bị lộ mà phiên cũ vẫn sống thì
+   * việc đổi trở nên vô nghĩa — kể cả thiết bị đang thao tác cũng phải đăng nhập lại.
+   *
+   * Dùng chung cho tự đổi (AuthService) và admin đặt lại (UsersService).
+   */
+  async setPassword(params: {
+    userId: string;
+    newPassword: string;
+    actorId: string;
+    action: 'user.password_change' | 'user.password_reset';
+    ip?: string;
+  }): Promise<PasswordChangeResult> {
+    const passwordHash = await hash(params.newPassword, PASSWORD_HASH_ROUNDS);
+    const now = new Date();
+
+    const [, revoked] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: params.userId },
+        data: { passwordHash },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: params.userId, revokedAt: null },
+        data: { revokedAt: now },
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          actorId: params.actorId,
+          action: params.action,
+          entity: 'User',
+          entityId: params.userId,
+          // KHÔNG ghi mật khẩu (kể cả hash) vào audit — INVARIANT #5.
+          metaJson: { selfService: params.actorId === params.userId },
+          ip: params.ip,
+        },
+      }),
+    ]);
+
+    return { revokedSessions: revoked.count };
+  }
+
   /** Dựng AuthUser: gộp roles + permission keys (khử trùng) từ RBAC. */
   async buildAuthUser(userId: string): Promise<AuthUser> {
     const user = await this.prisma.user.findUnique({
@@ -158,6 +234,9 @@ export class AuthService {
     return new Date(Date.now() + parseDurationMs(ttl));
   }
 }
+
+/** Chi phí bcrypt — khớp với UsersService.create để hash cũ/mới cùng độ mạnh. */
+export const PASSWORD_HASH_ROUNDS = 10;
 
 /** Parse '15m' | '2h' | '30d' | '3600s' → milliseconds. */
 export function parseDurationMs(ttl: string): number {

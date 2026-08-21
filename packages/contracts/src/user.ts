@@ -40,3 +40,8 @@ export interface UpdateUserRequest {
   status?: UserStatusValue;
   avatarUrl?: string | null;
 }
+
+/** Body admin đặt lại mật khẩu cho người khác (`POST /users/:id/reset-password`). */
+export interface ResetPasswordRequest {
+  newPassword: string;
+}

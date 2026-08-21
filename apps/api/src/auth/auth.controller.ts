@@ -1,14 +1,21 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
-import type { AuthUser, LoginResponse, RefreshResponse } from '@lms/contracts';
+import type {
+  AuthUser,
+  LoginResponse,
+  PasswordChangeResult,
+  RefreshResponse,
+} from '@lms/contracts';
 import { AuthService } from './auth.service';
 import {
   REFRESH_COOKIE_NAME,
   ThrottleAuth,
+  bearerTracker,
   loginTracker,
   refreshTracker,
 } from '../common/throttling/auth-throttle';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -63,6 +70,30 @@ export class AuthController {
     await this.auth.logout(req.cookies?.[REFRESH_COOKIE]);
     res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
     return { success: true };
+  }
+
+  /**
+   * Đổi mật khẩu tự phục vụ. Thu hồi hết refresh token nên client PHẢI đăng nhập lại sau đó —
+   * cookie refresh hiện tại chết ngay, xoá luôn cho khỏi treo một cookie vô dụng.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(200)
+  @ThrottleAuth(bearerTracker)
+  async changePassword(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<PasswordChangeResult> {
+    const result = await this.auth.changePassword(
+      principal.userId,
+      dto.currentPassword,
+      dto.newPassword,
+      this.meta(req),
+    );
+    res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)

@@ -28,6 +28,7 @@ type ThrottledRequest = {
   ip?: string;
   body?: unknown;
   cookies?: Record<string, unknown>;
+  headers?: Record<string, unknown>;
 };
 
 function clientIp(req: ThrottledRequest): string {
@@ -52,6 +53,18 @@ export function refreshTracker(req: ThrottledRequest): string {
   return typeof token === 'string' && token !== ''
     ? `refresh:token:${fingerprint(token)}`
     : `refresh:ip:${clientIp(req)}`;
+}
+
+/**
+ * `POST /auth/change-password` cũng nhận mật khẩu hiện tại, nên nếu bỏ trống nó thì kẻ tấn công
+ * dò mật khẩu qua đây thay vì qua /auth/login. Khoá theo access token của người gọi: guard toàn
+ * cục chạy TRƯỚC JwtAuthGuard nên chưa có req.user, mà token thì mỗi phiên một cái.
+ */
+export function bearerTracker(req: ThrottledRequest): string {
+  const header = req.headers?.authorization;
+  return typeof header === 'string' && header !== ''
+    ? `bearer:${fingerprint(header)}`
+    : `bearer:ip:${clientIp(req)}`;
 }
 
 /** @Throttle đã cấu hình sẵn cho các endpoint xác thực. */
