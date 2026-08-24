@@ -65,6 +65,13 @@ services:
       CODE_RUNNER_PROVIDER: piston
       CODE_RUNNER_URL: http://piston:2000
       DATABASE_URL: postgresql://${POSTGRES_USER:-lms}:${POSTGRES_PASSWORD:?can thiet lap POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lms}?schema=public&connection_limit=10
+    volumes:
+      # BẮT BUỘC khi STORAGE_DRIVER=local: LocalStorageAdapter ghi vào ./uploads tính từ thư mục
+      # làm việc của tiến trình, tức /repo/apps/api/uploads TRONG container. Không mount ra ngoài
+      # thì mỗi lần đổi container là mất sạch PDF bài học và PDF chứng chỉ đã cấp.
+      # Thư mục trên host phải thuộc uid 1000 (user `node` trong ảnh) thì container mới ghi được.
+      # Với STORAGE_DRIVER=cloudinary thì mount này vô hại (không có gì ghi vào đó).
+      - ./uploads:/repo/apps/api/uploads
     # KHÔNG map cổng ra host: chỉ Caddy được vào.
     networks: [lms-edge, lms-data, lms-runner]
     depends_on:

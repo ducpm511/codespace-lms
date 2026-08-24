@@ -44,13 +44,26 @@ if [ "${size}" -lt 10240 ]; then
 fi
 echo "[$(date -uIs)] dump xong: ${size} bytes"
 
+# --- File tải lên (chỉ tồn tại khi STORAGE_DRIVER=local) --------------------
+# pg_dump KHÔNG chứa những file này: PDF bài học và PDF chứng chỉ nằm trên đĩa, không nằm
+# trong database. Sao lưu mỗi database là mất hết tài liệu giảng dạy khi ổ đĩa hỏng.
+uploads_archive=""
+if [ -d "${REPO_DIR}/uploads" ] && [ -n "$(ls -A "${REPO_DIR}/uploads" 2>/dev/null)" ]; then
+  uploads_archive="${BACKUP_DIR}/lms-${timestamp}-uploads.tar.gz"
+  tar -czf "${uploads_archive}.part" -C "${REPO_DIR}" uploads
+  mv "${uploads_archive}.part" "${uploads_archive}"
+  echo "[$(date -uIs)] file tải lên: $(stat -c %s "${uploads_archive}") bytes"
+fi
+
 if [ -n "${OFFSITE_REMOTE}" ]; then
   echo "[$(date -uIs)] đẩy ra ${OFFSITE_REMOTE}"
   rclone copy "${archive}" "${OFFSITE_REMOTE}/" --checksum
+  [ -n "${uploads_archive}" ] && rclone copy "${uploads_archive}" "${OFFSITE_REMOTE}/" --checksum
 else
   echo "CẢNH BÁO: OFFSITE_REMOTE trống — backup chỉ nằm trên chính VPS này." >&2
 fi
 
 # Dọn bản cũ (chỉ trên máy; vòng đời ở đích ngoài đặt bằng chính sách của nhà cung cấp).
 find "${BACKUP_DIR}" -name 'lms-*.sql.gz' -mtime "+${KEEP_DAYS}" -delete
+find "${BACKUP_DIR}" -name 'lms-*-uploads.tar.gz' -mtime "+${KEEP_DAYS}" -delete
 echo "[$(date -uIs)] xong"
