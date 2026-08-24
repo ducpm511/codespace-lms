@@ -1,0 +1,77 @@
+name: Release images
+
+# Merge vào main -> build hai ảnh Docker và đẩy lên GHCR. KHÔNG deploy.
+#
+# Vì sao tách build khỏi deploy: chấm bài chạy `inline` (không có Redis, không có retry).
+# Restart API đúng lúc một học viên đang nộp bài là mất lượt chấm đó, em phải nộp lại. Nên việc
+# phát hành do NGƯỜI quyết định thời điểm — chạy `ops/release.sh` trên VPS. Xem docs/RUNBOOK.md.
+#
+# Build ở đây thay vì trên VPS vì bước build web (Monaco + Pyodide) ngốn hơn 1 GB RAM, còn VPS
+# chỉ có 2 GB và đang chạy Postgres.
+
+on:
+  push:
+    branches: [main]
+  # Cho phép build lại thủ công mà không cần commit mới.
+  workflow_dispatch:
+
+concurrency:
+  group: release-images
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      # api và web build song song; một cái lỗi thì cái kia vẫn hoàn tất để còn chẩn đoán.
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            dockerfile: apps/api/Dockerfile
+          - name: web
+            dockerfile: apps/web/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # GHCR chỉ nhận tên viết thường; tên chủ repo có thể có chữ hoa.
+      - name: Tên ảnh
+        id: img
+        run: echo "repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build và đẩy ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          # `latest` để phát hành thường ngày; tag theo SHA để ghim đúng một bản khi cần lùi lại.
+          tags: |
+            ghcr.io/${{ steps.img.outputs.repo }}-${{ matrix.name }}:latest
+            ghcr.io/${{ steps.img.outputs.repo }}-${{ matrix.name }}:${{ github.sha }}
+          # Cache giữa các lần chạy: bước cài dependency và build web rất chậm nếu làm lại từ đầu.
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          provenance: false
+
+      - name: Nhắc lệnh phát hành
+        run: |
+          echo "Ảnh đã lên GHCR. Phát hành trên VPS bằng:"
+          echo "  cd /srv/lms && git pull && ops/release.sh"
+          echo "Ghim đúng bản này (nếu cần lùi lại sau):"
+          echo "  LMS_IMAGE_TAG=${{ github.sha }} ops/release.sh"
