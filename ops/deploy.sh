@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 #
-# Phát hành một phiên bản mới lên VPS. Chạy trên VPS, bằng user deploy, trong /srv/lms:
+# ĐƯỜNG LUI: phát hành bằng cách BUILD NGAY TRÊN VPS.
+#
+# Cách thường dùng là `ops/release.sh` — kéo ảnh đã build sẵn trên GHCR, mất ~1 phút.
+# Script này chỉ dùng khi GHCR không dùng được (Actions hỏng, repo chuyển private chưa cấu hình
+# đăng nhập, hoặc cần thử một thay đổi chưa merge). Nó build trên máy 2 GB: chậm, dựa vào swap,
+# và có thể bị OOM-kill ở bước build web.
+#
 #   ops/deploy.sh
 #
 # Thứ tự cố ý: build ảnh trước, chạy migrate, rồi mới đổi container. `migrate deploy` chỉ áp
@@ -12,7 +18,8 @@ set -Eeuo pipefail
 REPO_DIR="${REPO_DIR:-/srv/lms}"
 cd "${REPO_DIR}"
 
-COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.production"
+# Kèm override build: nếu không, compose sẽ đi tìm ảnh trên GHCR thay vì build tại chỗ.
+COMPOSE="docker compose -f docker-compose.prod.yml -f docker-compose.build.yml --env-file .env.production"
 
 echo "== 1/5 Sao lưu trước khi đổi schema =="
 # Migration hỏng giữa chừng mà không có bản dump ngay trước đó thì không lùi được.

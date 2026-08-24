@@ -54,15 +54,29 @@ Tạo `/srv/lms/.env.production` (chmod 600, **không commit**) theo `.env.examp
 API **chết ngay lúc boot** nếu thiếu/sai — thông báo liệt kê đủ các biến có vấn đề
 (`apps/api/src/config/env.validation.ts`). Đó là hành vi mong muốn, không phải lỗi.
 
+VPS **không build gì cả** — ảnh đã được GitHub Actions build sẵn và đẩy lên GHCR mỗi lần merge
+vào `main` (`.github/workflows/release.yml`). Mở tab **Actions** trên GitHub, thấy job
+*Release images* xanh rồi hãy làm bước dưới.
+
+> **Một lần duy nhất: mở quyền đọc cho ảnh.** GHCR đặt package ở chế độ *private* mặc định, kể cả
+> khi repo là public. Vào `github.com/ducpm511?tab=packages` → chọn `codespace-lms-api` →
+> *Package settings* → **Change visibility** → *Public*. Làm tương tự cho `codespace-lms-web`.
+> Không làm bước này thì `docker compose pull` trên VPS sẽ báo `denied` hoặc `not found`.
+>
+> Nếu muốn giữ ảnh private: tạo GitHub token chỉ có quyền `read:packages`, rồi trên VPS chạy
+> `echo <token> | docker login ghcr.io -u ducpm511 --password-stdin` một lần.
+
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production build
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d postgres
+C="docker compose -f docker-compose.prod.yml --env-file .env.production"
+
+$C pull                 # kéo ảnh api + web từ GHCR (~650 MB lần đầu)
+$C up -d postgres
 
 # migration + seed lần đầu
-docker compose -f docker-compose.prod.yml --env-file .env.production run --rm --entrypoint sh api -c \
+$C run --rm --entrypoint sh api -c \
   'cd /repo/packages/database && ./node_modules/.bin/prisma migrate deploy && node prisma/seed.cjs'
 
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+$C up -d
 ```
 
 Sau khi đăng nhập được bằng tài khoản admin: **xóa `SEED_ADMIN_*` khỏi `.env.production`**
@@ -97,20 +111,60 @@ docker compose exec piston sh -c 'getent hosts postgres' && echo "SAI: Piston th
 
 ## 3. Phát hành bản mới
 
+Ba tầng, và **tầng cuối do bạn chọn thời điểm** — không tự động:
+
+| Khi nào | Chạy gì | Ai quyết |
+|---|---|---|
+| Mở PR | `pnpm validate` + kiểm i18n parity (`ci.yml`) | tự động |
+| Merge vào `main` | Build 2 ảnh Docker, đẩy lên GHCR (`release.yml`) | tự động |
+| Bạn muốn phát hành | Kéo ảnh + migrate + đổi container | **bạn** |
+
 ```bash
-cd /srv/lms && ops/deploy.sh
+cd /srv/lms && git pull && ops/release.sh
 ```
 
-Thứ tự: backup → `git pull` → build ảnh → `prisma migrate deploy` → đổi container → chờ health.
-Luôn `migrate deploy`, **không bao giờ** `migrate dev` (nó sinh migration mới và có thể hỏi
-reset database).
+Mất khoảng 1 phút. Script tự sao lưu database trước khi chạy migration. Luôn `migrate deploy`,
+**không bao giờ** `migrate dev` (nó sinh migration mới và có thể hỏi reset database).
 
-### Build ở CI (khi VPS hay bị OOM lúc build)
+> ⚠️ **Đừng phát hành giữa giờ học.** Bước đổi container làm API restart. Chấm bài chạy `inline`
+> và KHÔNG có retry, nên học viên nào đang nộp bài đúng lúc đó sẽ mất lượt chấm và phải nộp lại.
 
-Bước build web (Vite + Monaco + Pyodide, dist ~47 MB) ngốn hơn 1 GB. Trên 2 GB nó dựa vào swap.
-Nếu bước này quá chậm hoặc bị OOM-kill: build ảnh ở GitHub Actions, push lên GHCR, VPS chỉ
-`docker compose pull && up -d`. Khi đó bỏ khối `build:` trong `docker-compose.prod.yml` và
-trỏ `image:` vào `ghcr.io/<org>/lms-{api,web}:<tag>`.
+### Vì sao merge KHÔNG tự deploy
+
+Hai lý do, cả hai đều là hệ quả của việc chỉ có một máy:
+
+1. Chấm bài không có retry (đánh đổi để bỏ Redis) — restart giữa giờ học là mất bài nộp.
+2. `prisma migrate deploy` sẽ chạy không người trông, trên đúng một database duy nhất, không có
+   staging để thử trước.
+
+Còn *build* thì tự động, vì nó **không chạm vào production** — hỏng cũng chỉ hỏng trên GitHub.
+
+### Lùi lại bản cũ
+
+Mỗi lần build gắn hai tag: `latest` và commit SHA. Ghim một SHA để quay về:
+
+```bash
+LMS_IMAGE_TAG=<commit-sha> ops/release.sh
+```
+
+Lấy SHA ở tab Actions, hoặc `git log --oneline` trên `main`.
+
+**Nếu bản lỗi đã chạy migration đổi schema thì lùi code KHÔNG đủ** — phải phục hồi cả database từ
+bản dump mà `release.sh` vừa tạo ở bước 1 (xem mục 5). `release.sh` cố tình **không** tự lùi lại vì
+lý do này: lùi code trong khi schema đã mới có thể làm hỏng thêm dữ liệu. Khi health fail nó in ra
+đúng lệnh cần chạy cho từng tình huống.
+
+### Đường lui: build ngay trên VPS
+
+Khi GHCR không dùng được (Actions hỏng, repo chuyển sang private mà chưa cấu hình đăng nhập, hoặc
+cần thử một thay đổi chưa merge):
+
+```bash
+ops/deploy.sh
+```
+
+Script này thêm `docker-compose.build.yml` để build tại chỗ. Chậm (30–45 phút) và bước build web
+ngốn hơn 1 GB RAM trên máy 2 GB — nó dựa vào swap và **có thể bị OOM-kill**. Chỉ dùng khi cần.
 
 ---
 

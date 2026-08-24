@@ -1,5 +1,15 @@
 # Production: MỘT VPS 2 vCPU / 2 GB RAM / 30 GB đĩa chạy tất cả.
-# Chạy: docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Mặc định KÉO ảnh đã build sẵn từ GHCR — VPS 2 GB không build nổi web (Monaco + Pyodide ngốn
+# hơn 1 GB RAM) một cách đáng tin cậy. Ảnh do .github/workflows/release.yml build mỗi lần merge.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production pull
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#   (hoặc gọn hơn: ops/release.sh)
+#
+# Muốn build NGAY TRÊN VPS (đường lui khi GHCR không dùng được) thì thêm override:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml ... build
+#
 # Quy trình đầy đủ + số đo RAM thực tế: docs/RUNBOOK.md
 #
 # KHÔNG có Redis ở đây. Redis chỉ phục vụ hàng đợi chấm bài, mà production chạy
@@ -26,10 +36,8 @@ volumes:
 
 services:
   caddy:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    image: lms-web:latest
+    # LMS_IMAGE_TAG: 'latest' cho phát hành thường ngày, hoặc một commit SHA để ghim đúng một bản.
+    image: ${LMS_WEB_IMAGE:-ghcr.io/ducpm511/codespace-lms-web}:${LMS_IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - '80:80'
@@ -47,10 +55,7 @@ services:
     mem_limit: 96m
 
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    image: lms-api:latest
+    image: ${LMS_API_IMAGE:-ghcr.io/ducpm511/codespace-lms-api}:${LMS_IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file: .env.production
     environment:

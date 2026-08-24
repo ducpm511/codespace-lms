@@ -1,0 +1,25 @@
+# Override ĐƯỜNG LUI: build ảnh ngay trên VPS thay vì kéo từ GHCR.
+#
+# Chỉ dùng khi GHCR không dùng được (repo chuyển sang private mà chưa cấu hình đăng nhập,
+# GitHub Actions hỏng, hoặc bạn cần thử một thay đổi chưa merge).
+#
+#   C="docker compose -f docker-compose.prod.yml -f docker-compose.build.yml --env-file .env.production"
+#   $C build      # 30-45 phút trên VPS 2 GB, dựa vào swap
+#   $C up -d
+#
+# CẢNH BÁO: bước build web ngốn hơn 1 GB RAM trên máy chỉ có 2 GB đang chạy Postgres. Nó sẽ
+# chậm và có thể bị OOM-kill. Đó chính là lý do đường mặc định là kéo ảnh sẵn.
+
+services:
+  caddy:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    # Dùng ảnh vừa build tại chỗ, đừng đi tìm trên registry.
+    pull_policy: build
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    pull_policy: build
