@@ -63,13 +63,29 @@ systemctl enable --now fail2ban
 echo "== SSH: chỉ dùng key =="
 # Chỉ siết khi user deploy ĐÃ có khóa công khai — nếu không sẽ tự khóa mình ra ngoài.
 if [ -s "/home/${DEPLOY_USER}/.ssh/authorized_keys" ]; then
-  cat > /etc/ssh/sshd_config.d/99-lms.conf <<'EOF'
+  # Tên file phải sắp xếp TRƯỚC file của ảnh cloud. sshd đọc Include theo thứ tự chữ cái và
+  # với mỗi từ khoá thì GIÁ TRỊ ĐẦU TIÊN thắng. Ảnh Ubuntu cloud có sẵn
+  # /etc/ssh/sshd_config.d/60-cloudimg-settings.conf đặt `PasswordAuthentication yes`, nên đặt
+  # tên `99-...` là thua nó — script báo thành công trong khi mật khẩu vẫn đăng nhập được.
+  cat > /etc/ssh/sshd_config.d/00-lms.conf <<'EOF'
 PasswordAuthentication no
 PermitRootLogin prohibit-password
 KbdInteractiveAuthentication no
 EOF
+  rm -f /etc/ssh/sshd_config.d/99-lms.conf   # dọn file của bản script cũ, nếu có
+  sshd -t
   systemctl reload ssh
-  echo "   -> đã tắt đăng nhập bằng mật khẩu."
+
+  # KIỂM CHỨNG thay vì tin lời mình. `sshd -T` in ra giá trị thực sự có hiệu lực sau khi
+  # gộp hết mọi file cấu hình — đây là thứ duy nhất đáng tin.
+  if sshd -T | grep -qx 'passwordauthentication no'; then
+    echo "   -> đã tắt đăng nhập bằng mật khẩu (đã kiểm chứng bằng sshd -T)."
+  else
+    echo "   -> LỖI: vẫn còn bật đăng nhập bằng mật khẩu dù đã ghi cấu hình." >&2
+    echo "      Có file nào khác trong /etc/ssh/sshd_config.d/ đặt giá trị này trước." >&2
+    sshd -T | grep -E '^(passwordauthentication|permitrootlogin)' >&2
+    exit 1
+  fi
 else
   echo "   -> BỎ QUA: /home/${DEPLOY_USER}/.ssh/authorized_keys trống."
   echo "      Nạp khóa công khai trước rồi chạy lại, nếu không bạn sẽ tự khóa mình ra ngoài."
