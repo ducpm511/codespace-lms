@@ -178,6 +178,15 @@ Streak hiện tại **tàn nhẫn**: nghỉ một ngày mất sạch. Với tr�
 
 **Mới từ phiên P10:**
 
+- **MỌI quan hệ trỏ tới `Course` đều `onDelete: Cascade`** (`ClassCourse`, `Section`→`Lesson`,
+  `Assignment`, `Quiz`, `CodingProblem`, **`Certificate`**). Postgres KHÔNG bao giờ ném P2003 khi
+  xóa khóa học, nên mọi nhánh `catch (P2003)` quanh `course.delete` là **code chết**. Đã trả giá:
+  `DELETE` một khóa đang gán lớp trả **204** và cuốn theo liên kết lớp + tiến độ học viên, im lặng.
+  Bài học chung: **muốn chặn xóa thì phải TỰ ĐẾM, đừng tin khoá ngoại** — kiểm lại các model khác
+  trước khi dựa vào FK để bảo vệ dữ liệu.
+- **Thêm quyền cho một role cũng KHÔNG tới production qua seed.** Cùng bẫy với dữ liệu hạt giống:
+  phải viết migration chèn `role_permissions` (idempotent). Xem
+  `20260826180000_instructor_can_delete_course`.
 - **`ops/release.sh` KHÔNG chạy seed.** Seed chỉ chạy đúng một lần lúc dựng máy (RUNBOOK §2). Dữ
   liệu hạt giống mới (như 3 huy hiệu trao tay) phải vào bằng **migration**, nếu không nó không bao
   giờ lên tới production và **không có gì báo lỗi cả**.
