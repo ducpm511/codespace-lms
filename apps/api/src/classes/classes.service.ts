@@ -6,10 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@lms/database';
+import { PERMISSIONS } from '@lms/contracts';
 import type {
   ClassDetail,
+  ClassLeaderboardDto,
   ClassReportDto,
   ClassSummary,
+  LeaderboardWeek,
   LessonGateDto,
   LessonProgressDto,
   LessonProgressStatDto,
@@ -17,6 +20,7 @@ import type {
   Paginated,
 } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
+import { RbacService } from '../rbac/rbac.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { LessonActivitiesService } from '../courses/lesson-activities.service';
 import type { CreateClassDto } from './dto/create-class.dto';
@@ -45,6 +49,7 @@ export class ClassesService {
     private readonly prisma: PrismaService,
     private readonly lessonActivities: LessonActivitiesService,
     private readonly gamificationService?: GamificationService,
+    private readonly rbac?: RbacService,
   ) {}
 
   // --- Class CRUD ---
@@ -339,6 +344,7 @@ export class ClassesService {
           source: 'lesson_complete',
           sourceId: lessonId,
           xpAmount: 50,
+          classId,
         });
       }
 
@@ -468,6 +474,41 @@ export class ClassesService {
     if (!cls) {
       throw new NotFoundException('Lớp học không tồn tại');
     }
+  }
+
+  /**
+   * Bảng xếp hạng tuần của lớp (T10.1). Ai xem được: học viên/GV/TA đang trong lớp, hoặc người có
+   * `class.read` ở phạm vi lớp đó (INVARIANT #3 — không cho xem xuyên lớp).
+   */
+  async getLeaderboard(
+    classId: string,
+    userId: string,
+    week: LeaderboardWeek,
+  ): Promise<ClassLeaderboardDto> {
+    if (!this.gamificationService) {
+      throw new NotFoundException('Bảng xếp hạng chưa sẵn sàng');
+    }
+    const cls = await this.prisma.class.findUnique({ where: { id: classId }, select: { id: true } });
+    if (!cls) {
+      throw new NotFoundException('Lớp học không tồn tại');
+    }
+    await this.ensureCanViewClass(classId, userId);
+    return this.gamificationService.getClassLeaderboard(classId, userId, week);
+  }
+
+  /** Thành viên đang hoạt động của lớp, HOẶC có `class.read` scope đúng lớp đó. */
+  private async ensureCanViewClass(classId: string, userId: string): Promise<void> {
+    const member = await this.prisma.classMember.findUnique({
+      where: { classId_userId: { classId, userId } },
+      select: { status: true },
+    });
+    if (member?.status === 'active') return;
+
+    if (this.rbac) {
+      const eff = await this.rbac.getEffectivePermissions(userId);
+      if (this.rbac.hasPermission(eff, PERMISSIONS.CLASS_READ, classId)) return;
+    }
+    throw new ForbiddenException('Bạn không thuộc lớp này');
   }
 
   private async ensureActiveMember(classId: string, userId: string): Promise<void> {

@@ -1,13 +1,41 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@lms/database';
-import type { GamificationProfileDto } from '@lms/contracts';
+import type {
+  ClassLeaderboardDto,
+  GamificationProfileDto,
+  LeaderboardEntryDto,
+  LeaderboardWeek,
+} from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Múi giờ ứng dụng (Asia/Ho_Chi_Minh = UTC+7) — dùng cho mốc "ngày" của streak.
 const APP_TZ_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DAY_MS = 86_400_000;
+
 /** Trả 'YYYY-MM-DD' theo giờ VN cho một thời điểm. */
 function localDateStr(d: Date): string {
   return new Date(d.getTime() + APP_TZ_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * Nửa khoảng [start, end) của tuần chứa `now`, mốc là **thứ Hai 00:00 giờ VN**.
+ * Trả về Date theo UTC để so trực tiếp với `XpEvent.createdAt`.
+ *
+ * Xếp hạng reset mỗi tuần là CHỦ Ý (T10.1): bảng tích luỹ vĩnh viễn thì học viên vào sau
+ * không bao giờ đuổi kịp và sẽ bỏ cuộc.
+ */
+export function weekWindowVn(now: Date, week: LeaderboardWeek): { start: Date; end: Date } {
+  const local = new Date(now.getTime() + APP_TZ_OFFSET_MS);
+  // getUTCDay() trên mốc đã dịch = thứ trong tuần theo giờ VN. 0 = CN → 6 ngày kể từ thứ Hai.
+  const daysSinceMonday = (local.getUTCDay() + 6) % 7;
+  const localMonday = Date.UTC(
+    local.getUTCFullYear(),
+    local.getUTCMonth(),
+    local.getUTCDate() - daysSinceMonday,
+  );
+  const startLocal = week === 'previous' ? localMonday - 7 * DAY_MS : localMonday;
+  const start = new Date(startLocal - APP_TZ_OFFSET_MS);
+  return { start, end: new Date(start.getTime() + 7 * DAY_MS) };
 }
 
 @Injectable()
@@ -82,6 +110,95 @@ export class GamificationService {
   }
 
   /**
+   * Bảng xếp hạng XP theo TUẦN trong phạm vi MỘT lớp (T10.1).
+   *
+   * Phạm vi là lớp, không phải toàn hệ thống: lớp 15–30 em thì thứ hạng còn có ý nghĩa, còn xếp
+   * hạng toàn trường thì em yếu vĩnh viễn ở đáy. Chỉ số là XP tuần — mà XP chỉ cộng khi HOÀN THÀNH
+   * (mức cố định, không theo điểm/tốc độ) nên bảng đo NỖ LỰC, không thưởng cho việc chép bài.
+   *
+   * Người gọi chịu trách nhiệm kiểm quyền xem lớp (INVARIANT #3).
+   */
+  async getClassLeaderboard(
+    classId: string,
+    viewerUserId: string,
+    week: LeaderboardWeek,
+    now: Date = new Date(),
+  ): Promise<ClassLeaderboardDto> {
+    const { start, end } = weekWindowVn(now, week);
+
+    // Chỉ học viên đang hoạt động. GV/TA không xếp hạng cùng học viên.
+    const members = await this.prisma.classMember.findMany({
+      where: { classId, status: 'active', roleInClass: 'student' },
+      select: { userId: true, user: { select: { fullName: true } } },
+    });
+
+    const empty: ClassLeaderboardDto = {
+      classId,
+      week,
+      weekStart: start.toISOString(),
+      weekEnd: end.toISOString(),
+      entries: [],
+      me: null,
+    };
+    if (members.length === 0) {
+      return empty;
+    }
+
+    const events = await this.prisma.xpEvent.findMany({
+      where: {
+        classId,
+        userId: { in: members.map((m) => m.userId) },
+        createdAt: { gte: start, lt: end },
+      },
+      select: { userId: true, source: true, amount: true },
+    });
+
+    type Tally = { xp: number; lessonsCompleted: number; quizzesPassed: number; codingPassed: number };
+    const tally = new Map<string, Tally>();
+    for (const m of members) {
+      tally.set(m.userId, { xp: 0, lessonsCompleted: 0, quizzesPassed: 0, codingPassed: 0 });
+    }
+    for (const e of events) {
+      const t = tally.get(e.userId);
+      if (!t) continue; // XP của người đã rời lớp — không xếp hạng
+      t.xp += e.amount;
+      if (e.source === 'lesson_complete') t.lessonsCompleted += 1;
+      else if (e.source === 'quiz_pass') t.quizzesPassed += 1;
+      else if (e.source === 'coding_pass') t.codingPassed += 1;
+    }
+
+    const rows = members
+      .map((m) => ({
+        userId: m.userId,
+        fullName: m.user.fullName,
+        ...(tally.get(m.userId) as Tally),
+      }))
+      // Hoà điểm xếp theo tên rồi userId — thứ tự tất định, không phụ thuộc thứ tự DB trả về.
+      .sort((a, b) => b.xp - a.xp || a.fullName.localeCompare(b.fullName, 'vi') || a.userId.localeCompare(b.userId));
+
+    const entries: LeaderboardEntryDto[] = rows.map((r, i) => ({
+      // Competition ranking: đồng điểm thì đồng hạng (1, 1, 3).
+      rank: i > 0 && rows[i - 1].xp === r.xp ? -1 : i + 1,
+      userId: r.userId,
+      fullName: r.fullName,
+      xp: r.xp,
+      lessonsCompleted: r.lessonsCompleted,
+      quizzesPassed: r.quizzesPassed,
+      codingPassed: r.codingPassed,
+      isMe: r.userId === viewerUserId,
+    }));
+    for (let i = 1; i < entries.length; i += 1) {
+      if (entries[i].rank === -1) entries[i].rank = entries[i - 1].rank;
+    }
+
+    return {
+      ...empty,
+      entries,
+      me: entries.find((e) => e.isMe) ?? null,
+    };
+  }
+
+  /**
    * Ghi nhận hoạt động học tập trong CÙNG transaction với hành động domain.
    * Cập nhật XpEvent (idempotent), UserStreak, và tự động kiểm tra/trao Badge.
    */
@@ -92,6 +209,8 @@ export class GamificationService {
       source: 'lesson_complete' | 'quiz_pass' | 'coding_pass';
       sourceId: string;
       xpAmount: number;
+      /** Lớp phát sinh XP — cần cho bảng xếp hạng theo lớp (T10.1). */
+      classId?: string | null;
     },
   ): Promise<void> {
     // 1) XpEvent (idempotent)
@@ -112,9 +231,13 @@ export class GamificationService {
           source: data.source,
           sourceId: data.sourceId,
           amount: data.xpAmount,
+          classId: data.classId ?? null,
         },
       });
     }
+    // Khoá duy nhất là (userId, source, sourceId) — học lại CÙNG bài ở lớp khác KHÔNG cộng XP lần
+    // hai (chống farm điểm), nên `classId` giữ nguyên lớp đầu tiên. Cố ý: sửa lại sẽ cho phép
+    // chuyển XP cũ sang tuần/lớp mới.
 
     // 2) UserStreak — mốc "ngày" theo giờ VN (UTC+7) để ranh giới chuỗi khớp nửa đêm địa phương
     const now = new Date();

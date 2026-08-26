@@ -457,7 +457,20 @@
     "discussionSampleName": "CodeSpace",
     "discussionSample": "Happy learning! Ask here if you have any questions.",
     "discussionPlaceholder": "Write a comment…",
-    "discussionPost": "Send"
+    "discussionPost": "Send",
+    "leaderboardHeading": "Class leaderboard",
+    "leaderboardSubtitle": "Counts lessons finished this week — not scores or speed. Starts fresh every Monday.",
+    "leaderboardWeekCurrent": "This week",
+    "leaderboardWeekPrevious": "Last week",
+    "leaderboardRange": "{{start}} – {{end}}",
+    "leaderboardEmpty": "This class has no students to rank yet.",
+    "leaderboardNoActivity": "No points yet this week. Finish a lesson to get things started!",
+    "leaderboardYou": "You",
+    "leaderboardXp": "{{count}} XP",
+    "leaderboardEffort": "{{lessons}} lessons · {{quizzes}} quizzes · {{coding}} coding",
+    "leaderboardShowAll": "Show whole class ({{count}})",
+    "leaderboardShowTop": "Show top {{count}} only",
+    "leaderboardMyRank": "Your rank: {{rank}}"
   },
   "activity": {
     "builderKicker": "Lesson content editor",

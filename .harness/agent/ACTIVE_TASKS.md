@@ -40,7 +40,13 @@ Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified
 Kế hoạch đầy đủ, trạng thái production và bẫy đã gặp: **`.harness/agent/HANDOFF_P10.md`**.
 Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-LMS-admin-v2.html`.
 
-- **T10.1** Bảng xếp hạng theo **lớp**, theo **tuần** (reset thứ Hai). Cần thêm `XpEvent.classId`.
+- **T10.1** ✅ **XONG** — Bảng xếp hạng theo **lớp**, theo **tuần** (reset thứ Hai).
+  `XpEvent.classId` (nullable) + index `(classId, createdAt)` + migration `20260826090000_p10_xp_class_scope`
+  có backfill suy lớp từ `lesson_progress`/`quiz_attempts`/`coding_submissions`.
+  `GET /classes/:classId/leaderboard?week=current|previous` — KHÔNG gắn `@RequirePermission` (học viên
+  không có `class.read`), quyền kiểm ở service: thành viên đang hoạt động HOẶC `class.read` đúng lớp đó.
+  Chỉ xếp hạng `roleInClass=student`; đồng điểm đồng hạng; FE `ClassLeaderboard` trong `LearnHome`.
+  **CHƯA chạy thử trên DB thật** — worktree không có Postgres, migration mới chỉ được viết tay + validate.
 - **T10.2** Mục tiêu chung của lớp (`ClassGoal`) → huy hiệu tập thể.
 - **T10.3** Giáo viên trao huy hiệu / thưởng XP kèm lời nhắn (`UserBadge.awardedById`, scope lớp).
 - **T10.4** Streak nhân văn: vé nghỉ phép, khớp lịch học thật (bỏ cuối tuần nếu lớp không học).

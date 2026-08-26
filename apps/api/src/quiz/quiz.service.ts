@@ -315,6 +315,7 @@ export class QuizService {
           source: 'quiz_pass',
           sourceId: quizId,
           xpAmount: 100,
+          classId: dto.classId,
         });
       }
       return attempt;

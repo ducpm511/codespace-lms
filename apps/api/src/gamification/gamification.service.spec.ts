@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@lms/database';
-import { GamificationService } from './gamification.service';
+import { GamificationService, weekWindowVn } from './gamification.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('GamificationService', () => {
@@ -10,6 +10,10 @@ describe('GamificationService', () => {
       aggregate: jest.Mock;
       findUnique: jest.Mock;
       create: jest.Mock;
+      findMany: jest.Mock;
+    };
+    classMember: {
+      findMany: jest.Mock;
     };
     userStreak: {
       findUnique: jest.Mock;
@@ -35,6 +39,10 @@ describe('GamificationService', () => {
         aggregate: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
+        findMany: jest.fn(),
+      },
+      classMember: {
+        findMany: jest.fn(),
       },
       userStreak: {
         findUnique: jest.fn(),
@@ -144,6 +152,7 @@ describe('GamificationService', () => {
       source: 'lesson_complete',
       sourceId: 'lesson-101',
       xpAmount: 50,
+      classId: 'class-1',
     });
 
     expect(tx.xpEvent.create).toHaveBeenCalledWith({
@@ -152,6 +161,7 @@ describe('GamificationService', () => {
         source: 'lesson_complete',
         sourceId: 'lesson-101',
         amount: 50,
+        classId: 'class-1',
       },
     });
     expect(tx.userStreak.create).toHaveBeenCalled();
@@ -159,5 +169,134 @@ describe('GamificationService', () => {
       data: { userId: 'user-1', badgeId: 'b-1' },
     });
     expect(tx.notification.create).toHaveBeenCalled();
+  });
+
+  // --- T10.1 — bảng xếp hạng theo lớp / theo tuần ---
+
+  describe('weekWindowVn', () => {
+    it('mốc tuần là thứ Hai 00:00 giờ VN = CN 17:00 UTC', () => {
+      // 2026-08-26T03:00Z = thứ Tư 10:00 giờ VN → tuần bắt đầu thứ Hai 24/08 giờ VN.
+      const { start, end } = weekWindowVn(new Date('2026-08-26T03:00:00.000Z'), 'current');
+      expect(start.toISOString()).toBe('2026-08-23T17:00:00.000Z');
+      expect(end.toISOString()).toBe('2026-08-30T17:00:00.000Z');
+    });
+
+    it('CN 22:00 giờ VN vẫn thuộc tuần đang chạy, chưa nhảy sang tuần mới', () => {
+      // 2026-08-30T15:00Z = CN 22:00 giờ VN (vẫn trước nửa đêm VN).
+      const { start } = weekWindowVn(new Date('2026-08-30T15:00:00.000Z'), 'current');
+      expect(start.toISOString()).toBe('2026-08-23T17:00:00.000Z');
+    });
+
+    it('thứ Hai 00:30 giờ VN đã là tuần mới (reset)', () => {
+      // 2026-08-30T17:30Z = thứ Hai 31/08 00:30 giờ VN.
+      const { start } = weekWindowVn(new Date('2026-08-30T17:30:00.000Z'), 'current');
+      expect(start.toISOString()).toBe('2026-08-30T17:00:00.000Z');
+    });
+
+    it("week='previous' lùi đúng 7 ngày", () => {
+      const { start, end } = weekWindowVn(new Date('2026-08-26T03:00:00.000Z'), 'previous');
+      expect(start.toISOString()).toBe('2026-08-16T17:00:00.000Z');
+      expect(end.toISOString()).toBe('2026-08-23T17:00:00.000Z');
+    });
+  });
+
+  describe('getClassLeaderboard', () => {
+    const members = [
+      { userId: 'u1', user: { fullName: 'An Nguyễn' } },
+      { userId: 'u2', user: { fullName: 'Bình Trần' } },
+      { userId: 'u3', user: { fullName: 'Cường Lê' } },
+    ];
+
+    it('xếp theo XP tuần, đồng điểm đồng hạng, kèm dòng của chính mình', async () => {
+      prisma.classMember.findMany.mockResolvedValue(members);
+      prisma.xpEvent.findMany.mockResolvedValue([
+        { userId: 'u1', source: 'lesson_complete', amount: 50 },
+        { userId: 'u1', source: 'quiz_pass', amount: 100 },
+        { userId: 'u2', source: 'coding_pass', amount: 100 },
+        { userId: 'u3', source: 'lesson_complete', amount: 50 },
+        { userId: 'u3', source: 'lesson_complete', amount: 50 },
+      ]);
+
+      const res = await service.getClassLeaderboard(
+        'class-1',
+        'u3',
+        'current',
+        new Date('2026-08-26T03:00:00.000Z'),
+      );
+
+      expect(res.entries.map((e) => [e.userId, e.xp, e.rank])).toEqual([
+        ['u1', 150, 1],
+        ['u2', 100, 2],
+        ['u3', 100, 2], // đồng điểm với u2 → cùng hạng 2
+      ]);
+      expect(res.entries[0].quizzesPassed).toBe(1);
+      expect(res.entries[2].lessonsCompleted).toBe(2);
+      expect(res.me?.userId).toBe('u3');
+      expect(res.me?.rank).toBe(2);
+      expect(res.weekStart).toBe('2026-08-23T17:00:00.000Z');
+    });
+
+    it('chỉ đếm XP của lớp đó trong đúng cửa sổ tuần', async () => {
+      prisma.classMember.findMany.mockResolvedValue(members);
+      prisma.xpEvent.findMany.mockResolvedValue([]);
+
+      await service.getClassLeaderboard(
+        'class-1',
+        'u1',
+        'current',
+        new Date('2026-08-26T03:00:00.000Z'),
+      );
+
+      expect(prisma.xpEvent.findMany).toHaveBeenCalledWith({
+        where: {
+          classId: 'class-1',
+          userId: { in: ['u1', 'u2', 'u3'] },
+          createdAt: {
+            gte: new Date('2026-08-23T17:00:00.000Z'),
+            lt: new Date('2026-08-30T17:00:00.000Z'),
+          },
+        },
+        select: { userId: true, source: true, amount: true },
+      });
+    });
+
+    it('chỉ xếp hạng học viên đang hoạt động — GV/TA đứng ngoài', async () => {
+      prisma.classMember.findMany.mockResolvedValue([]);
+
+      const res = await service.getClassLeaderboard('class-1', 'teacher-1', 'current');
+
+      expect(prisma.classMember.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { classId: 'class-1', status: 'active', roleInClass: 'student' },
+        }),
+      );
+      expect(res.entries).toEqual([]);
+      expect(res.me).toBeNull();
+    });
+
+    it('học viên chưa có XP tuần này vẫn có mặt với 0 điểm (thấy được hạng của mình)', async () => {
+      prisma.classMember.findMany.mockResolvedValue(members);
+      prisma.xpEvent.findMany.mockResolvedValue([
+        { userId: 'u1', source: 'lesson_complete', amount: 50 },
+      ]);
+
+      const res = await service.getClassLeaderboard('class-1', 'u2', 'current');
+
+      expect(res.entries).toHaveLength(3);
+      expect(res.me).toMatchObject({ userId: 'u2', xp: 0, rank: 2 });
+    });
+
+    it('bỏ qua XP của người đã rời lớp', async () => {
+      prisma.classMember.findMany.mockResolvedValue([members[0]]);
+      prisma.xpEvent.findMany.mockResolvedValue([
+        { userId: 'u1', source: 'lesson_complete', amount: 50 },
+        { userId: 'gone', source: 'quiz_pass', amount: 100 },
+      ]);
+
+      const res = await service.getClassLeaderboard('class-1', 'u1', 'current');
+
+      expect(res.entries).toHaveLength(1);
+      expect(res.entries[0]).toMatchObject({ userId: 'u1', xp: 50, rank: 1 });
+    });
   });
 });

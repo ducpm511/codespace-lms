@@ -2,12 +2,34 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-08-21
+Updated: 2026-08-26
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+
+### P10 · T10.1 Bảng xếp hạng lớp theo tuần (2026-08-26)
+
+- **`XpEvent.classId` nullable + FK `SetNull` + index `(classId, createdAt)`.** Chọn thêm cột thay vì suy
+  từ `sourceId` lúc đọc: suy lúc đọc phải join 3 bảng khác nhau cho 3 nguồn XP và vẫn sai khi học viên
+  học cùng bài ở nhiều lớp. Migration `20260826090000_p10_xp_class_scope` backfill từ chính sự kiện domain
+  (`lesson_progress` / `quiz_attempts` / `coding_submissions`), chọn bản ghi gần thời điểm cộng XP nhất;
+  suy không ra thì để NULL và bảng xếp hạng bỏ qua — **không đoán bừa**.
+- **Khoá `(userId, source, sourceId)` giữ nguyên**, nên học lại cùng bài ở lớp khác KHÔNG cộng XP lần hai
+  và `classId` giữ lớp đầu tiên. Cố ý: nới ra là mở đường farm điểm (HANDOFF_P10 §Cảnh báo).
+- **`GET /classes/:classId/leaderboard?week=current|previous`.** KHÔNG gắn `@RequirePermission` — `class.read`
+  là quyền của GV/admin, gắn vào thì chính học viên không xem được bảng của lớp mình. Quyền kiểm ở service
+  (`ensureCanViewClass`): thành viên `active`, HOẶC `class.read` **scope đúng lớp đó** (INVARIANT #3).
+- **Mốc tuần = thứ Hai 00:00 giờ VN = CN 17:00 UTC** (`weekWindowVn`, dùng chung `APP_TZ_OFFSET_MS` với streak).
+  Reset hằng tuần là chủ ý: bảng tích luỹ vĩnh viễn thì em vào sau không bao giờ đuổi kịp.
+- Chỉ xếp hạng `roleInClass = student` đang `active` (GV/TA đứng ngoài). Học viên 0 điểm vẫn có mặt để tự
+  thấy hạng của mình. Đồng điểm → đồng hạng (1, 1, 3). Chỉ số hiển thị là **số bài hoàn thành**, không phải
+  điểm/tốc độ. FE `pages/learn/ClassLeaderboard.tsx` mặc định chỉ hiện tốp 10 + dòng của chính mình.
+- `useUpdateProgress` giờ invalidate cả `gamification/me` và leaderboard — trước đó hero XP đứng yên tới 60 s
+  sau khi hoàn thành bài.
+- `pnpm validate` 16/16 (api **299 test / 27 suite**), i18n parity **533/533**.
+  **Chưa chạy migration trên DB thật** (worktree không có Postgres/Docker) và chưa thử qua giao diện.
 
 ### P9 Production readiness (2026-08-21) — branch `claude/p9-single-vps-deployment-882cf5`, chưa merge main
 
@@ -332,6 +354,9 @@ theo phạm vi lớp** (`UserRole.classId` / `ClassMember.roleInClass`). Mọi r
 
 **ĐÃ DEPLOY THẬT — https://lms.codespace.edu.vn đang chạy** (VPS TINO `103.142.27.54`).
 Trạng thái production, việc còn lại trước khi mở lớp, và bẫy đã gặp: **`.harness/agent/HANDOFF_P10.md`**.
+
+**P10 đang chạy.** T10.1 ✅ (xem mục trên). Tiếp theo: T10.3 (GV trao thưởng) → T10.2 → T10.4.
+T10.5 vẫn **chặn** cho tới khi có người chốt 2 quyết định ở HANDOFF_P10 §T10.5 (H4).
 
 ### Gotchas môi trường thêm ở P9
 - Worktree KHÔNG có `.env` (file này gitignored, chỉ nằm ở checkout chính). Kể từ P9, API **chết ngay**

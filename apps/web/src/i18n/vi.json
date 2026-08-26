@@ -457,7 +457,20 @@
     "discussionSampleName": "CodeSpace",
     "discussionSample": "Chúc bạn học vui! Có thắc mắc gì cứ hỏi ở đây nhé.",
     "discussionPlaceholder": "Viết bình luận…",
-    "discussionPost": "Gửi"
+    "discussionPost": "Gửi",
+    "leaderboardHeading": "Bảng xếp hạng lớp",
+    "leaderboardSubtitle": "Tính theo số bài đã hoàn thành trong tuần — không tính điểm hay tốc độ. Làm mới lại từ đầu mỗi thứ Hai.",
+    "leaderboardWeekCurrent": "Tuần này",
+    "leaderboardWeekPrevious": "Tuần trước",
+    "leaderboardRange": "{{start}} – {{end}}",
+    "leaderboardEmpty": "Lớp chưa có học viên nào để xếp hạng.",
+    "leaderboardNoActivity": "Tuần này chưa ai ghi điểm. Hoàn thành một bài để mở màn nhé!",
+    "leaderboardYou": "Bạn",
+    "leaderboardXp": "{{count}} XP",
+    "leaderboardEffort": "{{lessons}} bài học · {{quizzes}} trắc nghiệm · {{coding}} lập trình",
+    "leaderboardShowAll": "Xem cả lớp ({{count}} bạn)",
+    "leaderboardShowTop": "Chỉ xem tốp {{count}}",
+    "leaderboardMyRank": "Hạng của bạn: {{rank}}"
   },
   "activity": {
     "builderKicker": "Soạn nội dung bài học",

@@ -7,6 +7,8 @@ import {
 import { ClassesService } from './classes.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { LessonActivitiesService } from '../courses/lesson-activities.service';
+import type { GamificationService } from '../gamification/gamification.service';
+import type { RbacService } from '../rbac/rbac.service';
 
 function makePrisma() {
   const p: Record<string, unknown> = {
@@ -271,6 +273,65 @@ describe('ClassesService', () => {
         where: { classId: 'cl1', userId: 'u1' },
         data: { status: 'removed' },
       });
+    });
+  });
+
+  // --- T10.1 — quyền xem bảng xếp hạng lớp ---
+  describe('getLeaderboard', () => {
+    const board = { classId: 'cl1', entries: [], me: null };
+    let gamification: { getClassLeaderboard: jest.Mock };
+    let rbac: { getEffectivePermissions: jest.Mock; hasPermission: jest.Mock };
+    let svc: ClassesService;
+
+    beforeEach(() => {
+      gamification = { getClassLeaderboard: jest.fn().mockResolvedValue(board) };
+      rbac = {
+        getEffectivePermissions: jest.fn().mockResolvedValue({ global: new Set(), byClass: new Map() }),
+        hasPermission: jest.fn().mockReturnValue(false),
+      };
+      svc = new ClassesService(
+        prisma as unknown as PrismaService,
+        lessonActivities as unknown as LessonActivitiesService,
+        gamification as unknown as GamificationService,
+        rbac as unknown as RbacService,
+      );
+      prisma.class.findUnique.mockResolvedValue({ id: 'cl1' });
+    });
+
+    it('404 khi lớp không tồn tại', async () => {
+      prisma.class.findUnique.mockResolvedValue(null);
+      await expect(svc.getLeaderboard('nope', 'u1', 'current')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(gamification.getClassLeaderboard).not.toHaveBeenCalled();
+    });
+
+    it('học viên đang hoạt động của lớp xem được (không cần class.read)', async () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      await expect(svc.getLeaderboard('cl1', 'u1', 'current')).resolves.toBe(board);
+      expect(gamification.getClassLeaderboard).toHaveBeenCalledWith('cl1', 'u1', 'current');
+    });
+
+    it('403 với người ngoài lớp và không có quyền — không xem xuyên lớp', async () => {
+      prisma.classMember.findUnique.mockResolvedValue(null);
+      await expect(svc.getLeaderboard('cl1', 'outsider', 'current')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(gamification.getClassLeaderboard).not.toHaveBeenCalled();
+    });
+
+    it('403 với thành viên đã bị gỡ khỏi lớp', async () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'removed' });
+      await expect(svc.getLeaderboard('cl1', 'u1', 'current')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('GV không phải thành viên vẫn xem được nếu có class.read ĐÚNG lớp đó', async () => {
+      prisma.classMember.findUnique.mockResolvedValue(null);
+      rbac.hasPermission.mockReturnValue(true);
+      await expect(svc.getLeaderboard('cl1', 'teacher-1', 'previous')).resolves.toBe(board);
+      expect(rbac.hasPermission).toHaveBeenCalledWith(expect.anything(), 'class.read', 'cl1');
     });
   });
 });

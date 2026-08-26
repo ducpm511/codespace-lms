@@ -109,6 +109,12 @@ export function useUpdateProgress(classId: string) {
   return useMutation({
     mutationFn: (vars: { lessonId: string; status: ProgressStatusValue }) =>
       api.updateProgress(classId, vars.lessonId, { status: vars.status }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: myLessonsKey(classId) }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: myLessonsKey(classId) });
+      // Hoàn thành bài là cộng XP → hero cấp độ và bảng xếp hạng tuần phải đổi theo ngay,
+      // nếu không học viên thấy điểm đứng yên và tưởng hệ thống không ghi nhận.
+      void qc.invalidateQueries({ queryKey: ['gamification', 'me'] });
+      void qc.invalidateQueries({ queryKey: ['classes', classId, 'leaderboard'] });
+    },
   });
 }

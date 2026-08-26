@@ -334,6 +334,9 @@ model Class {
   // P6 (Discussion)
   comments LessonComment[]
 
+  // P10 (Gamification G2)
+  xpEvents XpEvent[]
+
   @@index([createdById])
   @@map("classes")
 }
@@ -870,14 +873,20 @@ model XpEvent {
   id        String   @id @default(cuid())
   userId    String
   source    String // lesson_complete, quiz_pass, coding_pass
+  // Lớp phát sinh XP. Nullable: dữ liệu trước P10 chưa gắn lớp và backfill có thể không suy ra được.
+  // Bảng xếp hạng theo lớp (T10.1) BỎ QUA các bản ghi classId = null.
+  classId   String?
   sourceId  String
   amount    Int
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class Class? @relation(fields: [classId], references: [id], onDelete: SetNull)
 
   @@unique([userId, source, sourceId])
   @@index([userId])
+  // Xếp hạng tuần theo lớp: quét theo (classId, createdAt) rồi gộp theo userId.
+  @@index([classId, createdAt])
   @@map("xp_events")
 }
 
