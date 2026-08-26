@@ -33,6 +33,10 @@ volumes:
   pgdata:
   caddy_data: # chứng chỉ ACME — mất là bị Let's Encrypt rate limit khi xin lại
   caddy_config:
+  # Runtime ngôn ngữ Piston tải về. PHẢI là named volume, KHÔNG được bind mount thư mục trong
+  # repo: Piston quét /piston/packages/* và coi MỌI mục con là một gói ngôn ngữ, nên chỉ cần
+  # một file lạc vào đó (kể cả .gitkeep) là nó chết với ENOTDIR và restart vô hạn.
+  piston_packages:
 
 services:
   caddy:
@@ -122,7 +126,7 @@ services:
       PISTON_RUN_TIMEOUT: '5000'
       PISTON_RUN_MEMORY_LIMIT: '134217728' # 128 MB cho tiến trình của học viên
     volumes:
-      - ./ops/piston-packages:/piston/packages
+      - piston_packages:/piston/packages
     # KHÔNG map cổng ra host, KHÔNG nằm cùng network với postgres.
     networks: [lms-runner]
     mem_limit: 192m
