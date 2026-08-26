@@ -230,15 +230,58 @@ lớp 30 em sẽ kéo ~1.1 GB mỗi buổi.
 được: mất tối đa 7 ngày dữ liệu, và snapshot ổ đĩa của một Postgres đang chạy không đảm bảo
 nhất quán.
 
+> ⚠️ **Máy hiện tại KHÔNG có `cron`** (ảnh Ubuntu cloud tối giản; `crontab` báo *command not found*,
+> `dpkg -l | grep cron` trả 0). Dùng **systemd timer** thay cho cron — xem bên dưới.
+> `rclone` thì ĐÃ cài sẵn (v1.60.1) nhưng chưa có remote nào.
+
 ```bash
-# cấu hình đích ngoài máy (vd Cloudflare R2) rồi đặt cron dưới user deploy
+# 1) cấu hình đích ngoài máy (vd Cloudflare R2) — cần tài khoản, xem H3
 rclone config
-crontab -e
-# 15 2 * * * OFFSITE_REMOTE=r2:lms-backups /srv/lms/ops/backup.sh >> /var/log/lms-backup.log 2>&1
+
+# 2) đặt lịch bằng systemd timer (KHÔNG dùng crontab: máy này không có cron)
+sudo tee /etc/systemd/system/lms-backup.service >/dev/null <<'EOF'
+[Unit]
+Description=Sao lưu LMS
+[Service]
+Type=oneshot
+User=deploy
+Environment=OFFSITE_REMOTE=r2:lms-backups
+ExecStart=/srv/lms/ops/backup.sh
+EOF
+
+sudo tee /etc/systemd/system/lms-backup.timer >/dev/null <<'EOF'
+[Unit]
+Description=Sao lưu LMS hằng ngày
+[Timer]
+OnCalendar=*-*-* 02:15:00
+Persistent=true
+[Install]
+WantedBy=timers.target
+EOF
+
+sudo systemctl daemon-reload && sudo systemctl enable --now lms-backup.timer
+systemctl list-timers lms-backup.timer   # kiểm tra đã lên lịch
+```
+
+**Thư mục sao lưu phải tồn tại và thuộc `deploy`.** `/var/backups` thuộc root 755 nên `deploy`
+không tự tạo được thư mục con — `ops/release.sh` sẽ chết ngay ở bước 1. `ops/bootstrap-vps.sh`
+tạo sẵn `/var/backups/lms` (chmod 700), nhưng máy dựng trước bản vá đó thì phải làm tay:
+
+```bash
+sudo mkdir -p /var/backups/lms && sudo chown deploy:deploy /var/backups/lms && sudo chmod 700 /var/backups/lms
 ```
 
 `ops/backup.sh` từ chối thay bản tốt bằng file dump nhỏ bất thường (< 10 KB) — dump hỏng sẽ
 được đổi tên thành `.suspect` và script thoát khác 0.
+
+**✅ Đã thử phục hồi thật ngày 2026-08-26** (chế độ mặc định, phục hồi vào database tạm, KHÔNG
+đụng DB đang chạy). Kết quả trên bản sau P10: 39 bảng, 11 migration, 9 huy hiệu (3 trao tay),
+43 permission, đủ 6 cột P10, có index `xp_events_classId_createdAt_idx` — khớp bản đang chạy.
+
+> **Bẫy:** `ops/release.sh` sao lưu ở **bước 1, TRƯỚC khi migrate ở bước 3**. Nên file nó tạo ra là
+> ảnh chụp **trước** migration — đúng ý đồ (đó là điểm lùi), nhưng nghĩa là ngay sau khi phát hành
+> bạn **chưa có điểm phục hồi cho trạng thái mới**. Chạy `ops/backup.sh` một lần nữa sau khi
+> phát hành xong.
 
 **Phải thử phục hồi ít nhất một lần trước khi mở pilot.** Backup chưa restore thử chỉ là một file:
 

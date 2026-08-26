@@ -77,7 +77,7 @@ tính năng, nhất là mục 3: P10 thêm query và thêm RAM, chưa có số n
 | O1 | Cài runtime Python cho Piston — **bài lập trình đang KHÔNG chấm được** | RUNBOOK §2 |
 | O2 | Chạy danh sách smoke sau deploy | RUNBOOK §4 |
 | O3 | Đo RAM thật bằng `docker stats`, điền vào bảng | RUNBOOK §4 |
-| O4 | `rclone config` + cron sao lưu, và **thử `ops/restore.sh` một lần** | RUNBOOK §5 |
+| O4 | ⚠️ **MỘT NỬA XONG**: `ops/restore.sh` ✅ đã thử thật 2026-08-26 (khôi phục vào DB tạm, kiểm sâu, khớp bản chạy) và `/var/backups/lms` ✅ đã tạo. **CÒN LẠI: chưa có bản sao ngoài máy** (`OFFSITE_REMOTE` trống, rclone chưa có remote — chặn bởi H3) và **chưa đặt lịch tự động** (máy KHÔNG có cron; dùng systemd timer, mẫu ở RUNBOOK §5). | RUNBOOK §5 |
 | O5 | Đổi mật khẩu admin, xoá `SEED_ADMIN_*` khỏi `.env.production` | RUNBOOK §2 |
 
 ### Việc cần người quyết (không agent nào làm thay được)
