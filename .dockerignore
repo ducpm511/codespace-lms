@@ -13,5 +13,3 @@ uploads
 .env
 .env.*
 !.env.example
-ops/piston-packages/*
-!ops/piston-packages/.gitkeep

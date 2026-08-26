@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-08-21
+Updated: 2026-08-26
 
 ## Quy ước đặt tên
 
@@ -23,7 +23,8 @@ Updated: 2026-08-21
 | **P6** Polish & Gamification | notification, audit UI, báo cáo lớp, gamification thật, PDF cert, tech debt cleanup | ✅ Done (T6.1–T6.6 + D1–D5) |
 | **P7** Lesson Activities | bài học đa hoạt động: markdown/pdf slide/video/quiz/coding/assignment | ✅ Done (T7.0–T7.6) |
 | **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ✅ Done (T8.0–T8.5) |
-| **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ✅ Done (T9.0–T9.6) |
+| **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ✅ Done + **đã deploy thật** |
+| **P10** Gamification G2 + Admin redesign | xếp hạng theo lớp/tuần, mục tiêu lớp, giáo viên trao thưởng, streak nhân văn, áp design mới khu Quản trị | ⬅️ Next (chi tiết `HANDOFF_P10.md`) |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -34,45 +35,39 @@ Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified
 
 ## Active Phase
 
-### Không còn phase code nào đang mở
+### Phase P10 — Gamification giai đoạn 2 + Admin redesign ⬅️ TIẾP THEO
 
-P0–P9 ✅ xong. Việc chặn pilot bây giờ là **mua hạ tầng + chạy runbook**, không phải viết thêm code.
+Kế hoạch đầy đủ, trạng thái production và bẫy đã gặp: **`.harness/agent/HANDOFF_P10.md`**.
+Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-LMS-admin-v2.html`.
 
-#### Việc phải làm bởi người (không agent nào làm thay được)
+- **T10.1** Bảng xếp hạng theo **lớp**, theo **tuần** (reset thứ Hai). Cần thêm `XpEvent.classId`.
+- **T10.2** Mục tiêu chung của lớp (`ClassGoal`) → huy hiệu tập thể.
+- **T10.3** Giáo viên trao huy hiệu / thưởng XP kèm lời nhắn (`UserBadge.awardedById`, scope lớp).
+- **T10.4** Streak nhân văn: vé nghỉ phép, khớp lịch học thật (bỏ cuối tuần nếu lớp không học).
+- **T10.5** Áp design mới khu Quản trị: chip vai trò/trạng thái có icon+màu, nhật ký viết thành
+  câu đọc được, nhóm hành động. **Hai quyết định phải chốt trước khi code** — xem HANDOFF §T10.5.
+
+### ⚠️ CHẶN TRƯỚC P10 — việc vận hành trên máy thật
+
+Hệ thống đang chạy nhưng **chưa hoàn tất khâu vận hành**. Làm xong mấy việc này trước khi thêm
+tính năng, nhất là mục 3: P10 thêm query và thêm RAM, chưa có số nền thì không biết còn bao nhiêu chỗ.
+
+| # | Việc | Tham chiếu |
+|---|---|---|
+| O1 | Cài runtime Python cho Piston — **bài lập trình đang KHÔNG chấm được** | RUNBOOK §2 |
+| O2 | Chạy danh sách smoke sau deploy | RUNBOOK §4 |
+| O3 | Đo RAM thật bằng `docker stats`, điền vào bảng | RUNBOOK §4 |
+| O4 | `rclone config` + cron sao lưu, và **thử `ops/restore.sh` một lần** | RUNBOOK §5 |
+| O5 | Đổi mật khẩu admin, xoá `SEED_ADMIN_*` khỏi `.env.production` | RUNBOOK §2 |
+
+### Việc cần người quyết (không agent nào làm thay được)
 
 | # | Việc | Chặn cái gì |
 |---|---|---|
-| H1 | Mua VPS Ubuntu 24.04 (2 vCPU / 2 GB / 30 GB), trỏ A record về IP | Toàn bộ T9.5 |
-| H2 | Chạy `docs/RUNBOOK.md` mục 1–2 (bootstrap + deploy lần đầu + cài runtime Piston) | Pilot |
-| H3 | Tạo tài khoản Cloudinary, điền `CLOUDINARY_*`, đặt `STORAGE_DRIVER=cloudinary` | Xác minh T9.3 thật |
-| H4 | Chốt email provider (gợi ý Resend free ~3.000 mail/tháng) | Quên-mật-khẩu |
-| H5 | Cấu hình `rclone` cho backup ngoài máy + đặt cron | Sao lưu thật |
-
-#### Việc còn lại sau khi có máy (agent làm được)
-
-- **V1 — Smoke sau deploy trên máy thật.** Danh sách đầy đủ ở `docs/RUNBOOK.md` §4. Quan trọng nhất:
-  chờ access token hết hạn rồi thao tác tiếp -> phải TỰ refresh; URL Cloudinary thô -> phải KHÔNG tải được;
-  nộp bài lập trình -> nhận điểm THẬT (không phải stub).
-- **V2 — Đo RAM thật** bằng `docker stats` lúc nhàn rỗi và lúc 5 học viên nộp bài cùng lúc, điền vào bảng
-  trống ở `docs/RUNBOOK.md` §4. Ngân sách: ~1.1 GB thường / ~1.4 GB đỉnh.
-- **V3 — Thử restore một lần**: `ops/restore.sh <file>` phục hồi vào database tạm và in số bản ghi; phải khớp
-  với hệ thống đang chạy. **Backup chưa restore thử coi như chưa có.**
-- **V4 — Đo cache tĩnh** bằng DevTools: mở bài lập trình lần đầu (~37 MB), tải lại -> `/monaco/*`,
-  `/pyodide/*`, `/assets/*` phải là `from disk cache`.
-- **V5 — Quên mật khẩu qua email** (sau H4). Trước đó admin đặt lại mật khẩu (T9.2) đã đủ cho pilot.
-
-#### Nợ kỹ thuật đã ghi nhận (không chặn pilot)
-
-- **Khu Giảng dạy chưa giới hạn theo giáo viên.** `GET /classes` trả MỌI lớp cho bất kỳ ai có `class.read`,
-  nên sidebar và `GET /teach/overview` đều đang hiện toàn hệ thống. Design §7 ("lớp của bạn") muốn thu hẹp
-  theo lớp mình phụ trách. Phải sửa **cùng lúc** `GET /classes` + sidebar + hero, và quyết trước xem admin
-  không dạy lớp nào thì quản lý lớp ở đâu — nếu không sẽ khoá admin ra ngoài. Đã thử thu hẹp riêng
-  `/teach/overview` trong P9 và phải hoàn lại vì hero báo 0 trong khi sidebar liệt kê 10 lớp.
-- `DELETE /classes/:classId/courses/:courseId` trả 404 khi khóa đã được gỡ; nhấn hai lần ở UI sẽ hiện lỗi.
-  Nên làm idempotent (204) hoặc nuốt 404 ở FE.
-- Ảnh API 544 MB (chủ yếu là Prisma engine + node_modules). Còn giảm được bằng `pnpm deploy` hoặc
-  distroless, nhưng chưa cần thiết cho 30 GB đĩa.
-- Chưa có E2E tự động (Playwright); mọi smoke vẫn làm tay.
+| H1 | Tài khoản Cloudinary → `STORAGE_DRIVER=cloudinary` | Xác minh T9.3 thật; giảm rủi ro mất file |
+| H2 | Chốt email provider (gợi ý Resend) | Quên-mật-khẩu |
+| H3 | Chốt đích sao lưu ngoài máy (R2/B2) | O4 |
+| H4 | Chốt 2 quyết định ở T10.5 (câu tóm tắt audit dựng ở đâu; có ghi audit login không) | T10.5 |
 
 ---
 
