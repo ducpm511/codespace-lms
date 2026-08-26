@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateCourseRequest, CreateLessonRequest, CreateSectionRequest } from '@lms/contracts';
+import type {
+  CreateCourseRequest,
+  CreateLessonRequest,
+  CreateSectionRequest,
+  UpdateCourseRequest,
+} from '@lms/contracts';
 import * as api from './api';
 
 export const coursesKey = ['courses'] as const;
@@ -86,6 +91,29 @@ export function usePublishCourse(courseId: string) {
     mutationFn: () => api.publishCourse(courseId),
     onSuccess: (data) => {
       qc.setQueryData(courseKey(courseId), data);
+      void qc.invalidateQueries({ queryKey: coursesKey });
+    },
+  });
+}
+
+export function useUpdateCourse(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpdateCourseRequest) => api.updateCourse(courseId, body),
+    onSuccess: (data) => {
+      qc.setQueryData(courseKey(courseId), data);
+      // Danh sách bên trái hiện title + slug -> phải nạp lại, nếu không tên cũ còn nằm đó.
+      void qc.invalidateQueries({ queryKey: coursesKey });
+    },
+  });
+}
+
+export function useDeleteCourse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (courseId: string) => api.deleteCourse(courseId),
+    onSuccess: (_data, courseId) => {
+      qc.removeQueries({ queryKey: courseKey(courseId) });
       void qc.invalidateQueries({ queryKey: coursesKey });
     },
   });

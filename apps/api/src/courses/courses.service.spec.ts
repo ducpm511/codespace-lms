@@ -13,6 +13,8 @@ function makePrisma() {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    classCourse: { count: jest.fn().mockResolvedValue(0) },
+    certificate: { count: jest.fn().mockResolvedValue(0) },
     section: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -155,11 +157,73 @@ describe('CoursesService', () => {
     });
   });
 
+  describe('update', () => {
+    it('409 khi đổi slug sang slug KHÁC đã có chủ', async () => {
+      prisma.course.findUnique
+        .mockResolvedValueOnce({ id: 'c1' }) // ensureCourse
+        .mockResolvedValueOnce({ id: 'c2' }); // slug đang thuộc khóa khác
+      await expect(service.update('c1', { slug: 'da-ton-tai' })).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(prisma.course.update).not.toHaveBeenCalled();
+    });
+
+    it('giữ NGUYÊN slug của chính mình thì KHÔNG báo trùng', async () => {
+      prisma.course.findUnique
+        .mockResolvedValueOnce({ id: 'c1' }) // ensureCourse
+        .mockResolvedValueOnce({ id: 'c1' }) // slug đang thuộc chính khóa này
+        .mockResolvedValueOnce(courseRow()); // findOne
+      prisma.course.update.mockResolvedValue({});
+      await expect(service.update('c1', { slug: 'python-basics', title: 'Tên mới' })).resolves.toBeDefined();
+      expect(prisma.course.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ slug: 'python-basics', title: 'Tên mới' }),
+        }),
+      );
+    });
+
+    it('không truyền slug thì không đi kiểm trùng', async () => {
+      prisma.course.findUnique
+        .mockResolvedValueOnce({ id: 'c1' }) // ensureCourse
+        .mockResolvedValueOnce(courseRow()); // findOne
+      prisma.course.update.mockResolvedValue({});
+      await service.update('c1', { title: 'Chỉ đổi tên' });
+      expect(prisma.course.findUnique).toHaveBeenCalledTimes(2);
+    });
+
+    it('404 khi khóa không tồn tại', async () => {
+      prisma.course.findUnique.mockResolvedValue(null);
+      await expect(service.update('nope', { title: 'X' })).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   describe('remove', () => {
-    it('409 khi course đang gán lớp (FK P2003)', async () => {
+    // MỌI quan hệ tới Course đều onDelete: Cascade -> Postgres KHÔNG ném P2003. Nếu chỉ dựa vào
+    // khoá ngoại thì xóa một khóa đang dạy sẽ trả 204 và cuốn theo tiến độ học viên lẫn chứng chỉ.
+    it('409 khi khóa đang được gán cho lớp — KHÔNG dựa vào khoá ngoại', async () => {
       prisma.course.findUnique.mockResolvedValue({ id: 'c1' });
-      prisma.course.delete.mockRejectedValue(knownError('P2003'));
+      prisma.classCourse.count.mockResolvedValue(1);
       await expect(service.remove('c1')).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.course.delete).not.toHaveBeenCalled();
+    });
+
+    it('409 khi khóa đã cấp chứng chỉ — bằng chứng hoàn thành không được biến mất', async () => {
+      prisma.course.findUnique.mockResolvedValue({ id: 'c1' });
+      prisma.certificate.count.mockResolvedValue(2);
+      await expect(service.remove('c1')).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.course.delete).not.toHaveBeenCalled();
+    });
+
+    it('xóa được khi khóa chưa gán lớp và chưa cấp chứng chỉ', async () => {
+      prisma.course.findUnique.mockResolvedValue({ id: 'c1' });
+      prisma.course.delete.mockResolvedValue({});
+      await expect(service.remove('c1')).resolves.toBeUndefined();
+      expect(prisma.course.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
+    });
+
+    it('404 khi khóa không tồn tại', async () => {
+      prisma.course.findUnique.mockResolvedValue(null);
+      await expect(service.remove('nope')).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

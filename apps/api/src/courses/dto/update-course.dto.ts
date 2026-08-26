@@ -1,7 +1,12 @@
-import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import type { CourseLanguageValue, CourseLevelValue, UpdateCourseRequest } from '@lms/contracts';
 
 export class UpdateCourseDto implements UpdateCourseRequest {
+  @IsOptional()
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { message: 'slug phải là kebab-case (a-z, 0-9, dấu -)' })
+  @MaxLength(120)
+  slug?: string;
+
   @IsOptional()
   @IsString()
   @MinLength(1)

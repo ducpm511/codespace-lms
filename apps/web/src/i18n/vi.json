@@ -91,7 +91,20 @@
     "editLesson": "Sửa bài học",
     "removeLesson": "Xóa bài học",
     "confirmRemoveLesson": "Xóa bài học \"{{title}}\"?",
-    "addLessonToSection": "Thêm bài học vào chương"
+    "addLessonToSection": "Thêm bài học vào chương",
+    "editCourse": "Sửa thông tin khóa học",
+    "removeCourse": "Xóa khóa học",
+    "confirmRemoveCourse": "Xóa khóa học “{{title}}”? Toàn bộ chương và bài học bên trong sẽ mất theo.",
+    "descriptionField": "Mô tả",
+    "languageField": "Ngôn ngữ",
+    "levelField": "Trình độ",
+    "slugEditHint": "Chỉ dùng để hiển thị — đổi không làm hỏng liên kết nào.",
+    "language_scratch": "Scratch",
+    "language_python": "Python",
+    "language_other": "Khác",
+    "level_beginner": "Cơ bản",
+    "level_intermediate": "Trung cấp",
+    "level_advanced": "Nâng cao"
   },
   "classes": {
     "heading": "Lớp học",

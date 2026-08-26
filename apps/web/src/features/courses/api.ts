@@ -5,6 +5,7 @@ import type {
   CreateLessonRequest,
   CreateSectionRequest,
   Paginated,
+  UpdateCourseRequest,
 } from '@lms/contracts';
 import { apiFetch } from '../../lib/api';
 
@@ -66,3 +67,9 @@ export const removeLesson = (
 
 export const publishCourse = (id: string): Promise<CourseDetail> =>
   apiFetch<CourseDetail>(`/courses/${id}/publish`, { method: 'POST' });
+
+export const updateCourse = (id: string, body: UpdateCourseRequest): Promise<CourseDetail> =>
+  apiFetch<CourseDetail>(`/courses/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+
+export const deleteCourse = (id: string): Promise<void> =>
+  apiFetch<void>(`/courses/${id}`, { method: 'DELETE' });

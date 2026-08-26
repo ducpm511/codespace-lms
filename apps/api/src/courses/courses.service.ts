@@ -65,9 +65,20 @@ export class CoursesService {
 
   async update(id: string, dto: UpdateCourseDto): Promise<CourseDetail> {
     await this.ensureCourse(id);
+    if (dto.slug) {
+      // Kiểm trước để trả 409 có thông điệp đọc được, thay vì để P2002 rơi xuống thành 500.
+      const clash = await this.prisma.course.findUnique({
+        where: { slug: dto.slug },
+        select: { id: true },
+      });
+      if (clash && clash.id !== id) {
+        throw new ConflictException('Slug đã tồn tại');
+      }
+    }
     await this.prisma.course.update({
       where: { id },
       data: {
+        slug: dto.slug,
         title: dto.title,
         description: dto.description,
         thumbnailUrl: dto.thumbnailUrl,
@@ -85,13 +96,37 @@ export class CoursesService {
     return this.findOne(id);
   }
 
+  /**
+   * Xóa khóa học — CHỈ khi nó chưa được dùng thật.
+   *
+   * KHÔNG tin vào khoá ngoại ở đây. MỌI quan hệ trỏ tới `Course` đều `onDelete: Cascade`
+   * (`ClassCourse`, `Section`→`Lesson`→tiến độ/gate/bình luận, `Assignment`→bài nộp,
+   * `CodingProblem`, `Quiz`→lượt làm, và cả `Certificate`). Nghĩa là Postgres KHÔNG bao giờ
+   * ném P2003 — xóa một khóa đang dạy sẽ âm thầm gỡ nó khỏi lớp và cuốn theo toàn bộ tiến độ
+   * học viên lẫn chứng chỉ đã cấp, không một lỗi nào. Đã kiểm chứng: trước bản vá này,
+   * `DELETE` một khóa đang gán lớp trả 204 và dữ liệu bay sạch.
+   */
   async remove(id: string): Promise<void> {
     await this.ensureCourse(id);
+
+    const [assignedClasses, issuedCertificates] = await Promise.all([
+      this.prisma.classCourse.count({ where: { courseId: id } }),
+      this.prisma.certificate.count({ where: { courseId: id } }),
+    ]);
+    if (assignedClasses > 0) {
+      throw new ConflictException('Khóa học đang được gán cho lớp — gỡ khỏi lớp trước khi xóa');
+    }
+    // Chứng chỉ đã cấp là bằng chứng học viên đã hoàn thành — không được biến mất theo khóa học.
+    if (issuedCertificates > 0) {
+      throw new ConflictException('Khóa học đã cấp chứng chỉ — không xóa được');
+    }
+
     try {
       await this.prisma.course.delete({ where: { id } });
     } catch (e) {
+      // Phòng thủ chiều sâu: nếu sau này có quan hệ KHÔNG cascade được thêm vào.
       if (isPrismaError(e, 'P2003')) {
-        throw new ConflictException('Khóa học đang được gán cho lớp — gỡ khỏi lớp trước khi xóa');
+        throw new ConflictException('Khóa học còn dữ liệu liên quan — không xóa được');
       }
       throw e;
     }

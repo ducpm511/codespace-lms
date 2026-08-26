@@ -91,7 +91,20 @@
     "editLesson": "Edit lesson",
     "removeLesson": "Delete lesson",
     "confirmRemoveLesson": "Delete lesson \"{{title}}\"?",
-    "addLessonToSection": "Add a lesson to this chapter"
+    "addLessonToSection": "Add a lesson to this chapter",
+    "editCourse": "Edit course details",
+    "removeCourse": "Delete course",
+    "confirmRemoveCourse": "Delete the course “{{title}}”? Every chapter and lesson inside it goes too.",
+    "descriptionField": "Description",
+    "languageField": "Language",
+    "levelField": "Level",
+    "slugEditHint": "Display only — changing it breaks no links.",
+    "language_scratch": "Scratch",
+    "language_python": "Python",
+    "language_other": "Other",
+    "level_beginner": "Beginner",
+    "level_intermediate": "Intermediate",
+    "level_advanced": "Advanced"
   },
   "classes": {
     "heading": "Classes",

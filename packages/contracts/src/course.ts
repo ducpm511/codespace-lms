@@ -60,6 +60,11 @@ export interface CreateCourseRequest {
 }
 
 export interface UpdateCourseRequest {
+  /**
+   * Đổi được. `slug` CHỈ dùng để hiển thị (`/py-01` dưới tên khóa) — không route nào tra cứu
+   * theo nó, nên đổi không làm gãy liên kết. Vẫn phải là duy nhất; trùng thì API trả 409.
+   */
+  slug?: string;
   title?: string;
   description?: string | null;
   thumbnailUrl?: string | null;

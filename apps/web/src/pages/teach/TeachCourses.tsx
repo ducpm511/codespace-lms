@@ -1,17 +1,26 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LessonSummary, SectionWithLessons } from '@lms/contracts';
+import type {
+  CourseDetail,
+  CourseLanguageValue,
+  CourseLevelValue,
+  LessonSummary,
+  SectionWithLessons,
+} from '@lms/contracts';
 import { ApiError } from '../../lib/api';
+import { useMe } from '../../features/auth/hooks';
 import {
   useAddLesson,
   useAddSection,
   useCourse,
   useCourses,
   useCreateCourse,
+  useDeleteCourse,
   usePublishCourse,
   useRemoveLesson,
   useRemoveSection,
+  useUpdateCourse,
   useUpdateLesson,
   useUpdateSection,
 } from '../../features/courses/hooks';
@@ -96,11 +105,147 @@ export function TeachCourses(): JSX.Element {
       }
     >
       {selected ? (
-        <CourseDetailPanel courseId={selected} />
+        <CourseDetailPanel courseId={selected} onDeleted={() => setSelected(null)} />
       ) : (
         <EmptyHint icon="ph-hand-pointing">{t('courses.selectHint')}</EmptyHint>
       )}
     </TeachShell>
+  );
+}
+
+const LANGUAGES: CourseLanguageValue[] = ['scratch', 'python', 'other'];
+const LEVELS: CourseLevelValue[] = ['beginner', 'intermediate', 'advanced'];
+
+/**
+ * Sửa thông tin khóa học tại chỗ, thay chỗ header.
+ *
+ * `slug` sửa được: nó chỉ dùng để hiển thị, không route nào tra cứu theo nó. Trùng slug thì API
+ * trả 409 và thông báo hiện ngay dưới form.
+ */
+function EditCourseForm({ course, onDone }: { course: CourseDetail; onDone: () => void }): JSX.Element {
+  const { t } = useTranslation();
+  const update = useUpdateCourse(course.id);
+  const [title, setTitle] = useState(course.title);
+  const [slug, setSlug] = useState(course.slug);
+  const [description, setDescription] = useState(course.description ?? '');
+  const [language, setLanguage] = useState(course.language as CourseLanguageValue);
+  const [level, setLevel] = useState(course.level as CourseLevelValue);
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    update.mutate(
+      {
+        title: title.trim(),
+        slug: slug.trim(),
+        // Xoá trắng ô mô tả = gỡ mô tả, nên gửi null chứ không phải chuỗi rỗng.
+        description: description.trim() || null,
+        language,
+        level,
+      },
+      { onSuccess: onDone },
+    );
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      className="card"
+      style={{ borderRadius: 20, padding: 'var(--space-6)', gap: 'var(--space-4)' }}
+    >
+      <div className="flex items-center gap-3">
+        <IconTile icon="ph-pencil-simple" color="var(--cx-purple)" size={38} />
+        <p className="cx-display m-0" style={{ fontSize: 15 }}>
+          {t('courses.editCourse')}
+        </p>
+      </div>
+
+      <div className="field">
+        <label htmlFor="course-title">{t('courses.titleField')}</label>
+        <input
+          id="course-title"
+          className="input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          autoFocus
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="course-slug">{t('courses.slug')}</label>
+        <input
+          id="course-slug"
+          className="input"
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+          pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+          title={t('courses.slugHint')}
+          required
+        />
+        <p className="text-muted m-0" style={{ fontSize: 11 }}>
+          {t('courses.slugEditHint')}
+        </p>
+      </div>
+
+      <div className="field">
+        <label htmlFor="course-desc">{t('courses.descriptionField')}</label>
+        <textarea
+          id="course-desc"
+          className="input"
+          rows={3}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-4">
+        <div className="field min-w-[160px] flex-1">
+          <label htmlFor="course-language">{t('courses.languageField')}</label>
+          <select
+            id="course-language"
+            className="input"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as CourseLanguageValue)}
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l} value={l}>
+                {t(`courses.language_${l}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field min-w-[160px] flex-1">
+          <label htmlFor="course-level">{t('courses.levelField')}</label>
+          <select
+            id="course-level"
+            className="input"
+            value={level}
+            onChange={(e) => setLevel(e.target.value as CourseLevelValue)}
+          >
+            {LEVELS.map((l) => (
+              <option key={l} value={l}>
+                {t(`courses.level_${l}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <PillButton type="submit" icon="ph-check" disabled={update.isPending}>
+          {t('common.save')}
+        </PillButton>
+        <PillButton variant="secondary" onClick={onDone}>
+          {t('common.cancel')}
+        </PillButton>
+      </div>
+
+      {update.isError && (
+        <p className="m-0 text-xs" style={{ color: '#f4a3a3' }}>
+          {errMsg(update.error)}
+        </p>
+      )}
+    </form>
   );
 }
 
@@ -164,11 +309,23 @@ function CreateCourseForm({
   );
 }
 
-function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
+function CourseDetailPanel({
+  courseId,
+  onDeleted,
+}: {
+  courseId: string;
+  onDeleted: () => void;
+}): JSX.Element {
   const { t } = useTranslation();
   const course = useCourse(courseId);
   const addSection = useAddSection(courseId);
   const publish = usePublishCourse(courseId);
+  const removeCourse = useDeleteCourse();
+  // `course.delete` là quyền của admin — vai trò `instructor` KHÔNG có. Hiện nút cho người không
+  // có quyền chỉ để họ bấm rồi ăn 403 là tệ hơn không hiện.
+  const { data: me } = useMe();
+  const canDelete = me?.permissions?.includes('course.delete') ?? false;
+  const [editingCourse, setEditingCourse] = useState(false);
   const [addingSection, setAddingSection] = useState(false);
   const [sectionTitle, setSectionTitle] = useState('');
   // P7 — bài học đang mở trình soạn activity
@@ -181,7 +338,9 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
   const lessonCount = c.sections.reduce((n, s) => n + s.lessons.length, 0);
 
   // Header khóa học ở lại phía trên KHI mở builder (design §7f) — chỉ cây chương/bài bị thay chỗ.
-  const courseHeader = (
+  const courseHeader = editingCourse ? (
+    <EditCourseForm course={c} onDone={() => setEditingCourse(false)} />
+  ) : (
     <DetailHeader
       icon="ph-book-bookmark"
       color={statusColor(c.status)}
@@ -200,6 +359,23 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
             <PillButton icon="ph-rocket-launch" onClick={() => publish.mutate()} disabled={publish.isPending}>
               {t('courses.publish')}
             </PillButton>
+          )}
+          <IconButton
+            icon="ph-pencil-simple"
+            title={t('courses.editCourse')}
+            onClick={() => setEditingCourse(true)}
+          />
+          {canDelete && (
+            <IconButton
+              icon="ph-trash"
+              tone="danger"
+              title={t('courses.removeCourse')}
+              disabled={removeCourse.isPending}
+              onClick={() => {
+                if (!confirm(t('courses.confirmRemoveCourse', { title: c.title }))) return;
+                removeCourse.mutate(courseId, { onSuccess: onDeleted });
+              }}
+            />
           )}
         </>
       }
@@ -226,6 +402,11 @@ function CourseDetailPanel({ courseId }: { courseId: string }): JSX.Element {
   return (
     <DetailColumn>
       {courseHeader}
+      {removeCourse.isError && (
+        <p className="m-0 text-xs" style={{ color: '#f4a3a3' }}>
+          {errMsg(removeCourse.error)}
+        </p>
+      )}
       <DetailSection
         icon="ph-tree-structure"
         color="var(--cx-purple)"
