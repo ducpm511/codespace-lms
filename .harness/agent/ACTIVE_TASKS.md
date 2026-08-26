@@ -56,6 +56,8 @@ Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-L
   Quyền: `grade.write` **và** phải là instructor/ta CỦA CHÍNH LỚP ĐÓ — chỉ kiểm permission là hở,
   vì role `instructor` đang gán global. XP thưởng tay có trần 5–200 để một lượt không lật cả
   bảng xếp hạng. FE: `AwardPanel` ngay dưới form chấm bài trong `TeachAssignments`.
+  3 huy hiệu trao tay nằm ở **migration** `20260826150000_p10_seed_manual_badges`, KHÔNG chỉ ở
+  `seed.cjs` — `ops/release.sh` không chạy seed nên để ở seed thì ô chọn huy hiệu RỖNG trên production.
 - **T10.4** Streak nhân văn: vé nghỉ phép, khớp lịch học thật (bỏ cuối tuần nếu lớp không học).
 - **T10.5** ✅ **XONG** — Áp design mới khu Quản trị.
   `pages/admin/adminUi.ts` (thuần logic): `ROLE_META` / `STATUS_META` (icon Phosphor fill + màu),
