@@ -9,6 +9,25 @@ Updated: 2026-08-26
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
 
+### P10 · T10.5 Redesign khu Quản trị (2026-08-26)
+
+- **Nhật ký viết thành câu, KHÔNG tra tên người bị tác động** (quyết định của người dùng, HANDOFF §T10.5).
+  Đánh đổi PII biến mất: `audit_logs` giữ nguyên hình dạng, không join thêm, không snapshot tên.
+  Tên người THỰC HIỆN vốn đã có sẵn (`AuditLogDto.actorName`, backend join từ P6) nên vẫn hiện.
+- **Không có nhóm `login`** — đã chốt không ghi audit đăng nhập. Có test khẳng định `auth.login`
+  (nếu ai đó thêm sau này) rơi vào nhóm mặc định chứ không được cấp màu riêng.
+- Thêm nhóm **`award`** cho `gamification.award` của T10.3 — thiết kế gốc chưa biết tới action này.
+- **Chi tiết dựng thành CHIP RỜI, không ghép chuỗi.** Ghép chuỗi kiểu "Tạo tài khoản {{role}} với
+  trạng thái {{status}}" thì bản dịch gãy ở ngôn ngữ có trật tự từ khác.
+- `metaJson` mở rộng **tại chỗ** thay cho modal JSON: xem chi tiết một dòng không nên che các dòng quanh nó.
+- **`GET /admin/overview`** (module `admin` mới, quyền `user.read` — `instructor` KHÔNG có quyền này):
+  GV+TA / học viên / lớp `active` / khóa `published`. Ba query cố định, loại tài khoản `suspended`
+  (GV bị khoá thì không còn dạy), người giữ cả instructor lẫn TA chỉ đếm một lần.
+- `adminUi.ts` để **thuần logic, không JSX** — trộn hằng số với component làm eslint
+  `react-refresh/only-export-components` kêu 9 cảnh báo; `MetaChip`/`StatTile` nằm trong `AdminHome.tsx`.
+- `pnpm validate` 16/16 (api **314 test / 28 suite**, web **15 test / 3 file**), i18n parity **562/562**.
+  **Chưa xem được trên giao diện thật** — worktree không có DB/Docker.
+
 ### P10 · T10.3 Giáo viên trao thưởng thủ công (2026-08-26)
 
 - **Chỗ chặn thật KHÔNG phải permission mà là thành viên lớp.** `assertCanAwardInClass` đòi CẢ
@@ -378,8 +397,8 @@ theo phạm vi lớp** (`UserRole.classId` / `ClassMember.roleInClass`). Mọi r
 **ĐÃ DEPLOY THẬT — https://lms.codespace.edu.vn đang chạy** (VPS TINO `103.142.27.54`).
 Trạng thái production, việc còn lại trước khi mở lớp, và bẫy đã gặp: **`.harness/agent/HANDOFF_P10.md`**.
 
-**P10 đang chạy.** T10.1 ✅, T10.3 ✅. Tiếp theo: T10.5 (đã hết chặn) hoặc T10.2 / T10.4.
-H4 đã chốt 2026-08-26 — xem `HANDOFF_P10.md §T10.5`.
+**P10 đang chạy.** T10.1 ✅, T10.3 ✅, T10.5 ✅. Còn **T10.2** (mục tiêu chung của lớp) và
+**T10.4** (streak nhân văn — cần chốt trước: `Class` chưa có lịch học hằng tuần).
 
 ### Gotchas môi trường thêm ở P9
 - Worktree KHÔNG có `.env` (file này gitignored, chỉ nằm ở checkout chính). Kể từ P9, API **chết ngay**

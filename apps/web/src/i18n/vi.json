@@ -184,7 +184,30 @@
     "auditViewJson": "Xem JSON",
     "auditSystem": "Hệ thống",
     "auditEmpty": "Không có bản ghi nhật ký nào.",
-    "newPassword": "Mật khẩu mới"
+    "newPassword": "Mật khẩu mới",
+    "tabUsers": "Người dùng & vai trò",
+    "tabAudit": "Nhật ký",
+    "statTeachers": "Giáo viên & trợ giảng",
+    "statStudents": "Học viên",
+    "statActiveClasses": "Lớp đang mở",
+    "statPublishedCourses": "Khóa học đang chạy",
+    "auditToday": "Hôm nay",
+    "auditYesterday": "Hôm qua",
+    "auditSelfService": "Tự đổi",
+    "auditByAdmin": "Do quản trị viên",
+    "auditScopedToClass": "Giới hạn theo lớp",
+    "auditBadge": "Huy hiệu {{code}}",
+    "auditSay": {
+      "userCreate": "Tạo tài khoản mới",
+      "userUpdate": "Cập nhật tài khoản",
+      "passwordChange": "Đổi mật khẩu",
+      "passwordReset": "Đặt lại mật khẩu",
+      "roleAssign": "Gán vai trò cho tài khoản",
+      "roleRevoke": "Gỡ vai trò khỏi tài khoản",
+      "certificateIssue": "Cấp chứng chỉ",
+      "certificateRevoke": "Thu hồi chứng chỉ",
+      "gamificationAward": "Trao thưởng cho học viên"
+    }
   },
   "teach": {
     "title": "Khu vực giảng dạy",

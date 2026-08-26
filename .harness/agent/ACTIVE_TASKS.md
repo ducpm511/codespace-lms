@@ -57,9 +57,13 @@ Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-L
   vì role `instructor` đang gán global. XP thưởng tay có trần 5–200 để một lượt không lật cả
   bảng xếp hạng. FE: `AwardPanel` ngay dưới form chấm bài trong `TeachAssignments`.
 - **T10.4** Streak nhân văn: vé nghỉ phép, khớp lịch học thật (bỏ cuối tuần nếu lớp không học).
-- **T10.5** Áp design mới khu Quản trị: chip vai trò/trạng thái có icon+màu, nhật ký viết thành
-  câu đọc được, nhóm hành động (**bỏ nhóm `login`**), **+ dãy số liệu** (GV / học viên / lớp đang
-  mở / khóa đang chạy). Quyết định đã chốt — xem HANDOFF §T10.5. **Không còn chặn.**
+- **T10.5** ✅ **XONG** — Áp design mới khu Quản trị.
+  `pages/admin/adminUi.ts` (thuần logic): `ROLE_META` / `STATUS_META` (icon Phosphor fill + màu),
+  `GROUP_META` 6 nhóm hành động (**không có `login`**, thêm `award` cho `gamification.award`),
+  `auditSentence` / `auditChips` / `auditTime`. Nhật ký từ bảng thô thành danh sách câu đọc được,
+  `metaJson` mở rộng TẠI CHỖ (bỏ modal JSON). Dãy số liệu: `GET /admin/overview` (module `admin`,
+  quyền `user.read`, 3 query cố định, loại tài khoản `suspended`).
+  **CHƯA xem được trên giao diện thật** — không có DB/Docker trong worktree.
 
 ### ⚠️ CHẶN TRƯỚC P10 — việc vận hành trên máy thật
 

@@ -184,7 +184,30 @@
     "auditViewJson": "View JSON",
     "auditSystem": "System",
     "auditEmpty": "No audit records.",
-    "newPassword": "New password"
+    "newPassword": "New password",
+    "tabUsers": "Users & roles",
+    "tabAudit": "Activity log",
+    "statTeachers": "Teachers & assistants",
+    "statStudents": "Students",
+    "statActiveClasses": "Active classes",
+    "statPublishedCourses": "Published courses",
+    "auditToday": "Today",
+    "auditYesterday": "Yesterday",
+    "auditSelfService": "Self-service",
+    "auditByAdmin": "By an admin",
+    "auditScopedToClass": "Scoped to a class",
+    "auditBadge": "Badge {{code}}",
+    "auditSay": {
+      "userCreate": "Created a new account",
+      "userUpdate": "Updated an account",
+      "passwordChange": "Changed a password",
+      "passwordReset": "Reset a password",
+      "roleAssign": "Assigned a role to an account",
+      "roleRevoke": "Removed a role from an account",
+      "certificateIssue": "Issued a certificate",
+      "certificateRevoke": "Revoked a certificate",
+      "gamificationAward": "Gave a student an award"
+    }
   },
   "teach": {
     "title": "Teaching area",

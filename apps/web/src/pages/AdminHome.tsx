@@ -3,10 +3,21 @@ import { useTranslation } from 'react-i18next';
 import { SYSTEM_ROLES } from '@lms/contracts';
 import type { AuditLogDto, UserStatusValue, UserSummary } from '@lms/contracts';
 import { useAuditLogs } from '../features/audit/useAuditLogs';
+import { useAdminOverview } from '../features/admin/hooks';
 import { useUsers } from '../features/users/hooks';
 import { UserFormDialog } from '../features/users/UserFormDialog';
 import { ResetPasswordDialog } from '../features/users/ResetPasswordDialog';
 import { useDebounced } from '../lib/useDebounced';
+import type { Meta } from './admin/adminUi';
+import {
+  GROUP_META,
+  auditChips,
+  auditGroup,
+  auditSentence,
+  auditTime,
+  roleMeta,
+  statusMeta,
+} from './admin/adminUi';
 
 const PAGE_SIZE = 20;
 const STATUSES: UserStatusValue[] = ['invited', 'active', 'suspended'];
@@ -31,7 +42,9 @@ export function AdminHome(): JSX.Element {
 
   // Audit filters
   const [actionFilter, setActionFilter] = useState('');
-  const [selectedLog, setSelectedLog] = useState<AuditLogDto | null>(null);
+  // Mở rộng metaJson NGAY TRÊN DÒNG thay vì modal — xem chi tiết một dòng không nên che mất
+  // ngữ cảnh của các dòng quanh nó.
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   const {
     data: usersData,
@@ -64,7 +77,7 @@ export function AdminHome(): JSX.Element {
     setEditing(null);
     setCreating(false);
     setResetting(null);
-    setSelectedLog(null);
+    setExpandedLogId(null);
   };
 
   return (
@@ -76,16 +89,18 @@ export function AdminHome(): JSX.Element {
             className={`seg-btn cx-press ${tab === 'users' ? 'seg-active' : ''}`}
             onClick={() => switchTab('users')}
           >
-            <i className="ph ph-users mr-1.5" aria-hidden /> {t('admin.usersHeading')}
+            <i className="ph ph-users-three mr-1.5" aria-hidden /> {t('admin.tabUsers')}
           </button>
           <button
             className={`seg-btn cx-press ${tab === 'audit' ? 'seg-active' : ''}`}
             onClick={() => switchTab('audit')}
           >
-            <i className="ph ph-shield-check mr-1.5" aria-hidden /> {t('admin.auditHeading')}
+            <i className="ph ph-shield-check mr-1.5" aria-hidden /> {t('admin.tabAudit')}
           </button>
         </div>
       </div>
+
+      <AdminStats />
 
       {tab === 'users' && (
         <div className="space-y-5">
@@ -171,14 +186,25 @@ export function AdminHome(): JSX.Element {
                         <td>{u.email}</td>
                         <td>{u.fullName}</td>
                         <td>
-                          <span
-                            className={u.status === 'active' ? 'tag tag-accent' : 'tag tag-neutral'}
-                          >
-                            {t(`userStatus.${u.status}`, { defaultValue: u.status })}
-                          </span>
+                          <MetaChip
+                            meta={statusMeta(u.status)}
+                            label={t(`userStatus.${u.status}`, { defaultValue: u.status })}
+                          />
                         </td>
-                        <td className="text-muted">
-                          {u.roles.map((r) => t(`roles.${r}`, { defaultValue: r })).join(', ') || '—'}
+                        <td>
+                          {u.roles.length === 0 ? (
+                            <span className="text-muted">—</span>
+                          ) : (
+                            <span className="flex flex-wrap gap-1">
+                              {u.roles.map((r) => (
+                                <MetaChip
+                                  key={r}
+                                  meta={roleMeta(r)}
+                                  label={t(`roles.${r}`, { defaultValue: r })}
+                                />
+                              ))}
+                            </span>
+                          )}
                         </td>
                         <td>
                           <div className="flex justify-end gap-1">
@@ -267,53 +293,18 @@ export function AdminHome(): JSX.Element {
             )}
 
             {auditData && auditData.items.length > 0 && (
-              <div className="overflow-x-auto px-2 pb-2">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>{t('admin.auditTime')}</th>
-                      <th>{t('admin.auditActor')}</th>
-                      <th>{t('admin.auditAction')}</th>
-                      <th>{t('admin.auditEntity')}</th>
-                      <th>{t('admin.auditEntityId')}</th>
-                      <th>{t('admin.auditDetail')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {auditData.items.map((log) => (
-                      <tr key={log.id}>
-                        <td className="text-muted whitespace-nowrap text-xs">
-                          {new Date(log.createdAt).toLocaleString()}
-                        </td>
-                        <td className="text-xs">
-                          <div className="font-semibold">{log.actorName || t('admin.auditSystem')}</div>
-                          {log.actorEmail && (
-                            <div className="text-muted text-[11px]">{log.actorEmail}</div>
-                          )}
-                        </td>
-                        <td>
-                          <span className="tag tag-accent font-mono text-xs">{log.action}</span>
-                        </td>
-                        <td className="text-xs">{log.entity}</td>
-                        <td className="text-muted font-mono text-xs">{log.entityId || '—'}</td>
-                        <td>
-                          {log.metaJson ? (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedLog(log)}
-                              className="btn btn-secondary cx-press !rounded-full !px-2.5 !py-1 text-xs"
-                            >
-                              {t('admin.auditViewJson')}
-                            </button>
-                          ) : (
-                            <span className="text-muted text-xs">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="flex flex-col gap-2 px-2 pb-3 pt-1">
+                {auditData.items.map((log) => (
+                  <AuditRow
+                    key={log.id}
+                    log={log}
+                    expanded={expandedLogId === log.id}
+                    onToggle={() =>
+                      setExpandedLogId((cur) => (cur === log.id ? null : log.id))
+                    }
+                  />
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -333,51 +324,202 @@ export function AdminHome(): JSX.Element {
         <ResetPasswordDialog user={resetting} onClose={() => setResetting(null)} />
       )}
 
-      {selectedLog && (
-        <div className="dialog-backdrop" onClick={() => setSelectedLog(null)}>
-          <div
-            className="dialog"
-            style={{ width: 'min(640px, 100%)', borderRadius: 'var(--cx-radius)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="dialog-title cx-display">
-              {t('admin.auditDetail')}: <span className="font-mono">{selectedLog.action}</span>
-            </p>
-            <div className="dialog-body space-y-1 text-xs">
-              <p>
-                <strong>{t('admin.auditActor')}:</strong> {selectedLog.actorName || t('admin.auditSystem')}{' '}
-                ({selectedLog.actorEmail || selectedLog.actorId})
-              </p>
-              <p>
-                <strong>{t('admin.auditEntity')}:</strong> {selectedLog.entity} #{selectedLog.entityId}
-              </p>
-              <p>
-                <strong>{t('admin.auditTime')}:</strong>{' '}
-                {new Date(selectedLog.createdAt).toLocaleString()}
-              </p>
-            </div>
-            <pre
-              className="max-h-72 overflow-auto p-4 font-mono text-xs"
-              style={{
-                background: 'var(--color-bg)',
-                border: '1px solid var(--color-divider)',
-                borderRadius: 'var(--radius-lg)',
-              }}
-            >
-              {JSON.stringify(selectedLog.metaJson, null, 2)}
-            </pre>
-            <div className="dialog-actions">
-              <button
-                type="button"
-                onClick={() => setSelectedLog(null)}
-                className="btn btn-secondary !rounded-full"
+    </section>
+  );
+}
+
+/* ═══════════════ Dãy số liệu tổng quan (T10.5) ═══════════════ */
+function AdminStats(): JSX.Element | null {
+  const { t } = useTranslation();
+  const { data } = useAdminOverview();
+
+  // Chưa có số thì không chiếm chỗ bằng 4 ô "0" — con số sai còn tệ hơn không có con số.
+  if (!data) return null;
+
+  return (
+    <div
+      className="grid gap-3"
+      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}
+    >
+      <StatTile
+        icon="ph-chalkboard-teacher"
+        color="var(--cx-teal)"
+        value={data.teacherCount}
+        label={t('admin.statTeachers')}
+      />
+      <StatTile
+        icon="ph-student"
+        color="var(--cx-amber)"
+        value={data.studentCount}
+        label={t('admin.statStudents')}
+      />
+      <StatTile
+        icon="ph-users-three"
+        color="var(--cx-purple)"
+        value={data.activeClassCount}
+        label={t('admin.statActiveClasses')}
+      />
+      <StatTile
+        icon="ph-books"
+        color="var(--cx-blue)"
+        value={data.publishedCourseCount}
+        label={t('admin.statPublishedCourses')}
+      />
+    </div>
+  );
+}
+
+/* ═══════════════ Một dòng nhật ký, viết thành câu (T10.5) ═══════════════ */
+function AuditRow({
+  log,
+  expanded,
+  onToggle,
+}: {
+  log: AuditLogDto;
+  expanded: boolean;
+  onToggle: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const meta = GROUP_META[auditGroup(log.action)];
+  const chips = auditChips(log, t);
+  const hasMeta = log.metaJson != null && Object.keys(log.metaJson).length > 0;
+
+  return (
+    <li
+      style={{
+        borderRadius: 16,
+        background: 'var(--color-surface)',
+        boxShadow: 'inset 0 0 0 1px var(--color-divider)',
+        padding: 'var(--space-4) var(--space-5)',
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
+          style={{
+            background: `color-mix(in srgb, ${meta.color} 18%, transparent)`,
+            color: meta.color,
+          }}
+        >
+          <i className={`ph-fill ${meta.icon}`} aria-hidden />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="m-0" style={{ fontSize: 13 }}>
+            {auditSentence(log, t)}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-muted" style={{ fontSize: 11 }}>
+              {log.actorName || t('admin.auditSystem')}
+            </span>
+            <span className="text-muted" style={{ fontSize: 11 }}>
+              ·
+            </span>
+            <span className="text-muted" style={{ fontSize: 11 }}>
+              {auditTime(log.createdAt, t)}
+            </span>
+            {chips.map((c) => (
+              <span
+                key={c}
+                className="text-muted"
+                style={{
+                  borderRadius: 999,
+                  padding: '1px 8px',
+                  fontSize: 11,
+                  boxShadow: 'inset 0 0 0 1px var(--color-divider)',
+                }}
               >
-                {t('common.close')}
-              </button>
-            </div>
+                {c}
+              </span>
+            ))}
           </div>
         </div>
+
+        {hasMeta && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="btn btn-secondary cx-press shrink-0 !rounded-full !px-2.5 !py-1 text-xs"
+            aria-expanded={expanded}
+          >
+            <i className={`ph ${expanded ? 'ph-caret-up' : 'ph-caret-down'}`} aria-hidden />{' '}
+            {t('admin.auditDetail')}
+          </button>
+        )}
+      </div>
+
+      {expanded && hasMeta && (
+        <pre
+          className="mt-3 max-h-60 overflow-auto p-3 font-mono text-xs"
+          style={{
+            background: 'var(--color-bg)',
+            border: '1px solid var(--color-divider)',
+            borderRadius: 'var(--radius-lg)',
+          }}
+        >
+          {JSON.stringify(log.metaJson, null, 2)}
+        </pre>
       )}
-    </section>
+    </li>
+  );
+}
+
+/* ═══════════════ Mảnh dùng chung của khu Quản trị ═══════════════ */
+
+/** Chip vai trò / trạng thái: icon Phosphor fill + màu riêng, nền pha loãng trên nền tối. */
+function MetaChip({ meta, label }: { meta: Meta; label: string }): JSX.Element {
+  return (
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap"
+      style={{
+        borderRadius: 999,
+        padding: '2px 10px',
+        fontSize: 11,
+        background: `color-mix(in srgb, ${meta.color} 16%, transparent)`,
+        color: meta.color,
+        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${meta.color} 34%, transparent)`,
+      }}
+    >
+      <i className={`ph-fill ${meta.icon}`} aria-hidden /> {label}
+    </span>
+  );
+}
+
+function StatTile({
+  icon,
+  color,
+  value,
+  label,
+}: {
+  icon: string;
+  color: string;
+  value: number | string;
+  label: string;
+}): JSX.Element {
+  return (
+    <div
+      className="cx-lift flex items-center gap-3"
+      style={{
+        borderRadius: 18,
+        padding: 'var(--space-5)',
+        background: 'var(--color-surface)',
+        boxShadow: 'inset 0 0 0 1px var(--color-divider)',
+      }}
+    >
+      <span
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl"
+        style={{ background: `color-mix(in srgb, ${color} 20%, transparent)`, color }}
+      >
+        <i className={`ph-fill ${icon}`} aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <p className="cx-display m-0" style={{ fontSize: 22, lineHeight: 1.1 }}>
+          {value}
+        </p>
+        <p className="text-muted m-0 truncate" style={{ fontSize: 11 }}>
+          {label}
+        </p>
+      </div>
+    </div>
   );
 }
