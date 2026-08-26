@@ -20,6 +20,7 @@ import { AuditModule } from './audit/audit.module';
 import { CommentsModule } from './comments/comments.module';
 import { FilesModule } from './files/files.module';
 import { TeachModule } from './teach/teach.module';
+import { AdminModule } from './admin/admin.module';
 import { StorageModule } from './common/storage/storage.module';
 import { HealthController } from './health/health.controller';
 import { validateEnv } from './config/env.validation';
@@ -63,6 +64,7 @@ import { validateEnv } from './config/env.validation';
     CommentsModule,
     FilesModule,
     TeachModule,
+    AdminModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

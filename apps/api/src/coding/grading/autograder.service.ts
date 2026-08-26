@@ -170,6 +170,7 @@ export class AutograderService {
           source: 'coding_pass',
           sourceId: submission.problem.id ?? submission.id,
           xpAmount: 100,
+          classId: submission.classId,
         });
       }
     });

@@ -22,3 +22,23 @@ export interface AuditLogFilterQuery {
   page?: number;
   pageSize?: number;
 }
+
+// --- T10.5 — dãy số liệu khu Quản trị ---
+
+/**
+ * Số liệu tổng quan khu Quản trị. Đếm bằng query cố định ở server (giống `GET /teach/overview`),
+ * KHÔNG nạp hết bản ghi rồi đếm ở client — máy chạy thật chỉ có 2 GB RAM.
+ *
+ * Tài khoản đã khoá (`suspended`) KHÔNG được tính: một giáo viên bị khoá không còn dạy,
+ * đếm vào thì con số nói dối.
+ */
+export interface AdminOverviewDto {
+  /** Tài khoản đang hoạt động có vai trò `instructor` hoặc `teaching_assistant`. */
+  teacherCount: number;
+  /** Tài khoản đang hoạt động có vai trò `student`. */
+  studentCount: number;
+  /** Lớp `status = active`. */
+  activeClassCount: number;
+  /** Khóa học `status = published`. */
+  publishedCourseCount: number;
+}

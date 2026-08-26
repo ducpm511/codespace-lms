@@ -184,7 +184,30 @@
     "auditViewJson": "View JSON",
     "auditSystem": "System",
     "auditEmpty": "No audit records.",
-    "newPassword": "New password"
+    "newPassword": "New password",
+    "tabUsers": "Users & roles",
+    "tabAudit": "Activity log",
+    "statTeachers": "Teachers & assistants",
+    "statStudents": "Students",
+    "statActiveClasses": "Active classes",
+    "statPublishedCourses": "Published courses",
+    "auditToday": "Today",
+    "auditYesterday": "Yesterday",
+    "auditSelfService": "Self-service",
+    "auditByAdmin": "By an admin",
+    "auditScopedToClass": "Scoped to a class",
+    "auditBadge": "Badge {{code}}",
+    "auditSay": {
+      "userCreate": "Created a new account",
+      "userUpdate": "Updated an account",
+      "passwordChange": "Changed a password",
+      "passwordReset": "Reset a password",
+      "roleAssign": "Assigned a role to an account",
+      "roleRevoke": "Removed a role from an account",
+      "certificateIssue": "Issued a certificate",
+      "certificateRevoke": "Revoked a certificate",
+      "gamificationAward": "Gave a student an award"
+    }
   },
   "teach": {
     "title": "Teaching area",
@@ -457,7 +480,21 @@
     "discussionSampleName": "CodeSpace",
     "discussionSample": "Happy learning! Ask here if you have any questions.",
     "discussionPlaceholder": "Write a comment…",
-    "discussionPost": "Send"
+    "discussionPost": "Send",
+    "leaderboardHeading": "Class leaderboard",
+    "leaderboardSubtitle": "Counts lessons finished this week — not scores or speed. Starts fresh every Monday.",
+    "leaderboardWeekCurrent": "This week",
+    "leaderboardWeekPrevious": "Last week",
+    "leaderboardRange": "{{start}} – {{end}}",
+    "leaderboardEmpty": "This class has no students to rank yet.",
+    "leaderboardNoActivity": "No points yet this week. Finish a lesson to get things started!",
+    "leaderboardYou": "You",
+    "leaderboardXp": "{{count}} XP",
+    "leaderboardEffort": "{{lessons}} lessons · {{quizzes}} quizzes · {{coding}} coding",
+    "leaderboardShowAll": "Show whole class ({{count}})",
+    "leaderboardShowTop": "Show top {{count}} only",
+    "leaderboardMyRank": "Your rank: {{rank}}",
+    "leaderboardBonus": "{{count}} XP from your teacher"
   },
   "activity": {
     "builderKicker": "Lesson content editor",
@@ -564,5 +601,15 @@
     "confirmPassword": "Confirm new password",
     "passwordMismatch": "The two new passwords do not match.",
     "passwordHint": "At least {{min}} characters."
+  },
+  "gamification": {
+    "awardHeading": "Give an award",
+    "awardFor": "To {{name}}",
+    "awardBadgeLabel": "Badge (pick one, or leave empty)",
+    "awardXpLabel": "Bonus XP",
+    "awardNoteLabel": "Message for the student",
+    "awardNotePlaceholder": "You really helped your classmates today…",
+    "awardSubmit": "Give award",
+    "awardSaved": "Awarded! The student will get a notification."
   }
 }

@@ -118,15 +118,25 @@ Những gì mẫu đổi so với `AdminHome.tsx` hiện tại:
   `user.create / User / cmt2glny...`. Thời gian tương đối ("Hôm nay · 09:41"), `meta` mở rộng được.
 - **Nhóm hành động** để tô màu/icon: `create | update | delete | assign | reset | login`.
 
-**Hai quyết định phải chốt trước khi code:**
+### ✅ ĐÃ CHỐT (2026-08-26, người quyết) — không bàn lại
 
-1. **Câu tóm tắt dựng ở đâu?** Backend đã có `metaJson` nhưng KHÔNG lưu tên người (cố ý — tránh
-   PII trong audit, INVARIANT #5). Dựng câu ở FE thì phải tra tên theo `entityId`, mà user có
-   thể đã bị xoá. Dựng ở backend thì phải quyết có lưu tên tại thời điểm ghi log hay không.
-   **Đây là đánh đổi PII, không phải chuyện hiển thị.**
-2. **Nhóm `login` chưa tồn tại.** Backend hiện KHÔNG ghi audit khi đăng nhập. Thêm thì mỗi lượt
-   đăng nhập là một dòng — lớp 30 em × mỗi ngày sẽ phình bảng nhanh trên máy 2 GB. Cân nhắc chỉ
-   ghi **đăng nhập THẤT BẠI**, hoặc bỏ nhóm này khỏi thiết kế.
+1. **Câu tóm tắt: KHÔNG tra tên người, KHÔNG thêm PII.** Câu mô tả chung là đủ — "Tạo tài khoản với
+   vai trò Trợ giảng" thay vì "Tạo tài khoản Quân Phạm với vai trò Trợ giảng". Dựng ở FE từ
+   `action` + `entity` + `metaJson` sẵn có. Đánh đổi PII **biến mất hoàn toàn**: không join, không
+   snapshot tên, `audit_logs` giữ nguyên hình dạng.
+   > Ghi chú: tiền đề cũ "user có thể đã bị xoá" **sai** — không có route xoá user
+   > (`users.controller.ts` chỉ có `@Delete(':id/roles/:roleKey')`; `UserStatus` =
+   > `invited|active|suspended`). Key `user.delete` có trong contracts nhưng không route nào dùng.
+
+2. **BỎ HẲN nhóm `login`.** Không đụng gì tới auth, không ghi audit đăng nhập (kể cả thất bại).
+   Bảng màu/icon của thiết kế bỏ nhóm này. Đổi lại: admin không thấy dấu hiệu dò mật khẩu —
+   chấp nhận, vì rate-limit khoá theo danh tính (P9) đã chặn ở tầng dưới.
+
+3. **THÊM YÊU CẦU MỚI — dãy số liệu ở khu Quản trị.** Người dùng muốn khu Quản trị hiển thị số liệu
+   tổng quan, quan trọng hơn cả câu tóm tắt nhật ký: **số tài khoản giáo viên**, **số tài khoản học
+   viên**, **số lớp đang mở**, **số khóa học đang chạy**. Cần endpoint gộp (kiểu
+   `GET /admin/overview`, theo mẫu `GET /teach/overview` của T9.4 — đếm bằng query cố định, đừng nạp
+   hết rồi đếm ở client). Đối chiếu lại với mẫu `CodeSpace-LMS-admin-v2.html` khi code.
 
 ---
 

@@ -5,6 +5,7 @@ import type { AssignmentSummary, SubmissionDto, SubmissionTypeValue } from '@lms
 import { ApiError } from '../../lib/api';
 import { useCourses } from '../../features/courses/hooks';
 import { useClasses } from '../../features/classes/hooks';
+import { AwardPanel } from '../../features/gamification/AwardPanel';
 import {
   useAssignments,
   useCreateAssignment,
@@ -535,7 +536,15 @@ function SubmissionsGradingPanel({
 
       <div>
         {selected ? (
-          <GradingForm classId={classId} assignment={assignment} submission={selected} />
+          <div className="flex flex-col gap-4">
+            <GradingForm classId={classId} assignment={assignment} submission={selected} />
+            {/* T10.3 — khen ngay lúc đang đọc bài của em, không bắt cô mở màn hình khác. */}
+            <AwardPanel
+              classId={classId}
+              studentId={selected.userId}
+              studentName={selected.fullName || selected.email || selected.userId}
+            />
+          </div>
         ) : (
           <EmptyHint icon="ph-cursor-click">{t('assignments.pickStudent')}</EmptyHint>
         )}

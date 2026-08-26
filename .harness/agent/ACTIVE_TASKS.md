@@ -40,12 +40,32 @@ Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified
 Kế hoạch đầy đủ, trạng thái production và bẫy đã gặp: **`.harness/agent/HANDOFF_P10.md`**.
 Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-LMS-admin-v2.html`.
 
-- **T10.1** Bảng xếp hạng theo **lớp**, theo **tuần** (reset thứ Hai). Cần thêm `XpEvent.classId`.
+- **T10.1** ✅ **XONG** — Bảng xếp hạng theo **lớp**, theo **tuần** (reset thứ Hai).
+  `XpEvent.classId` (nullable) + index `(classId, createdAt)` + migration `20260826090000_p10_xp_class_scope`
+  có backfill suy lớp từ `lesson_progress`/`quiz_attempts`/`coding_submissions`.
+  `GET /classes/:classId/leaderboard?week=current|previous` — KHÔNG gắn `@RequirePermission` (học viên
+  không có `class.read`), quyền kiểm ở service: thành viên đang hoạt động HOẶC `class.read` đúng lớp đó.
+  Chỉ xếp hạng `roleInClass=student`; đồng điểm đồng hạng; FE `ClassLeaderboard` trong `LearnHome`.
+  ✅ **Đã chạy thật trên DB dev**: backfill gắn đúng lớp, đồng hạng đúng, học viên xem được.
 - **T10.2** Mục tiêu chung của lớp (`ClassGoal`) → huy hiệu tập thể.
-- **T10.3** Giáo viên trao huy hiệu / thưởng XP kèm lời nhắn (`UserBadge.awardedById`, scope lớp).
+- **T10.3** ✅ **XONG** — GV trao huy hiệu tay / thưởng XP kèm lời nhắn.
+  `Badge.isManual`, `UserBadge.awardedById|classId|note`, `XpEvent.note`; migration
+  `20260826120000_p10_manual_awards`; seed 3 huy hiệu tay (`helping_hand`, `good_question`,
+  `big_progress`). `POST /gamification/students/:studentId/awards` (**không** phải
+  `/users/:id/badges` như bản nháp — một endpoint lo cả huy hiệu lẫn XP nên tên theo việc nó làm).
+  Quyền: `grade.write` **và** phải là instructor/ta CỦA CHÍNH LỚP ĐÓ — chỉ kiểm permission là hở,
+  vì role `instructor` đang gán global. XP thưởng tay có trần 5–200 để một lượt không lật cả
+  bảng xếp hạng. FE: `AwardPanel` ngay dưới form chấm bài trong `TeachAssignments`.
+  3 huy hiệu trao tay nằm ở **migration** `20260826150000_p10_seed_manual_badges`, KHÔNG chỉ ở
+  `seed.cjs` — `ops/release.sh` không chạy seed nên để ở seed thì ô chọn huy hiệu RỖNG trên production.
 - **T10.4** Streak nhân văn: vé nghỉ phép, khớp lịch học thật (bỏ cuối tuần nếu lớp không học).
-- **T10.5** Áp design mới khu Quản trị: chip vai trò/trạng thái có icon+màu, nhật ký viết thành
-  câu đọc được, nhóm hành động. **Hai quyết định phải chốt trước khi code** — xem HANDOFF §T10.5.
+- **T10.5** ✅ **XONG** — Áp design mới khu Quản trị.
+  `pages/admin/adminUi.ts` (thuần logic): `ROLE_META` / `STATUS_META` (icon Phosphor fill + màu),
+  `GROUP_META` 6 nhóm hành động (**không có `login`**, thêm `award` cho `gamification.award`),
+  `auditSentence` / `auditChips` / `auditTime`. Nhật ký từ bảng thô thành danh sách câu đọc được,
+  `metaJson` mở rộng TẠI CHỖ (bỏ modal JSON). Dãy số liệu: `GET /admin/overview` (module `admin`,
+  quyền `user.read`, 3 query cố định, loại tài khoản `suspended`).
+  ✅ **Đã xem thật trên giao diện**: nhật ký thành câu, chip vai trò/trạng thái, dãy số liệu.
 
 ### ⚠️ CHẶN TRƯỚC P10 — việc vận hành trên máy thật
 
@@ -67,7 +87,7 @@ tính năng, nhất là mục 3: P10 thêm query và thêm RAM, chưa có số n
 | H1 | Tài khoản Cloudinary → `STORAGE_DRIVER=cloudinary` | Xác minh T9.3 thật; giảm rủi ro mất file |
 | H2 | Chốt email provider (gợi ý Resend) | Quên-mật-khẩu |
 | H3 | Chốt đích sao lưu ngoài máy (R2/B2) | O4 |
-| H4 | Chốt 2 quyết định ở T10.5 (câu tóm tắt audit dựng ở đâu; có ghi audit login không) | T10.5 |
+| ~~H4~~ | ✅ **Đã chốt 2026-08-26** — audit không tra tên (câu mô tả chung, 0 PII); **bỏ hẳn** nhóm login; **thêm** dãy số liệu khu Quản trị. Chi tiết `HANDOFF_P10.md §T10.5`. | — |
 
 ---
 

@@ -13,6 +13,7 @@ import { useCodingProblemsForClass } from '../features/coding/hooks';
 import { useAssignmentsForClass } from '../features/assessments/hooks';
 import { StudentAssignmentCard } from '../features/assessments/StudentAssignmentCard';
 import { useMyGamification } from '../features/gamification/useGamification';
+import { ClassLeaderboard } from './learn/ClassLeaderboard';
 import { LessonCommentsSection } from '../features/comments/LessonCommentsSection';
 import { MarkdownBlock, PdfBlock, VideoBlock } from '../features/lesson-activities/ActivityBlocks';
 import { activityMeta } from '../features/lesson-activities/activityMeta';
@@ -173,6 +174,7 @@ export function LearnHome(): JSX.Element {
           <ContinueCard lessons={lessons.data ?? []} onOpen={openLesson} />
           <LessonsByChapter lessons={lessons.data ?? []} loading={lessons.isLoading} onOpen={openLesson} />
           <ExercisesHub exercises={exercises} lessonById={lessonById} onOpenQuiz={openQuiz} onOpenCoding={openCoding} />
+          <ClassLeaderboard classId={classId} />
           <StudentGradebookSection classId={classId} />
         </>
       )}

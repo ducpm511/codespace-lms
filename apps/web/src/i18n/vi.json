@@ -184,7 +184,30 @@
     "auditViewJson": "Xem JSON",
     "auditSystem": "Hệ thống",
     "auditEmpty": "Không có bản ghi nhật ký nào.",
-    "newPassword": "Mật khẩu mới"
+    "newPassword": "Mật khẩu mới",
+    "tabUsers": "Người dùng & vai trò",
+    "tabAudit": "Nhật ký",
+    "statTeachers": "Giáo viên & trợ giảng",
+    "statStudents": "Học viên",
+    "statActiveClasses": "Lớp đang mở",
+    "statPublishedCourses": "Khóa học đang chạy",
+    "auditToday": "Hôm nay",
+    "auditYesterday": "Hôm qua",
+    "auditSelfService": "Tự đổi",
+    "auditByAdmin": "Do quản trị viên",
+    "auditScopedToClass": "Giới hạn theo lớp",
+    "auditBadge": "Huy hiệu {{code}}",
+    "auditSay": {
+      "userCreate": "Tạo tài khoản mới",
+      "userUpdate": "Cập nhật tài khoản",
+      "passwordChange": "Đổi mật khẩu",
+      "passwordReset": "Đặt lại mật khẩu",
+      "roleAssign": "Gán vai trò cho tài khoản",
+      "roleRevoke": "Gỡ vai trò khỏi tài khoản",
+      "certificateIssue": "Cấp chứng chỉ",
+      "certificateRevoke": "Thu hồi chứng chỉ",
+      "gamificationAward": "Trao thưởng cho học viên"
+    }
   },
   "teach": {
     "title": "Khu vực giảng dạy",
@@ -457,7 +480,21 @@
     "discussionSampleName": "CodeSpace",
     "discussionSample": "Chúc bạn học vui! Có thắc mắc gì cứ hỏi ở đây nhé.",
     "discussionPlaceholder": "Viết bình luận…",
-    "discussionPost": "Gửi"
+    "discussionPost": "Gửi",
+    "leaderboardHeading": "Bảng xếp hạng lớp",
+    "leaderboardSubtitle": "Tính theo số bài đã hoàn thành trong tuần — không tính điểm hay tốc độ. Làm mới lại từ đầu mỗi thứ Hai.",
+    "leaderboardWeekCurrent": "Tuần này",
+    "leaderboardWeekPrevious": "Tuần trước",
+    "leaderboardRange": "{{start}} – {{end}}",
+    "leaderboardEmpty": "Lớp chưa có học viên nào để xếp hạng.",
+    "leaderboardNoActivity": "Tuần này chưa ai ghi điểm. Hoàn thành một bài để mở màn nhé!",
+    "leaderboardYou": "Bạn",
+    "leaderboardXp": "{{count}} XP",
+    "leaderboardEffort": "{{lessons}} bài học · {{quizzes}} trắc nghiệm · {{coding}} lập trình",
+    "leaderboardShowAll": "Xem cả lớp ({{count}} bạn)",
+    "leaderboardShowTop": "Chỉ xem tốp {{count}}",
+    "leaderboardMyRank": "Hạng của bạn: {{rank}}",
+    "leaderboardBonus": "{{count}} XP cô/thầy thưởng"
   },
   "activity": {
     "builderKicker": "Soạn nội dung bài học",
@@ -564,5 +601,15 @@
     "confirmPassword": "Nhập lại mật khẩu mới",
     "passwordMismatch": "Hai mật khẩu mới không khớp.",
     "passwordHint": "Tối thiểu {{min}} ký tự."
+  },
+  "gamification": {
+    "awardHeading": "Trao thưởng",
+    "awardFor": "Cho {{name}}",
+    "awardBadgeLabel": "Huy hiệu (chọn một, hoặc bỏ trống)",
+    "awardXpLabel": "Thưởng XP",
+    "awardNoteLabel": "Lời nhắn cho học viên",
+    "awardNotePlaceholder": "Hôm nay con giúp bạn rất nhiều…",
+    "awardSubmit": "Trao thưởng",
+    "awardSaved": "Đã trao! Học viên sẽ nhận được thông báo."
   }
 }

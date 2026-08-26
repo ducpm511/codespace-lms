@@ -14,6 +14,7 @@ import {
 import { PERMISSIONS } from '@lms/contracts';
 import type {
   ClassDetail,
+  ClassLeaderboardDto,
   ClassSummary,
   LessonGateDto,
   LessonProgressDto,
@@ -33,6 +34,7 @@ import { AssignCourseDto } from './dto/assign-course.dto';
 import { EnrollMemberDto } from './dto/enroll-member.dto';
 import { SetLessonGateDto } from './dto/set-lesson-gate.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';
+import { LeaderboardQueryDto } from './dto/leaderboard-query.dto';
 
 // Param scope là ':classId' → PermissionsGuard trích classId để chấm quyền theo phạm vi lớp.
 @Controller('classes')
@@ -68,6 +70,17 @@ export class ClassesController {
   @RequirePermission(PERMISSIONS.CLASS_READ)
   getReport(@Param('classId') classId: string) {
     return this.classes.getClassReport(classId);
+  }
+
+  // Bảng xếp hạng tuần của lớp — học viên PHẢI xem được nên KHÔNG gắn @RequirePermission
+  // (`class.read` là quyền của GV/admin). Quyền xem kiểm theo membership trong service.
+  @Get(':classId/leaderboard')
+  getLeaderboard(
+    @Param('classId') classId: string,
+    @Query() q: LeaderboardQueryDto,
+    @CurrentUser() user: AuthPrincipal,
+  ): Promise<ClassLeaderboardDto> {
+    return this.classes.getLeaderboard(classId, user.userId, q.week);
   }
 
   @Patch(':classId')
