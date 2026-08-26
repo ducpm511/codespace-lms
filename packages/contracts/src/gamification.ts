@@ -51,6 +51,11 @@ export interface LeaderboardEntryDto {
   lessonsCompleted: number;
   quizzesPassed: number;
   codingPassed: number;
+  /**
+   * XP do giáo viên thưởng tay (T10.3). Tách riêng vì nó KHÔNG thuộc ba ô đếm nỗ lực — gộp chung
+   * thì dòng "0 bài học · 0 trắc nghiệm · 0 lập trình" đứng cạnh "50 XP" và trông như lỗi.
+   */
+  bonusXp: number;
   isMe: boolean;
 }
 

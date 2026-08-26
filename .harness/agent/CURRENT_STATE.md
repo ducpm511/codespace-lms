@@ -9,6 +9,39 @@ Updated: 2026-08-26
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
 
+### P10 · Verify trên DB thật + 3 bản vá (2026-08-26)
+
+Chạy migration thật trên DB dev, dựng lớp/học viên/bài nộp qua API thật, xem cả 3 màn hình.
+Kết quả: **backfill đúng** (7/8 dòng gắn đúng lớp, 4/4 `lesson_complete` khớp `lesson_progress`,
+dòng suy-không-ra để NULL), 4 ca chặn của T10.3 đúng trên API thật (kể cả **super_admin có
+`grade.write` global vẫn 403**), audit `metaJson` KHÔNG lọt tên người lẫn lời nhắn, đồng điểm
+đồng hạng (#1, #1, #3) đúng trên dữ liệu thật, tiếng Việt lưu UTF-8 chuẩn khi gõ từ giao diện.
+
+**Ba lỗi chỉ lộ ra khi gặp dữ liệu thật — đã vá:**
+
+1. **T10.3 chết ngay với dữ liệu thật.** DB có 20 `class_members`, **TẤT CẢ đều `student`, không
+   một `instructor`/`ta` nào** — giáo viên tạo lớp rồi thêm học viên, không tự thêm mình. Cổng
+   quyền cũ (bắt buộc là thành viên instructor/ta) sẽ 403 với mọi GV trên mọi lớp.
+   → `assertCanAwardInClass` chấp nhận thêm **`Class.createdById`**. Vẫn là tín hiệu theo TỪNG LỚP
+   nên không mở đường trao xuyên lớp; có test cho cả "người tạo lớp khác vẫn bị chặn".
+2. **Bảng xếp hạng hiện "0 bài học · 0 trắc nghiệm · 0 lập trình" cạnh "50 XP"** — trông như hỏng,
+   vì XP thưởng tay không thuộc ba ô đếm nỗ lực. → thêm `LeaderboardEntryDto.bonusXp` + chip
+   "50 XP cô/thầy thưởng".
+3. **`/admin/overview` báo "2 Học viên" trong khi có 12 em đang học.** Đếm theo `role = student`
+   là sai: **16/24 tài khoản không mang role nào**, các em được tạo rồi thêm thẳng vào lớp.
+   → đếm hợp **role LẪN ghi danh lớp**; ai vừa dạy vừa học chỉ tính vào cột giáo viên.
+
+**Dữ liệu test còn lại trên DB dev** (xoá được, không ảnh hưởng code): tài khoản
+`t105-teacher@codespace.local` / `t105-admin@codespace.local` (mật khẩu `Learn123!`), lớp
+`T10-VERIFY`, bài tập "Bai tap kiem thu T10" + 2 bài nộp, và 8 dòng `xp_events` id `t-xp-*`
+dựng tay để thử backfill.
+
+**Tài khoản dev đăng nhập được** (đã kiểm): `p7member@codespace.vn` / `p7outsider@codespace.vn`
+/ `t105-*@codespace.local`, tất cả mật khẩu `Learn123!`. `admin@codespace.vn`, `teacher@codespace.vn`,
+`student1@codespace.vn` KHÔNG đăng nhập được bằng mật khẩu nào đã ghi trong tài liệu.
+
+`pnpm validate` 16/16 (api **320 test / 28 suite**), i18n parity **563/563**.
+
 ### P10 · T10.5 Redesign khu Quản trị (2026-08-26)
 
 - **Nhật ký viết thành câu, KHÔNG tra tên người bị tác động** (quyết định của người dùng, HANDOFF §T10.5).

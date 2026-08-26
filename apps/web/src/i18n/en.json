@@ -493,7 +493,8 @@
     "leaderboardEffort": "{{lessons}} lessons · {{quizzes}} quizzes · {{coding}} coding",
     "leaderboardShowAll": "Show whole class ({{count}})",
     "leaderboardShowTop": "Show top {{count}} only",
-    "leaderboardMyRank": "Your rank: {{rank}}"
+    "leaderboardMyRank": "Your rank: {{rank}}",
+    "leaderboardBonus": "{{count}} XP from your teacher"
   },
   "activity": {
     "builderKicker": "Lesson content editor",

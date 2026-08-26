@@ -176,6 +176,14 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntryDto }): JSX.Element 
             quizzes: entry.quizzesPassed,
             coding: entry.codingPassed,
           })}
+          {/* XP cô/thầy thưởng tay không nằm trong ba ô đếm trên — nói rõ nó đến từ đâu,
+              nếu không dòng "0 · 0 · 0" đứng cạnh "50 XP" trông như lỗi. */}
+          {entry.bonusXp > 0 && (
+            <span style={{ color: 'var(--cx-amber)' }}>
+              {' · '}
+              <i className="ph-fill ph-gift" aria-hidden /> {t('learn.leaderboardBonus', { count: entry.bonusXp })}
+            </span>
+          )}
         </p>
       </div>
 

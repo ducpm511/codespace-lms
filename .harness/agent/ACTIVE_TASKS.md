@@ -46,7 +46,7 @@ Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-L
   `GET /classes/:classId/leaderboard?week=current|previous` — KHÔNG gắn `@RequirePermission` (học viên
   không có `class.read`), quyền kiểm ở service: thành viên đang hoạt động HOẶC `class.read` đúng lớp đó.
   Chỉ xếp hạng `roleInClass=student`; đồng điểm đồng hạng; FE `ClassLeaderboard` trong `LearnHome`.
-  **CHƯA chạy thử trên DB thật** — worktree không có Postgres, migration mới chỉ được viết tay + validate.
+  ✅ **Đã chạy thật trên DB dev**: backfill gắn đúng lớp, đồng hạng đúng, học viên xem được.
 - **T10.2** Mục tiêu chung của lớp (`ClassGoal`) → huy hiệu tập thể.
 - **T10.3** ✅ **XONG** — GV trao huy hiệu tay / thưởng XP kèm lời nhắn.
   `Badge.isManual`, `UserBadge.awardedById|classId|note`, `XpEvent.note`; migration
@@ -63,7 +63,7 @@ Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-L
   `auditSentence` / `auditChips` / `auditTime`. Nhật ký từ bảng thô thành danh sách câu đọc được,
   `metaJson` mở rộng TẠI CHỖ (bỏ modal JSON). Dãy số liệu: `GET /admin/overview` (module `admin`,
   quyền `user.read`, 3 query cố định, loại tài khoản `suspended`).
-  **CHƯA xem được trên giao diện thật** — không có DB/Docker trong worktree.
+  ✅ **Đã xem thật trên giao diện**: nhật ký thành câu, chip vai trò/trạng thái, dãy số liệu.
 
 ### ⚠️ CHẶN TRƯỚC P10 — việc vận hành trên máy thật
 

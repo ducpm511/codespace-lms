@@ -291,7 +291,10 @@ export class GamificationService {
    * thành viên lớp là chỗ chặn thật (INVARIANT #3).
    */
   private async assertCanAwardInClass(classId: string, actorId: string): Promise<void> {
-    const cls = await this.prisma.class.findUnique({ where: { id: classId }, select: { id: true } });
+    const cls = await this.prisma.class.findUnique({
+      where: { id: classId },
+      select: { id: true, createdById: true },
+    });
     if (!cls) {
       throw new NotFoundException('Lớp học không tồn tại');
     }
@@ -301,6 +304,15 @@ export class GamificationService {
         throw new ForbiddenException('Bạn không có quyền chấm bài ở lớp này');
       }
     }
+
+    // Người TẠO lớp cũng là người phụ trách lớp. Không có nhánh này thì tính năng chết ngay với dữ
+    // liệu thật: trên DB dev có 20 thành viên lớp và KHÔNG một ai là instructor/ta — giáo viên tạo
+    // lớp rồi thêm học viên vào, chứ không tự thêm chính mình. Vẫn là tín hiệu THEO TỪNG LỚP nên
+    // không mở đường trao xuyên lớp (INVARIANT #3).
+    if (cls.createdById === actorId) {
+      return;
+    }
+
     const member = await this.prisma.classMember.findUnique({
       where: { classId_userId: { classId, userId: actorId } },
       select: { status: true, roleInClass: true },
@@ -356,10 +368,16 @@ export class GamificationService {
       select: { userId: true, source: true, amount: true },
     });
 
-    type Tally = { xp: number; lessonsCompleted: number; quizzesPassed: number; codingPassed: number };
+    type Tally = {
+      xp: number;
+      lessonsCompleted: number;
+      quizzesPassed: number;
+      codingPassed: number;
+      bonusXp: number;
+    };
     const tally = new Map<string, Tally>();
     for (const m of members) {
-      tally.set(m.userId, { xp: 0, lessonsCompleted: 0, quizzesPassed: 0, codingPassed: 0 });
+      tally.set(m.userId, { xp: 0, lessonsCompleted: 0, quizzesPassed: 0, codingPassed: 0, bonusXp: 0 });
     }
     for (const e of events) {
       const t = tally.get(e.userId);
@@ -368,6 +386,8 @@ export class GamificationService {
       if (e.source === 'lesson_complete') t.lessonsCompleted += 1;
       else if (e.source === 'quiz_pass') t.quizzesPassed += 1;
       else if (e.source === 'coding_pass') t.codingPassed += 1;
+      // Thưởng tay đếm theo SỐ XP chứ không theo số lượt: "3 lượt khen" không nói lên điều gì.
+      else if (e.source === 'manual_award') t.bonusXp += e.amount;
     }
 
     const rows = members
@@ -388,6 +408,7 @@ export class GamificationService {
       lessonsCompleted: r.lessonsCompleted,
       quizzesPassed: r.quizzesPassed,
       codingPassed: r.codingPassed,
+      bonusXp: r.bonusXp,
       isMe: r.userId === viewerUserId,
     }));
     for (let i = 1; i < entries.length; i += 1) {

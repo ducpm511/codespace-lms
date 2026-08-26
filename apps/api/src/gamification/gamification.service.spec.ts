@@ -272,6 +272,24 @@ describe('GamificationService', () => {
       expect(res.weekStart).toBe('2026-08-23T17:00:00.000Z');
     });
 
+
+    it('XP cô/thầy thưởng tay tách riêng, KHÔNG đội số ô đếm nỗ lực', async () => {
+      prisma.classMember.findMany.mockResolvedValue(members);
+      prisma.xpEvent.findMany.mockResolvedValue([
+        { userId: 'u1', source: 'lesson_complete', amount: 50 },
+        { userId: 'u1', source: 'manual_award', amount: 30 },
+        { userId: 'u2', source: 'manual_award', amount: 25 },
+      ]);
+
+      const res = await service.getClassLeaderboard('class-1', 'u1', 'current');
+      const u1 = res.entries.find((e) => e.userId === 'u1');
+      const u2 = res.entries.find((e) => e.userId === 'u2');
+
+      expect(u1).toMatchObject({ xp: 80, lessonsCompleted: 1, bonusXp: 30 });
+      // u2 chỉ có XP thưởng: ba ô đếm đều 0 nhưng bonusXp nói rõ 25 XP đến từ đâu.
+      expect(u2).toMatchObject({ xp: 25, lessonsCompleted: 0, quizzesPassed: 0, codingPassed: 0, bonusXp: 25 });
+    });
+
     it('chỉ đếm XP của lớp đó trong đúng cửa sổ tuần', async () => {
       prisma.classMember.findMany.mockResolvedValue(members);
       prisma.xpEvent.findMany.mockResolvedValue([]);
@@ -353,7 +371,7 @@ describe('GamificationService', () => {
 
     /** Mặc định: GV phụ trách lớp, học viên là thành viên active, chưa có huy hiệu. */
     function happyPath() {
-      prisma.class.findUnique.mockResolvedValue({ id: 'cl1' });
+      prisma.class.findUnique.mockResolvedValue({ id: 'cl1', createdById: 'someone-else' });
       prisma.classMember.findUnique.mockImplementation((args: MemberWhere) =>
         Promise.resolve(
           args.where.classId_userId.userId === 'teacher-1'
@@ -433,7 +451,7 @@ describe('GamificationService', () => {
     });
 
     it('403 khi GV KHÔNG phụ trách lớp đó — chặn trao xuyên lớp (INVARIANT #3)', async () => {
-      prisma.class.findUnique.mockResolvedValue({ id: 'cl1' });
+      prisma.class.findUnique.mockResolvedValue({ id: 'cl1', createdById: 'someone-else' });
       // Có grade.write global (nợ kỹ thuật đã biết) nhưng không phải thành viên lớp.
       rbac.hasPermission.mockReturnValue(true);
       prisma.classMember.findUnique.mockResolvedValue(null);
@@ -445,7 +463,7 @@ describe('GamificationService', () => {
     });
 
     it('403 khi là GV của lớp nhưng không có grade.write', async () => {
-      prisma.class.findUnique.mockResolvedValue({ id: 'cl1' });
+      prisma.class.findUnique.mockResolvedValue({ id: 'cl1', createdById: 'someone-else' });
       rbac.hasPermission.mockReturnValue(false);
 
       await expect(
@@ -454,7 +472,7 @@ describe('GamificationService', () => {
     });
 
     it('404 khi học viên không thuộc lớp', async () => {
-      prisma.class.findUnique.mockResolvedValue({ id: 'cl1' });
+      prisma.class.findUnique.mockResolvedValue({ id: 'cl1', createdById: 'someone-else' });
       prisma.classMember.findUnique.mockImplementation((args: MemberWhere) =>
         Promise.resolve(
           args.where.classId_userId.userId === 'teacher-1'
@@ -469,7 +487,7 @@ describe('GamificationService', () => {
     });
 
     it('404 khi đích đến là GV/TA chứ không phải học viên', async () => {
-      prisma.class.findUnique.mockResolvedValue({ id: 'cl1' });
+      prisma.class.findUnique.mockResolvedValue({ id: 'cl1', createdById: 'someone-else' });
       prisma.classMember.findUnique.mockResolvedValue({ status: 'active', roleInClass: 'instructor' });
 
       await expect(
@@ -506,6 +524,32 @@ describe('GamificationService', () => {
       await expect(
         service.awardManually('student-1', { classId: 'cl1', xpAmount: 5000 }, actor),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+
+    it('người TẠO lớp trao được dù không phải thành viên lớp', async () => {
+      // Dữ liệu thật: GV tạo lớp rồi thêm học viên, KHÔNG tự thêm mình làm thành viên.
+      prisma.class.findUnique.mockResolvedValue({ id: 'cl1', createdById: 'teacher-1' });
+      prisma.classMember.findUnique.mockImplementation((args: MemberWhere) =>
+        Promise.resolve(
+          args.where.classId_userId.userId === 'student-1'
+            ? { status: 'active', roleInClass: 'student' }
+            : null,
+        ),
+      );
+
+      await expect(
+        service.awardManually('student-1', { classId: 'cl1', xpAmount: 20 }, actor),
+      ).resolves.toMatchObject({ xpAwarded: 20 });
+    });
+
+    it('người tạo LỚP KHÁC vẫn bị chặn — createdById là tín hiệu theo từng lớp', async () => {
+      prisma.class.findUnique.mockResolvedValue({ id: 'cl1', createdById: 'teacher-khac' });
+      prisma.classMember.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.awardManually('student-1', { classId: 'cl1', xpAmount: 20 }, actor),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
     it('403 khi tự thưởng cho chính mình', async () => {

@@ -493,7 +493,8 @@
     "leaderboardEffort": "{{lessons}} bài học · {{quizzes}} trắc nghiệm · {{coding}} lập trình",
     "leaderboardShowAll": "Xem cả lớp ({{count}} bạn)",
     "leaderboardShowTop": "Chỉ xem tốp {{count}}",
-    "leaderboardMyRank": "Hạng của bạn: {{rank}}"
+    "leaderboardMyRank": "Hạng của bạn: {{rank}}",
+    "leaderboardBonus": "{{count}} XP cô/thầy thưởng"
   },
   "activity": {
     "builderKicker": "Soạn nội dung bài học",
