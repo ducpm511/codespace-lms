@@ -31,14 +31,18 @@ dòng suy-không-ra để NULL), 4 ca chặn của T10.3 đúng trên API thật
    là sai: **16/24 tài khoản không mang role nào**, các em được tạo rồi thêm thẳng vào lớp.
    → đếm hợp **role LẪN ghi danh lớp**; ai vừa dạy vừa học chỉ tính vào cột giáo viên.
 
-**Dữ liệu test còn lại trên DB dev** (xoá được, không ảnh hưởng code): tài khoản
-`t105-teacher@codespace.local` / `t105-admin@codespace.local` (mật khẩu `Learn123!`), lớp
-`T10-VERIFY`, bài tập "Bai tap kiem thu T10" + 2 bài nộp, và 8 dòng `xp_events` id `t-xp-*`
-dựng tay để thử backfill.
+**Dữ liệu test đã DỌN SẠCH** (2026-08-26, một transaction): tài khoản `t105-*`, lớp `T10-VERIFY`,
+bài tập + 2 bài nộp, 8 dòng `xp_events` fixture, và mọi huy hiệu / XP thưởng / thông báo / audit
+sinh ra từ các lượt trao thử — kể cả những thứ bám vào `p7member`/`p7outsider`. Đã kiểm: không sót,
+không bản ghi mồ côi, DB về đúng trạng thái trước phiên (22 user, 10 lớp, 20 ghi danh, 0 `xp_events`).
+**3 huy hiệu trao tay (`helping_hand`/`good_question`/`big_progress`) GIỮ LẠI** — đó là dữ liệu của
+tính năng do seed tạo, không phải dữ liệu test.
 
-**Tài khoản dev đăng nhập được** (đã kiểm): `p7member@codespace.vn` / `p7outsider@codespace.vn`
-/ `t105-*@codespace.local`, tất cả mật khẩu `Learn123!`. `admin@codespace.vn`, `teacher@codespace.vn`,
-`student1@codespace.vn` KHÔNG đăng nhập được bằng mật khẩu nào đã ghi trong tài liệu.
+**Tài khoản dev đăng nhập được** (đã kiểm): `p7member@codespace.vn` và `p7outsider@codespace.vn`,
+mật khẩu `Learn123!`. `admin@codespace.vn`, `teacher@codespace.vn`, `student1@codespace.vn`
+KHÔNG đăng nhập được bằng mật khẩu nào đã ghi trong tài liệu — cần đặt lại nếu muốn dùng.
+Muốn dựng lại môi trường thử T10.3: phải có một GV **tạo lớp** (hoặc là thành viên instructor/ta),
+vì đó là điều kiện của `assertCanAwardInClass`.
 
 `pnpm validate` 16/16 (api **320 test / 28 suite**), i18n parity **563/563**.
 
