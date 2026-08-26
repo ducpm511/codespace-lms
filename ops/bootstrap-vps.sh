@@ -107,5 +107,15 @@ cat > /etc/docker/daemon.json <<'EOF'
 EOF
 systemctl restart docker
 
+echo "== Thư mục sao lưu =="
+# /var/backups thuộc root 755 nên user deploy KHÔNG tự tạo thư mục con được. Thiếu bước này thì
+# ops/release.sh chết ngay ở bước 1 ("mkdir: cannot create directory '/var/backups/lms'") — đã
+# vấp thật khi phát hành P10. Chmod 700: bản sao lưu chứa toàn bộ dữ liệu học viên.
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/lms}"
+mkdir -p "${BACKUP_DIR}"
+chown "${DEPLOY_USER}:${DEPLOY_USER}" "${BACKUP_DIR}"
+chmod 700 "${BACKUP_DIR}"
+echo "   -> ${BACKUP_DIR} (chủ sở hữu ${DEPLOY_USER}, chmod 700)"
+
 echo
 echo "Xong. Bước tiếp theo: docs/RUNBOOK.md (deploy lần đầu)."

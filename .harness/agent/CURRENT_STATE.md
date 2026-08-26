@@ -9,6 +9,37 @@ Updated: 2026-08-26
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
 
+### P10 · ĐÃ PHÁT HÀNH LÊN PRODUCTION (2026-08-26, ~16:27 giờ VN)
+
+`main` = `a10b41f` (PR #3). Ảnh `latest` trên GHCR khớp đúng digest của commit merge (đã đối chiếu
+trước khi phát hành — nếu chỉ web build xong mà api chưa, `release.sh` sẽ dựng frontend MỚI trên
+backend CŨ và mọi trang P10 hỏng, vì migration chạy từ trong ảnh api chứ không từ git checkout).
+
+**Đo trước khi phát hành thay vì đoán:** 0 hoạt động trong 60 phút (bài nộp / chấm code / quiz /
+tiến độ đều 0), đăng nhập gần nhất 2 ngày trước, DB có **0 `xp_events`, 2 user, 0 lớp** — chưa
+khai giảng. Nên backfill quét bảng rỗng và không có học viên nào bị ảnh hưởng.
+
+**Vấp một lần ở bước 1:** `ops/release.sh` chết vì `mkdir: cannot create directory
+'/var/backups/lms'` — `/var/backups` thuộc root 755, user `deploy` không tạo được thư mục con, và
+`bootstrap-vps.sh` chưa bao giờ tạo nó (hệ quả của O4 bỏ dở). Script `set -e` nên dừng **trước**
+khi kéo ảnh và trước migration → production không bị đụng gì. Đã tạo
+`/var/backups/lms` (chủ `deploy`, chmod 700) và **vá `ops/bootstrap-vps.sh`** để máy dựng mới
+không vấp lại.
+
+**Kết quả đã kiểm chứng trên máy thật (không tin lời script):**
+- `https://lms.codespace.edu.vn/` HTTP 200, `/api/health` ok.
+- Ba endpoint mới trả **401** (có route, đòi đăng nhập) chứ không phải 404.
+- DB: 9 huy hiệu, **3 cái `isManual`** — migration seed huy hiệu chạy đúng, đây chính là lỗi
+  suýt làm ô chọn huy hiệu rỗng trên production.
+- Cột mới của `xp_events` (2) và `user_badges` (3) có đủ, index `xp_events_classId_createdAt_idx` có.
+- **`users` vẫn đúng 2 dòng** — không migration nào đụng tới tài khoản.
+- Sao lưu tự động của `release.sh` chạy được: `lms-20260826T092713Z.sql.gz`, gzip hợp lệ,
+  3194 dòng, 39 `CREATE TABLE`.
+- RAM sau phát hành: **555 MB / 1967**, swap chưa chạm — thấp hơn cả mốc nền 579 MB của P9.
+
+**O4 vẫn CHƯA xong:** đã có thư mục sao lưu cục bộ, nhưng **chưa có bản sao ngoài máy** và
+**`ops/restore.sh` vẫn chưa được thử lần nào**. Bản sao lưu duy nhất nằm trên chính con VPS đó.
+
 ### P10 · Verify trên DB thật + 3 bản vá (2026-08-26)
 
 Chạy migration thật trên DB dev, dựng lớp/học viên/bài nộp qua API thật, xem cả 3 màn hình.
@@ -432,6 +463,7 @@ theo phạm vi lớp** (`UserRole.classId` / `ClassMember.roleInClass`). Mọi r
 ## Current Phase
 
 **ĐÃ DEPLOY THẬT — https://lms.codespace.edu.vn đang chạy** (VPS TINO `103.142.27.54`).
+**P10 đã lên production 2026-08-26** (`main` = `a10b41f`) — chi tiết ở mục "P10 · ĐÃ PHÁT HÀNH".
 Trạng thái production, việc còn lại trước khi mở lớp, và bẫy đã gặp: **`.harness/agent/HANDOFF_P10.md`**.
 
 **P10 đang chạy.** T10.1 ✅, T10.3 ✅, T10.5 ✅. Còn **T10.2** (mục tiêu chung của lớp) và
