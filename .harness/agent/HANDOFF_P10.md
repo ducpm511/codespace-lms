@@ -26,14 +26,23 @@
 
 Không tự deploy khi merge: chấm bài `inline` không có retry, restart giữa giờ học là mất bài nộp.
 
-### ⚠️ Việc vận hành CHƯA làm — ưu tiên hơn mọi tính năng mới
+### Việc vận hành
 
-1. **Piston chưa có runtime Python** → bài lập trình CHƯA chấm được. `docs/RUNBOOK.md` §2.
-2. **Chưa chạy smoke** RUNBOOK §4 (refresh token, nộp bài lấy điểm thật, tải PDF chứng chỉ).
-3. **Chưa đo RAM thật** — bảng trống ở RUNBOOK §4. **P10 thêm tính năng là thêm query và
-   thêm RAM; chưa có số nền thì không biết mình còn bao nhiêu chỗ.**
-4. **Chưa có sao lưu ngoài máy** + **chưa thử `ops/restore.sh` lần nào**.
-5. **Chưa đổi mật khẩu admin** (mật khẩu seed đã lộ trong hội thoại cũ).
+✅ **Piston chạy được, chấm code thật.** Python 3.12.0 đã cài (named volume `piston_packages`).
+Đã kiểm chứng: chạy code có stdin ra đúng kết quả; lỗi cú pháp trả stderr không làm sập gì;
+vòng lặp vô tận bị SIGKILL sau ~3 s. Cách ly §B đạt cả ba: không ra được internet, không thấy
+`postgres`, không map cổng ra host.
+
+✅ **Đã đo RAM thật** — bảng đầy đủ ở RUNBOOK §4. Tóm tắt: dùng **579 MB / 1967 MB** lúc nhàn rỗi,
+**585 MB** khi 5 lượt chạy code đồng thời, swap chưa chạm. **Còn trống ~1.39 GB** — P10 có rất
+nhiều chỗ. Chật nhất là caddy (54/96 MB).
+
+⚠️ **CÒN LẠI:**
+
+1. **Chưa chạy smoke đầy đủ** RUNBOOK §4 — cần làm qua giao diện thật: chờ token hết hạn xem có
+   tự refresh không, nộp bài lập trình **qua UI** (mới chỉ test thẳng vào Piston), tải PDF chứng chỉ.
+2. **Chưa có sao lưu ngoài máy** + **chưa thử `ops/restore.sh` lần nào**.
+3. **Chưa đổi mật khẩu admin** (mật khẩu seed đã lộ trong hội thoại cũ); chưa xoá `SEED_ADMIN_*`.
 
 ---
 
@@ -152,6 +161,13 @@ Những gì mẫu đổi so với `AdminHome.tsx` hiện tại:
 - `STORAGE_DRIVER=local` **bắt buộc** mount `./uploads`, và `backup.sh` phải đóng gói nó.
 - `prisma generate` EPERM khi API dev đang chạy → tắt API trước khi `pnpm validate`.
 - Worktree không có `.env` → API chết lúc boot (đúng thiết kế). Tạo `.env` cục bộ theo `.env.example`.
+- **Piston coi MỌI mục con của `/piston/packages` là một gói ngôn ngữ.** Một file lạc vào đó (kể cả
+  `.gitkeep`) làm nó chết `ENOTDIR` và restart vô hạn — và không có gì báo động, vì API chỉ gọi
+  Piston khi có học viên nộp bài. Đó là lý do dùng **named volume**, đừng bind mount thư mục repo.
+- **Ảnh Piston không có `curl`.** Dò nó từ container `api`:
+  `docker compose exec api curl http://piston:2000/api/v2/runtimes` — cũng đúng đường API dùng thật.
+- **`mem_limit` của container piston KHÔNG chặn mã học viên** (Piston dùng cgroup riêng ngoài
+  container). Thứ chặn thật là `PISTON_RUN_MEMORY_LIMIT`.
 
 ## Ràng buộc bất biến
 
