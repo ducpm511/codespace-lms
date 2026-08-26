@@ -24,18 +24,21 @@ Updated: 2026-08-26
 | **P7** Lesson Activities | bài học đa hoạt động: markdown/pdf slide/video/quiz/coding/assignment | ✅ Done (T7.0–T7.6) |
 | **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ✅ Done (T8.0–T8.5) |
 | **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ✅ Done + **đã deploy thật** |
-| **P10** Gamification G2 + Admin redesign | xếp hạng theo lớp/tuần, mục tiêu lớp, giáo viên trao thưởng, streak nhân văn, áp design mới khu Quản trị | ⬅️ Next (chi tiết `HANDOFF_P10.md`) |
+| **P10** Gamification G2 + Admin redesign | xếp hạng theo lớp/tuần, mục tiêu lớp, giáo viên trao thưởng, streak nhân văn, áp design mới khu Quản trị | 🔄 **Đang chạy** — T10.1/T10.3/T10.5 ✅ **đã lên production** (`main` = `a10b41f`, 2026-08-26); còn T10.2, T10.4 |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
 Ngoài roadmap: **Playful redesign FE** (apps/web) ✅ Done — re-skin gamified toàn app trên nền Nocturne
-(chi tiết `CURRENT_STATE.md §Playful/gamified redesign`).
+(chi tiết `docs/archive/completed_tasks/pre-p7-history.md`).
 
 ---
 
 ## Active Phase
 
-### Phase P10 — Gamification giai đoạn 2 + Admin redesign ⬅️ TIẾP THEO
+### Phase P10 — Gamification giai đoạn 2 + Admin redesign 🔄 ĐANG CHẠY
+
+**T10.1 · T10.3 · T10.5 ✅ xong và đã chạy trên production.** Còn **T10.2** và **T10.4**
+(T10.4 chặn bởi H5 — `Class` chưa có lịch học hằng tuần, phải hỏi người trước khi code).
 
 Kế hoạch đầy đủ, trạng thái production và bẫy đã gặp: **`.harness/agent/HANDOFF_P10.md`**.
 Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-LMS-admin-v2.html`.
@@ -67,18 +70,17 @@ Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-L
   quyền `user.read`, 3 query cố định, loại tài khoản `suspended`).
   ✅ **Đã xem thật trên giao diện**: nhật ký thành câu, chip vai trò/trạng thái, dãy số liệu.
 
-### ⚠️ CHẶN TRƯỚC P10 — việc vận hành trên máy thật
+### ⚠️ Việc vận hành CÒN LẠI trên máy thật
 
-Hệ thống đang chạy nhưng **chưa hoàn tất khâu vận hành**. Làm xong mấy việc này trước khi thêm
-tính năng, nhất là mục 3: P10 thêm query và thêm RAM, chưa có số nền thì không biết còn bao nhiêu chỗ.
+P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P9. Còn lại:
 
-| # | Việc | Tham chiếu |
+| # | Việc | Trạng thái |
 |---|---|---|
-| O1 | Cài runtime Python cho Piston — **bài lập trình đang KHÔNG chấm được** | RUNBOOK §2 |
-| O2 | Chạy danh sách smoke sau deploy | RUNBOOK §4 |
-| O3 | Đo RAM thật bằng `docker stats`, điền vào bảng | RUNBOOK §4 |
-| O4 | ⚠️ **MỘT NỬA XONG**: `ops/restore.sh` ✅ đã thử thật 2026-08-26 (khôi phục vào DB tạm, kiểm sâu, khớp bản chạy) và `/var/backups/lms` ✅ đã tạo. **CÒN LẠI: chưa có bản sao ngoài máy** (`OFFSITE_REMOTE` trống, rclone chưa có remote — chặn bởi H3) và **chưa đặt lịch tự động** (máy KHÔNG có cron; dùng systemd timer, mẫu ở RUNBOOK §5). | RUNBOOK §5 |
-| O5 | Đổi mật khẩu admin, xoá `SEED_ADMIN_*` khỏi `.env.production` | RUNBOOK §2 |
+| O2 | Smoke đầy đủ RUNBOOK §4 **qua giao diện thật** | ❌ chưa — mới kiểm ở mức HTTP |
+| O4a | Thử `ops/restore.sh` | ✅ **XONG 2026-08-26** — phục hồi vào DB tạm, kiểm sâu, khớp bản chạy |
+| O4b | **Sao lưu ngoài máy** — cả 2 file đang nằm trên chính con VPS | ❌ **RỦI RO CAO NHẤT**, chặn bởi H3 |
+| O4c | Lịch sao lưu tự động | ❌ chưa — máy KHÔNG có cron, dùng systemd timer (mẫu RUNBOOK §5) |
+| O5 | Đổi mật khẩu admin, xoá `SEED_ADMIN_*` khỏi `.env.production` | ❌ chưa |
 
 ### Việc cần người quyết (không agent nào làm thay được)
 
@@ -86,7 +88,8 @@ tính năng, nhất là mục 3: P10 thêm query và thêm RAM, chưa có số n
 |---|---|---|
 | H1 | Tài khoản Cloudinary → `STORAGE_DRIVER=cloudinary` | Xác minh T9.3 thật; giảm rủi ro mất file |
 | H2 | Chốt email provider (gợi ý Resend) | Quên-mật-khẩu |
-| H3 | Chốt đích sao lưu ngoài máy (R2/B2) | O4 |
+| H3 | **Chốt đích sao lưu ngoài máy (R2/B2)** | **O4b — rủi ro cao nhất hiện nay** |
+| H5 | `Class` chưa có lịch học hằng tuần → "streak khớp lịch học" dựa vào đâu? | **T10.4** (xem HANDOFF §T10.4) |
 | ~~H4~~ | ✅ **Đã chốt 2026-08-26** — audit không tra tên (câu mô tả chung, 0 PII); **bỏ hẳn** nhóm login; **thêm** dãy số liệu khu Quản trị. Chi tiết `HANDOFF_P10.md §T10.5`. | — |
 
 ---
