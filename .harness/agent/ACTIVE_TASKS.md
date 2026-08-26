@@ -48,7 +48,14 @@ Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-L
   Chỉ xếp hạng `roleInClass=student`; đồng điểm đồng hạng; FE `ClassLeaderboard` trong `LearnHome`.
   **CHƯA chạy thử trên DB thật** — worktree không có Postgres, migration mới chỉ được viết tay + validate.
 - **T10.2** Mục tiêu chung của lớp (`ClassGoal`) → huy hiệu tập thể.
-- **T10.3** Giáo viên trao huy hiệu / thưởng XP kèm lời nhắn (`UserBadge.awardedById`, scope lớp).
+- **T10.3** ✅ **XONG** — GV trao huy hiệu tay / thưởng XP kèm lời nhắn.
+  `Badge.isManual`, `UserBadge.awardedById|classId|note`, `XpEvent.note`; migration
+  `20260826120000_p10_manual_awards`; seed 3 huy hiệu tay (`helping_hand`, `good_question`,
+  `big_progress`). `POST /gamification/students/:studentId/awards` (**không** phải
+  `/users/:id/badges` như bản nháp — một endpoint lo cả huy hiệu lẫn XP nên tên theo việc nó làm).
+  Quyền: `grade.write` **và** phải là instructor/ta CỦA CHÍNH LỚP ĐÓ — chỉ kiểm permission là hở,
+  vì role `instructor` đang gán global. XP thưởng tay có trần 5–200 để một lượt không lật cả
+  bảng xếp hạng. FE: `AwardPanel` ngay dưới form chấm bài trong `TeachAssignments`.
 - **T10.4** Streak nhân văn: vé nghỉ phép, khớp lịch học thật (bỏ cuối tuần nếu lớp không học).
 - **T10.5** Áp design mới khu Quản trị: chip vai trò/trạng thái có icon+màu, nhật ký viết thành
   câu đọc được, nhóm hành động (**bỏ nhóm `login`**), **+ dãy số liệu** (GV / học viên / lớp đang

@@ -79,6 +79,11 @@ const BADGE_DEFS = [
   { code: 'streak_3', name: 'Chăm chỉ 3 ngày', description: 'Duy trì chuỗi học 3 ngày liên tiếp', icon: 'ph-fire' },
   { code: 'streak_7', name: 'Chiến binh 7 ngày', description: 'Duy trì chuỗi học 7 ngày liên tiếp', icon: 'ph-fire' },
   { code: 'xp_500', name: 'Nhà thám hiểm', description: 'Đạt 500 XP đầu tiên (Level 2)', icon: 'ph-star' },
+  // T10.3 — huy hiệu GV trao TAY. Không có tiêu chí tự động; với trẻ 7–16 lời khen từ cô giáo
+  // có sức nặng hơn con số máy tính ra.
+  { code: 'helping_hand', name: 'Giúp bạn', description: 'Chủ động giúp bạn trong lớp học', icon: 'ph-hand-heart', isManual: true },
+  { code: 'good_question', name: 'Câu hỏi hay', description: 'Đặt câu hỏi hay, làm cả lớp cùng hiểu ra', icon: 'ph-lightbulb', isManual: true },
+  { code: 'big_progress', name: 'Tiến bộ vượt bậc', description: 'Tiến bộ rõ rệt so với chính mình', icon: 'ph-trend-up', isManual: true },
 ];
 
 // Ma trận role → permission. P6: thêm audit.read, certificate.template.manage, notification.read.
@@ -172,8 +177,8 @@ async function main() {
     for (const b of BADGE_DEFS) {
       await prisma.badge.upsert({
         where: { code: b.code },
-        update: { name: b.name, description: b.description, icon: b.icon },
-        create: b,
+        update: { name: b.name, description: b.description, icon: b.icon, isManual: b.isManual ?? false },
+        create: { ...b, isManual: b.isManual ?? false },
       });
       badgeCount++;
     }

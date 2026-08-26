@@ -577,5 +577,15 @@
     "confirmPassword": "Nhập lại mật khẩu mới",
     "passwordMismatch": "Hai mật khẩu mới không khớp.",
     "passwordHint": "Tối thiểu {{min}} ký tự."
+  },
+  "gamification": {
+    "awardHeading": "Trao thưởng",
+    "awardFor": "Cho {{name}}",
+    "awardBadgeLabel": "Huy hiệu (chọn một, hoặc bỏ trống)",
+    "awardXpLabel": "Thưởng XP",
+    "awardNoteLabel": "Lời nhắn cho học viên",
+    "awardNotePlaceholder": "Hôm nay con giúp bạn rất nhiều…",
+    "awardSubmit": "Trao thưởng",
+    "awardSaved": "Đã trao! Học viên sẽ nhận được thông báo."
   }
 }

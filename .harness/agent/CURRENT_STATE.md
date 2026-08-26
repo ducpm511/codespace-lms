@@ -9,6 +9,29 @@ Updated: 2026-08-26
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
 
+### P10 · T10.3 Giáo viên trao thưởng thủ công (2026-08-26)
+
+- **Chỗ chặn thật KHÔNG phải permission mà là thành viên lớp.** `assertCanAwardInClass` đòi CẢ
+  `grade.write` LẪN đang là `instructor`/`ta` active của chính lớp đó. Chỉ kiểm `grade.write` là hở:
+  role `instructor` hiện gán ở phạm vi GLOBAL (nợ kỹ thuật đã biết) nên GV bất kỳ sẽ trao được cho
+  học viên lớp người khác — đúng thứ INVARIANT #3 cấm. Có test cho đúng ca này.
+- **Endpoint `POST /gamification/students/:studentId/awards`** — khác bản nháp `/users/:id/badges`:
+  một lượt trao lo cả huy hiệu lẫn XP nên đặt tên theo việc nó làm. Route không có `:classId` nên
+  `@RequirePermission` chỉ lọc thô; phạm vi lớp kiểm trong service theo `body.classId`.
+- **XP thưởng tay có trần `MANUAL_XP_MIN..MAX` = 5..200** (contracts, dùng chung FE/BE). Vì XP thưởng
+  tay được tính vào bảng xếp hạng tuần: không có trần thì một lượt thưởng lật ngược cả bảng.
+- **`sourceId` của `manual_award` là `randomUUID()` từng lượt**, không phải id bài — khoá
+  `(userId, source, sourceId)` vốn dùng để chống farm điểm sẽ chặn luôn việc khen lần thứ hai.
+- Huy hiệu vẫn `@@unique([userId, badgeId])`: mỗi huy hiệu giữ MỘT lần, trao lại trả **409**. Muốn
+  khen lại thì thưởng XP kèm lời nhắn (không giới hạn số lần).
+- Không trao tay được huy hiệu tự động (`isManual = false` → 400), và không tự thưởng cho mình (403).
+- **Audit `gamification.award` không chứa tên người lẫn nguyên văn lời nhắn** — chỉ
+  `{classId, badgeCode, xpAmount, hasNote}` (INVARIANT #5, có test khẳng định).
+- `BadgeDto.note` mới: lời khen của cô giáo hiện lại trên huy hiệu của học viên, không trôi mất
+  trong thông báo.
+- `pnpm validate` 16/16 (api **311 test / 27 suite**), i18n parity **541/541**.
+  **Chưa chạy migration `20260826120000_p10_manual_awards` trên DB thật.**
+
 ### P10 · T10.1 Bảng xếp hạng lớp theo tuần (2026-08-26)
 
 - **`XpEvent.classId` nullable + FK `SetNull` + index `(classId, createdAt)`.** Chọn thêm cột thay vì suy
@@ -355,8 +378,8 @@ theo phạm vi lớp** (`UserRole.classId` / `ClassMember.roleInClass`). Mọi r
 **ĐÃ DEPLOY THẬT — https://lms.codespace.edu.vn đang chạy** (VPS TINO `103.142.27.54`).
 Trạng thái production, việc còn lại trước khi mở lớp, và bẫy đã gặp: **`.harness/agent/HANDOFF_P10.md`**.
 
-**P10 đang chạy.** T10.1 ✅ (xem mục trên). Tiếp theo: T10.3 (GV trao thưởng) → T10.2 → T10.4.
-T10.5 vẫn **chặn** cho tới khi có người chốt 2 quyết định ở HANDOFF_P10 §T10.5 (H4).
+**P10 đang chạy.** T10.1 ✅, T10.3 ✅. Tiếp theo: T10.5 (đã hết chặn) hoặc T10.2 / T10.4.
+H4 đã chốt 2026-08-26 — xem `HANDOFF_P10.md §T10.5`.
 
 ### Gotchas môi trường thêm ở P9
 - Worktree KHÔNG có `.env` (file này gitignored, chỉ nằm ở checkout chính). Kể từ P9, API **chết ngay**

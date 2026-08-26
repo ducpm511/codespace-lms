@@ -577,5 +577,15 @@
     "confirmPassword": "Confirm new password",
     "passwordMismatch": "The two new passwords do not match.",
     "passwordHint": "At least {{min}} characters."
+  },
+  "gamification": {
+    "awardHeading": "Give an award",
+    "awardFor": "To {{name}}",
+    "awardBadgeLabel": "Badge (pick one, or leave empty)",
+    "awardXpLabel": "Bonus XP",
+    "awardNoteLabel": "Message for the student",
+    "awardNotePlaceholder": "You really helped your classmates today…",
+    "awardSubmit": "Give award",
+    "awardSaved": "Awarded! The student will get a notification."
   }
 }

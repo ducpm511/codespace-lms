@@ -7,6 +7,8 @@ export interface BadgeDto {
   description: string;
   icon?: string | null;
   awardedAt?: string | null;
+  /** Lời nhắn của giáo viên khi trao tay (T10.3). Huy hiệu tự động luôn null. */
+  note?: string | null;
 }
 
 export interface GamificationStreakDto {
@@ -63,4 +65,35 @@ export interface ClassLeaderboardDto {
   entries: LeaderboardEntryDto[];
   /** Dòng của chính người xem; null khi người xem là GV/TA hoặc không phải học viên lớp. */
   me: LeaderboardEntryDto | null;
+}
+
+// --- T10.3 — Giáo viên trao thưởng thủ công ---
+
+/**
+ * Trần XP cho một lượt thưởng tay. Có trần vì XP thưởng tay được tính vào bảng xếp hạng tuần:
+ * không chặn thì một lượt thưởng có thể lật ngược cả bảng và biến nó thành trò vô nghĩa.
+ */
+export const MANUAL_XP_MIN = 5;
+export const MANUAL_XP_MAX = 200;
+/** Lời nhắn hiển thị nguyên văn cho học viên — giữ ngắn để còn đọc được trong thông báo. */
+export const MANUAL_NOTE_MAX_LENGTH = 300;
+
+/** Một lượt trao: huy hiệu, hoặc XP, hoặc cả hai — nhưng phải có ít nhất một. */
+export interface ManualAwardRequest {
+  /** Lớp diễn ra việc trao. Bắt buộc: quyền được chấm theo LỚP, không trao xuyên lớp. */
+  classId: string;
+  /** `Badge.code` của huy hiệu trao tay (`isManual = true`). */
+  badgeCode?: string;
+  xpAmount?: number;
+  note?: string;
+}
+
+export interface ManualAwardResultDto {
+  studentId: string;
+  classId: string;
+  /** null khi lượt này chỉ thưởng XP. */
+  badge: BadgeDto | null;
+  xpAwarded: number;
+  note: string | null;
+  awardedAt: string;
 }
