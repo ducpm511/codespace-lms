@@ -193,13 +193,29 @@ Chưa chạy đủ danh sách này thì **chưa được coi là deploy xong**.
 docker stats --no-stream
 ```
 
-| Tiến trình | Mục tiêu | Đo lúc nhàn rỗi | Đo lúc 5 học viên nộp bài cùng lúc |
-|---|---|---|---|
-| postgres | 300–400 MB | _(điền)_ | _(điền)_ |
-| api | 250–350 MB | _(điền)_ | _(điền)_ |
-| piston | 150 MB / 300 MB đỉnh | _(điền)_ | _(điền)_ |
-| caddy | 30 MB | _(điền)_ | _(điền)_ |
-| **Tổng (`free -m`)** | ~1.1 GB / ~1.4 GB | _(điền)_ | _(điền)_ |
+**Đo thật ngày 2026-08-26** trên VPS TINO (1967 MB RAM), sau khi cài xong runtime Python:
+
+| Tiến trình | Mục tiêu | Nhàn rỗi | 5 lượt chạy code đồng thời | Trần đặt trong compose |
+|---|---|---|---|---|
+| postgres | 300–400 MB | **62 MB** | 62 MB | 448 MB |
+| api | 250–350 MB | **95 MB** | 95 MB | 512 MB |
+| piston | 150 MB | **23 MB** | 24 MB | 192 MB |
+| caddy | 30 MB | **54 MB** | 54 MB | 96 MB |
+| **Tổng máy (`free -m`)** | ~1.1 GB / ~1.4 GB | **579 MB** | **585 MB** | 1967 MB |
+
+Thực tế **thấp hơn dự toán khoảng một nửa**: còn trống ~1.39 GB, swap chưa dùng đến 1 MB.
+Đĩa 7.6 GB / 29 GB (28%), phần lớn là ảnh Docker + runtime Piston.
+
+Ba điều rút ra khi đọc bảng này:
+
+- **Tải 5 lượt gần như không nhích RAM** vì `PISTON_MAX_CONCURRENT_JOBS=1` — chúng xếp hàng chứ
+  không chạy song song. Mỗi lượt ~850 ms CPU, nên 5 em nộp cùng lúc thì em cuối chờ ~4 giây.
+  Đó là đánh đổi cố ý của 2 vCPU, không phải trục trặc.
+- **RAM của container `piston` KHÔNG phản ánh mã học viên đang chạy.** Piston dựng cgroup riêng
+  cho mỗi lượt, nằm ngoài phần kế toán của container. Thứ thật sự chặn là
+  `PISTON_RUN_MEMORY_LIMIT` (128 MB/lượt), không phải `mem_limit: 192m`.
+- **Caddy là chỗ chật nhất**: 54 MB trên trần 96 MB (56%). Các service khác đều dưới 20%.
+  Nếu sau này bật thêm tính năng cho Caddy thì nới trần của nó trước.
 
 Cũng đo bằng DevTools: mở một bài lập trình lần đầu (kéo ~37 MB Monaco + Pyodide), rồi tải lại
 trang — lần hai phải là `200 (from disk cache)` cho `/monaco/*`, `/pyodide/*`, `/assets/*`.
