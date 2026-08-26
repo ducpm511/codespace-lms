@@ -330,8 +330,8 @@ theo phạm vi lớp** (`UserRole.classId` / `ClassMember.roleInClass`). Mọi r
 
 ## Current Phase
 
-**P9 — Production readiness ✅ DONE (T9.0–T9.6).** Việc còn lại KHÔNG phải viết code mà là
-**mua VPS + tài khoản dịch vụ rồi chạy `docs/RUNBOOK.md`**. Task tiếp theo → `.harness/agent/ACTIVE_TASKS.md`.
+**ĐÃ DEPLOY THẬT — https://lms.codespace.edu.vn đang chạy** (VPS TINO `103.142.27.54`).
+Trạng thái production, việc còn lại trước khi mở lớp, và bẫy đã gặp: **`.harness/agent/HANDOFF_P10.md`**.
 
 ### Gotchas môi trường thêm ở P9
 - Worktree KHÔNG có `.env` (file này gitignored, chỉ nằm ở checkout chính). Kể từ P9, API **chết ngay**
