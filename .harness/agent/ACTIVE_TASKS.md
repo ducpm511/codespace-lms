@@ -51,7 +51,8 @@ Mẫu thiết kế khu Quản trị: `apps/web/design_handoff_lms_ui/CodeSpace-L
 - **T10.3** Giáo viên trao huy hiệu / thưởng XP kèm lời nhắn (`UserBadge.awardedById`, scope lớp).
 - **T10.4** Streak nhân văn: vé nghỉ phép, khớp lịch học thật (bỏ cuối tuần nếu lớp không học).
 - **T10.5** Áp design mới khu Quản trị: chip vai trò/trạng thái có icon+màu, nhật ký viết thành
-  câu đọc được, nhóm hành động. **Hai quyết định phải chốt trước khi code** — xem HANDOFF §T10.5.
+  câu đọc được, nhóm hành động (**bỏ nhóm `login`**), **+ dãy số liệu** (GV / học viên / lớp đang
+  mở / khóa đang chạy). Quyết định đã chốt — xem HANDOFF §T10.5. **Không còn chặn.**
 
 ### ⚠️ CHẶN TRƯỚC P10 — việc vận hành trên máy thật
 
@@ -73,7 +74,7 @@ tính năng, nhất là mục 3: P10 thêm query và thêm RAM, chưa có số n
 | H1 | Tài khoản Cloudinary → `STORAGE_DRIVER=cloudinary` | Xác minh T9.3 thật; giảm rủi ro mất file |
 | H2 | Chốt email provider (gợi ý Resend) | Quên-mật-khẩu |
 | H3 | Chốt đích sao lưu ngoài máy (R2/B2) | O4 |
-| H4 | Chốt 2 quyết định ở T10.5 (câu tóm tắt audit dựng ở đâu; có ghi audit login không) | T10.5 |
+| ~~H4~~ | ✅ **Đã chốt 2026-08-26** — audit không tra tên (câu mô tả chung, 0 PII); **bỏ hẳn** nhóm login; **thêm** dãy số liệu khu Quản trị. Chi tiết `HANDOFF_P10.md §T10.5`. | — |
 
 ---
 
