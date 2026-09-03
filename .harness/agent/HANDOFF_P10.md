@@ -14,9 +14,52 @@
 - Repo trên máy: `/srv/lms`. Secret ở `/srv/lms/.env.production` (chmod 600).
 - Admin: `ducpm@codespace.edu.vn` (Phạm Minh Đức) và `huyenhn@codespace.edu.vn` (Hoàng Ngọc Huyền).
 - 4 container: caddy / api / postgres / piston. `STORAGE_DRIVER=local`, `CODE_QUEUE_DRIVER=inline`.
-- **`main` = `a10b41f`** (PR #3). Ảnh `latest` trên GHCR khớp đúng digest commit đó.
+- **`main` = `7f2f991`.** Ảnh `api` + `web` đã build xong trên GHCR, `latest` khớp đúng digest.
+  ⛔ **NHƯNG BẢN NÀY CHƯA ĐƯỢC PHÁT HÀNH** — xem §Sự cố khoá host SSH ngay dưới.
+  Production đang chạy bản `a10b41f` (P10 phát hành 2026-08-26 chiều), vẫn khoẻ.
 - RAM sau phát hành P10: **555 MB / 1967**, swap chưa chạm. Còn trống ~1.4 GB.
 - **DB gần như rỗng: 2 user, 0 lớp, 0 `xp_events`, 0 bài nộp.** Chưa khai giảng.
+
+### ⛔ SỰ CỐ ĐANG MỞ — khoá host SSH đã đổi (2026-08-26 tối)
+
+**Không SSH vào máy chủ cho tới khi xác minh xong.** Đang chờ TINO xác nhận có
+khởi động lại / bảo trì / dựng lại VM hay không.
+
+Chiều còn SSH vào bình thường; tối thì **cả ba khoá host đổi cùng lúc**:
+
+| Loại | known_hosts đang lưu | Máy chủ trình ra |
+|---|---|---|
+| ED25519 | `SHA256:qk0Q6FBzUsz/PNEplqiTXTT/9Ht0G9/doNaV6dI/410` | `SHA256:9cRy+d1dmyl80EFAHdqHQ12USba128qnFtBsyNvg95E` |
+| RSA | `SHA256:6pUOd5mwG9ecMofpZ1ONQMQTRX6+dOyWtkwNXEggNWo` | `SHA256:Own+byBTyRw7pVsWb5ffOq5YRdBIcUYShY5HgsYQ6Kc` |
+| ECDSA | `SHA256:fHF8YUXKooMza3IsaPdCYUl9oe4QZDpKAjte1VueDlk` | `SHA256:k4+XyYH3AIJCOhEKD0V01thXKETpVA5r3+Rxna5+zXo` |
+
+**Bằng chứng ĐỘC LẬP (không đi qua SSH) — nghiêng mạnh về "khoá bị sinh lại, máy vẫn là máy mình":**
+- Console TINO hiện đúng hostname `phamminh7ml357899`, và máy **vừa khởi động lại** (log systemd ở
+  giây thứ 2.7). Đổi cả bộ 3 khoá = sinh lại cả loạt, không phải thay lẻ một khoá.
+- **Chứng chỉ TLS KHÔNG đổi**: Let's Encrypt cho `lms.codespace.edu.vn`, cấp 2026-08-24, hạn
+  2026-11-22 — tức là cùng ổ đĩa, cùng dữ liệu Caddy. Đây là đường tin cậy tách hẳn khỏi SSH.
+- DNS vẫn trỏ `103.142.27.54`; site HTTP 200; `/api/admin/overview` trả 401 → vẫn đang chạy bản P10.
+
+⚠️ **Những thứ KHÔNG phải bằng chứng** (đã suýt nhầm): banner `OpenSSH_9.6p1 Ubuntu`, và việc
+"máy chủ nhận khoá công khai của bạn". Cả hai đi qua đúng kết nối đang bị nghi ngờ nên một máy
+chủ giả mạo trả lời y hệt được. Đừng dùng chúng để kết luận.
+
+**Rủi ro nếu cứ kết nối mà chưa xác minh** (nói cho cân xứng): khoá RIÊNG của người dùng **không
+thể bị lấy** — chữ ký SSH gắn theo từng phiên, không tái sử dụng được. Thứ lộ ra là các lệnh và
+kết quả trả về; production hiện có 2 tài khoản / 0 lớp / 0 dữ liệu học viên nên rất ít. Deploy sẽ
+*trông như* thành công mà không tới máy thật.
+
+**Cách xác minh dứt điểm** — chạy ở console TINO (KHÔNG qua SSH), so với cột phải bảng trên:
+
+```bash
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+```
+
+🚨 **Đường dự phòng qua console KHÔNG DÙNG ĐƯỢC — nợ vận hành mới.** `bootstrap-vps.sh` tạo user
+`deploy` bằng `adduser --disabled-password`, và ảnh Ubuntu cloud không đặt mật khẩu `root`. Nên
+**không đăng nhập được ở Console/VNC**, dù HANDOFF vẫn ghi "mất key → dùng Console/VNC của TINO".
+Đường thoát đó là giả. Phải đặt một mật khẩu console cho `deploy` (hoặc dùng chức năng reset mật
+khẩu root của TINO) TRƯỚC khi cần tới nó.
 
 ### CI/CD
 
