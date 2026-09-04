@@ -1,6 +1,6 @@
 # HANDOFF — P10: Gamification giai đoạn 2 + Admin redesign
 
-> Cập nhật 2026-08-26. **T10.1 · T10.3 · T10.5 ✅ XONG và ĐÃ CHẠY TRÊN PRODUCTION.**
+> Cập nhật **2026-09-04**. **T10.1 · T10.3 · T10.5 ✅ XONG và ĐÃ CHẠY TRÊN PRODUCTION.**
 > Còn lại: **T10.2** và **T10.4**.
 
 ---
@@ -14,52 +14,42 @@
 - Repo trên máy: `/srv/lms`. Secret ở `/srv/lms/.env.production` (chmod 600).
 - Admin: `ducpm@codespace.edu.vn` (Phạm Minh Đức) và `huyenhn@codespace.edu.vn` (Hoàng Ngọc Huyền).
 - 4 container: caddy / api / postgres / piston. `STORAGE_DRIVER=local`, `CODE_QUEUE_DRIVER=inline`.
-- **`main` = `7f2f991`.** Ảnh `api` + `web` đã build xong trên GHCR, `latest` khớp đúng digest.
-  ⛔ **NHƯNG BẢN NÀY CHƯA ĐƯỢC PHÁT HÀNH** — xem §Sự cố khoá host SSH ngay dưới.
-  Production đang chạy bản `a10b41f` (P10 phát hành 2026-08-26 chiều), vẫn khoẻ.
-- RAM sau phát hành P10: **555 MB / 1967**, swap chưa chạm. Còn trống ~1.4 GB.
-- **DB gần như rỗng: 2 user, 0 lớp, 0 `xp_events`, 0 bài nộp.** Chưa khai giảng.
+- **`main` = `2e8df54` — ĐÃ PHÁT HÀNH 04/09/2026.** Digest ảnh api VÀ web đang chạy khớp tuyệt
+  đối với bản merge (đã đối chiếu, không chỉ tin `release.sh` báo OK).
+- ⚠️ **PRODUCTION ĐÃ CÓ DỮ LIỆU THẬT** (04/09): 2 user, **1 lớp, 2 khóa, 1 bài lập trình,
+  19 file, 1 ghi danh**. Không còn rỗng như hồi 26/08 — **mọi lần phát hành từ giờ phải cân
+  nhắc thời điểm thật sự**, đừng lặp lại lập luận "DB rỗng nên restart thoải mái".
+- RAM sau phát hành 04/09: **562 MB / 1967**, swap chưa chạm. Còn trống ~1.4 GB.
 
-### ⛔ SỰ CỐ ĐANG MỞ — khoá host SSH đã đổi (2026-08-26 tối)
+### ✅ ĐÃ ĐÓNG — khoá host SSH đổi (phát hiện 03/09, kết luận cùng ngày)
 
-**Không SSH vào máy chủ cho tới khi xác minh xong.** Đang chờ TINO xác nhận có
-khởi động lại / bảo trì / dựng lại VM hay không.
+**Không phải tấn công.** Máy khởi động lại **01/09 lúc 14:04:58**, khoá host sinh lại **9 giây sau**
+(`stat /etc/ssh/ssh_host_*_key` = 01/09 14:05:07; sshd lên 14:05:34) — đúng hành vi cloud-init.
+Lần SSH gần nhất trước đó là 26/08, nên khoá đổi trong khoảng trống 8 ngày giữa hai phiên.
 
-Chiều còn SSH vào bình thường; tối thì **cả ba khoá host đổi cùng lúc**:
+Đã xác minh **qua console TINO (kênh ngoài SSH)**: ba vân tay đọc trực tiếp trên máy khớp chính xác
+thứ máy trình ra khi kết nối. `known_hosts` đã cập nhật (bản cũ ở `~/.ssh/known_hosts.bak-*`).
 
-| Loại | known_hosts đang lưu | Máy chủ trình ra |
-|---|---|---|
-| ED25519 | `SHA256:qk0Q6FBzUsz/PNEplqiTXTT/9Ht0G9/doNaV6dI/410` | `SHA256:9cRy+d1dmyl80EFAHdqHQ12USba128qnFtBsyNvg95E` |
-| RSA | `SHA256:6pUOd5mwG9ecMofpZ1ONQMQTRX6+dOyWtkwNXEggNWo` | `SHA256:Own+byBTyRw7pVsWb5ffOq5YRdBIcUYShY5HgsYQ6Kc` |
-| ECDSA | `SHA256:fHF8YUXKooMza3IsaPdCYUl9oe4QZDpKAjte1VueDlk` | `SHA256:k4+XyYH3AIJCOhEKD0V01thXKETpVA5r3+Rxna5+zXo` |
+| Loại | Vân tay hiện hành |
+|---|---|
+| ED25519 | `SHA256:9cRy+d1dmyl80EFAHdqHQ12USba128qnFtBsyNvg95E` |
+| RSA | `SHA256:Own+byBTyRw7pVsWb5ffOq5YRdBIcUYShY5HgsYQ6Kc` |
+| ECDSA | `SHA256:k4+XyYH3AIJCOhEKD0V01thXKETpVA5r3+Rxna5+zXo` |
 
-**Bằng chứng ĐỘC LẬP (không đi qua SSH) — nghiêng mạnh về "khoá bị sinh lại, máy vẫn là máy mình":**
-- Console TINO hiện đúng hostname `phamminh7ml357899`, và máy **vừa khởi động lại** (log systemd ở
-  giây thứ 2.7). Đổi cả bộ 3 khoá = sinh lại cả loạt, không phải thay lẻ một khoá.
-- **Chứng chỉ TLS KHÔNG đổi**: Let's Encrypt cho `lms.codespace.edu.vn`, cấp 2026-08-24, hạn
-  2026-11-22 — tức là cùng ổ đĩa, cùng dữ liệu Caddy. Đây là đường tin cậy tách hẳn khỏi SSH.
-- DNS vẫn trỏ `103.142.27.54`; site HTTP 200; `/api/admin/overview` trả 401 → vẫn đang chạy bản P10.
+**Lần sau gặp lại, kiểm 3 thứ này TRƯỚC khi hoảng:**
+1. `uptime -s` + `stat -c '%y' /etc/ssh/ssh_host_ed25519_key` — khoá sinh lại đúng lúc boot là bình thường.
+2. Chứng chỉ TLS còn nguyên không — còn nguyên nghĩa là cùng ổ đĩa, cùng máy.
+3. **Đối chiếu NGÀY THẬT.** Suýt kết luận sai vì tưởng cả phiên diễn ra trong một ngày; thực ra
+   cách nhau 8 ngày. Console hiện log boot cũ còn trong bộ đệm tty1 — rất dễ nhầm là "vừa boot".
 
-⚠️ **Những thứ KHÔNG phải bằng chứng** (đã suýt nhầm): banner `OpenSSH_9.6p1 Ubuntu`, và việc
-"máy chủ nhận khoá công khai của bạn". Cả hai đi qua đúng kết nối đang bị nghi ngờ nên một máy
-chủ giả mạo trả lời y hệt được. Đừng dùng chúng để kết luận.
+⚠️ **KHÔNG phải bằng chứng**: banner `OpenSSH_9.6p1 Ubuntu`, và "máy chủ nhận khoá công khai của
+bạn". Cả hai đi qua đúng kết nối đang nghi ngờ nên máy chủ giả mạo trả lời y hệt được. Chỉ
+console và chứng chỉ TLS mới là kênh độc lập.
 
-**Rủi ro nếu cứ kết nối mà chưa xác minh** (nói cho cân xứng): khoá RIÊNG của người dùng **không
-thể bị lấy** — chữ ký SSH gắn theo từng phiên, không tái sử dụng được. Thứ lộ ra là các lệnh và
-kết quả trả về; production hiện có 2 tài khoản / 0 lớp / 0 dữ liệu học viên nên rất ít. Deploy sẽ
-*trông như* thành công mà không tới máy thật.
-
-**Cách xác minh dứt điểm** — chạy ở console TINO (KHÔNG qua SSH), so với cột phải bảng trên:
-
-```bash
-ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
-```
-
-🚨 **Đường dự phòng qua console KHÔNG DÙNG ĐƯỢC — nợ vận hành mới.** `bootstrap-vps.sh` tạo user
-`deploy` bằng `adduser --disabled-password`, và ảnh Ubuntu cloud không đặt mật khẩu `root`. Nên
-**không đăng nhập được ở Console/VNC**, dù HANDOFF vẫn ghi "mất key → dùng Console/VNC của TINO".
-Đường thoát đó là giả. Phải đặt một mật khẩu console cho `deploy` (hoặc dùng chức năng reset mật
-khẩu root của TINO) TRƯỚC khi cần tới nó.
+🚨 **Nợ còn nguyên — đường dự phòng console gần như không dùng được.** `bootstrap-vps.sh` tạo
+`deploy` bằng `adduser --disabled-password`; ảnh Ubuntu cloud không đặt mật khẩu `root`. Lần này
+vào được console là nhờ **đặt lại mật khẩu root qua bảng điều khiển TINO**. Nên đặt sẵn mật khẩu
+console và cất vào trình quản lý mật khẩu, **trước** khi cần tới.
 
 ### CI/CD
 
@@ -162,6 +152,31 @@ một lượt trao lo cả huy hiệu lẫn XP nên tên theo việc nó làm).
 2. **BỎ HẲN nhóm `login`.** Không ghi audit đăng nhập, kể cả thất bại. Rate-limit khoá theo danh
    tính (P9) đã chặn ở tầng dưới.
 3. Nhóm **`award`** là nhóm thứ 6, thêm cho `gamification.award` — thiết kế gốc chưa biết action này.
+
+---
+
+### Vá 04/09 — học viên thấy markdown thô, và không thấy đề bài tập lần nào
+
+Người dùng báo "đề bài markdown hiện xấu". Tra ra **ba lỗi cùng một họ**, đều ở phía HỌC VIÊN:
+
+1. `statementMd` của bài lập trình đổ thẳng vào `<p whitespace-pre-wrap>` ở `LearnCoding`.
+2. **`descriptionMd` của bài tập KHÔNG hiển thị ở đâu cả** — nặng hơn lỗi số 1.
+   `AssignmentSummary` không mang trường này, mà `GET /assignments/for-class` (đường **duy nhất**
+   học viên lấy được bài tập) chỉ trả `Summary`; `GET /assignments/:id` thì đòi `assignment.read`
+   — quyền học viên không có. Đã đổi `listForClass` trả `AssignmentDetail`.
+3. `feedbackMd` (nhận xét của giáo viên) cũng render thô.
+
+> ⚠️ **VÌ SAO LỌT LÂU — bài học quan trọng nhất ở đây.** Màn hình GIÁO VIÊN (`TeachCoding`) dùng
+> `MarkdownBlock` và render rất đẹp, nên người soạn đề không bao giờ thấy thứ học viên thấy.
+> **Sửa hoặc thêm bất kỳ nội dung nào hiển thị hai phía → phải xem BẰNG MẮT ở CẢ hai vai.**
+
+Vá bằng cách dùng lại `MarkdownBlock` sẵn có (`features/lesson-activities/ActivityBlocks.tsx`),
+KHÔNG viết bộ render mới: nó cố ý không bật `rehype-raw` nên không render raw HTML — viết mới rất
+dễ vô tình mở lại lỗ hổng XSS đó.
+
+**Chưa xem được bằng mắt trên giao diện** (Docker cục bộ tắt lúc vá). Đã xác minh gián tiếp: digest
+ảnh api + web đang chạy khớp bản merge, và `toDetail` có mặt trong `dist` của ảnh đang chạy.
+**Việc còn lại: mở một bài lập trình bằng tài khoản HỌC VIÊN trên production và nhìn.**
 
 ---
 

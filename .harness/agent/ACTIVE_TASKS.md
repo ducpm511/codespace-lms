@@ -81,8 +81,9 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | O4b | **Sao lưu ngoài máy** — cả 2 file đang nằm trên chính con VPS | ❌ **RỦI RO CAO NHẤT**, chặn bởi H3 |
 | O4c | Lịch sao lưu tự động | ❌ chưa — máy KHÔNG có cron, dùng systemd timer (mẫu RUNBOOK §5) |
 | O5 | Đổi mật khẩu admin, xoá `SEED_ADMIN_*` khỏi `.env.production` | ❌ chưa |
-| O6 | ⛔ **SỰ CỐ ĐANG MỞ**: cả 3 khoá host SSH của VPS đã đổi (2026-08-26 tối). KHÔNG SSH vào cho tới khi TINO xác nhận có reboot/dựng lại máy. Chi tiết + vân tay: `HANDOFF_P10.md §Sự cố khoá host SSH`. | — |
-| O7 | 🚨 **Đường dự phòng Console/VNC là GIẢ**: user `deploy` tạo bằng `--disabled-password`, root không có mật khẩu → không đăng nhập được ở console. Phải đặt mật khẩu console TRƯỚC khi cần tới. | — |
+| O6 | ✅ **ĐÃ ĐÓNG 03/09**: khoá host đổi vì máy reboot 01/09, cloud-init sinh lại khoá. Xác minh qua console TINO; `known_hosts` đã cập nhật. Vân tay lưu ở `HANDOFF_P10.md`. | — |
+| O7 | 🚨 **Đặt sẵn mật khẩu console cho `deploy`**: user tạo bằng `--disabled-password`, root không có mật khẩu → chỉ vào console được sau khi reset mật khẩu root qua bảng điều khiển TINO. Cất vào trình quản lý mật khẩu. | — |
+| O8 | 👀 **Xem BẰNG MẮT bản vá markdown 04/09**: mở một bài lập trình bằng tài khoản HỌC VIÊN trên production. Bản vá đã phát hành nhưng chưa ai nhìn tận mắt. | — |
 
 ### Việc cần người quyết (không agent nào làm thay được)
 
