@@ -16,6 +16,7 @@ import {
   useClasses,
   useCreateClass,
   useEnrollMember,
+  useRemoveMember,
   useUnassignCourse,
   useUpdateClass,
   useGates,
@@ -522,6 +523,7 @@ function CoursesPanel({ classId, courses }: { classId: string; courses: ClassCou
 const AVATAR_COLORS = ['var(--cx-purple)', 'var(--cx-teal)', 'var(--cx-amber)', 'var(--cx-coral)', 'var(--cx-blue)'];
 
 function MembersPanel({ classId, members }: { classId: string; members: ClassMemberDto[] }): JSX.Element {
+  const removeMember = useRemoveMember(classId);
   const { t } = useTranslation();
   const enroll = useEnrollMember(classId);
   const [email, setEmail] = useState('');
@@ -561,10 +563,27 @@ function MembersPanel({ classId, members }: { classId: string; members: ClassMem
               <span className="tag tag-neutral shrink-0">
                 {t(`roleInClass.${m.roleInClass}`, { defaultValue: m.roleInClass })}
               </span>
+              {/* Xoá theo `m.userId` chứ KHÔNG phải `m.id`: `m.id` là id của ClassMember, còn
+                  route là `/members/:userId`. Nhầm chỗ này thì API trả 404 khó hiểu. */}
+              <IconButton
+                icon="ph-user-minus"
+                tone="danger"
+                title={t('classes.removeMember')}
+                disabled={removeMember.isPending}
+                onClick={() => {
+                  if (!confirm(t('classes.confirmRemoveMember', { name }))) return;
+                  removeMember.mutate(m.userId);
+                }}
+              />
             </div>
           );
         })}
         {members.length === 0 && <p className="text-muted m-0 text-xs">{t('classes.noMembers')}</p>}
+        {removeMember.isError && (
+          <p className="m-0 text-xs" style={{ color: '#f4a3a3' }}>
+            {errMsg(removeMember.error)}
+          </p>
+        )}
       </div>
 
       <form

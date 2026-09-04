@@ -8,6 +8,7 @@ import type {
   UpdateClassRequest,
 } from '@lms/contracts';
 import * as api from './api';
+import { teachOverviewKey } from '../reports/useClassReport';
 
 export const classesKey = ['classes'] as const;
 export const myClassesKey = ['classes', 'mine'] as const;
@@ -77,6 +78,19 @@ export function useEnrollMember(classId: string) {
   return useMutation({
     mutationFn: (body: EnrollMemberRequest) => api.enrollMember(classId, body),
     onSuccess: (data) => qc.setQueryData(classKey(classId), data),
+  });
+}
+
+export function useRemoveMember(classId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => api.removeMember(classId, userId),
+    onSuccess: (data) => {
+      qc.setQueryData(classKey(classId), data);
+      // Sĩ số lớp hiện ở hero + sidebar khu Giảng dạy -> phải nạp lại, nếu không số cũ còn đó.
+      void qc.invalidateQueries({ queryKey: classesKey });
+      void qc.invalidateQueries({ queryKey: teachOverviewKey });
+    },
   });
 }
 

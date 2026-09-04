@@ -157,7 +157,9 @@
     "description": "Mô tả",
     "status": "Trạng thái",
     "unassignCourse": "Gỡ khóa học khỏi lớp",
-    "unassignConfirm": "Gỡ khóa \"{{title}}\" khỏi lớp? Các bài của khóa này sẽ không còn hiện với học viên."
+    "unassignConfirm": "Gỡ khóa \"{{title}}\" khỏi lớp? Các bài của khóa này sẽ không còn hiện với học viên.",
+    "removeMember": "Gỡ khỏi lớp",
+    "confirmRemoveMember": "Gỡ {{name}} khỏi lớp? Tiến độ và bài nộp của em vẫn được giữ; thêm lại là thấy lại."
   },
   "admin": {
     "title": "Bảng điều khiển quản trị",

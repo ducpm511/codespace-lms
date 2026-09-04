@@ -30,6 +30,11 @@ export const assignCourse = (classId: string, body: AssignCourseRequest): Promis
 export const enrollMember = (classId: string, body: EnrollMemberRequest): Promise<ClassDetail> =>
   apiFetch<ClassDetail>(`/classes/${classId}/members`, { method: 'POST', body: JSON.stringify(body) });
 
+// Gỡ thành viên = ĐÁNH DẤU `status: removed` ở backend, KHÔNG xoá bản ghi. Tiến độ học, bài nộp
+// và điểm của em vẫn còn nguyên — thêm lại là thấy lại.
+export const removeMember = (classId: string, userId: string): Promise<ClassDetail> =>
+  apiFetch<ClassDetail>(`/classes/${classId}/members/${userId}`, { method: 'DELETE' });
+
 export const listGates = (classId: string): Promise<LessonGateDto[]> =>
   apiFetch<LessonGateDto[]>(`/classes/${classId}/gates`);
 

@@ -157,7 +157,9 @@
     "description": "Description",
     "status": "Status",
     "unassignCourse": "Remove course from class",
-    "unassignConfirm": "Remove \"{{title}}\" from this class? Its lessons will no longer be visible to students."
+    "unassignConfirm": "Remove \"{{title}}\" from this class? Its lessons will no longer be visible to students.",
+    "removeMember": "Remove from class",
+    "confirmRemoveMember": "Remove {{name}} from the class? Their progress and submissions are kept; re-adding brings them back."
   },
   "admin": {
     "title": "Admin dashboard",
