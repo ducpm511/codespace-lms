@@ -14,8 +14,11 @@
 - Repo trên máy: `/srv/lms`. Secret ở `/srv/lms/.env.production` (chmod 600).
 - Admin: `ducpm@codespace.edu.vn` (Phạm Minh Đức) và `huyenhn@codespace.edu.vn` (Hoàng Ngọc Huyền).
 - 4 container: caddy / api / postgres / piston. `STORAGE_DRIVER=local`, `CODE_QUEUE_DRIVER=inline`.
-- **`main` = `2e8df54` — ĐÃ PHÁT HÀNH 04/09/2026.** Digest ảnh api VÀ web đang chạy khớp tuyệt
+- **`main` = `7b3a907` — ĐÃ PHÁT HÀNH 04/09/2026.** Digest ảnh api VÀ web đang chạy khớp tuyệt
   đối với bản merge (đã đối chiếu, không chỉ tin `release.sh` báo OK).
+  > Lưu ý đọc log `release.sh`: nếu thay đổi CHỈ ở frontend thì ảnh api giữ nguyên digest và
+  > container api **không được tạo lại** (`Up About an hour`). Đó là ĐÚNG, không phải deploy sót —
+  > kiểm bằng cách đối chiếu digest chứ đừng nhìn cột `CREATED`.
 - ⚠️ **PRODUCTION ĐÃ CÓ DỮ LIỆU THẬT** (04/09): 2 user, **1 lớp, 2 khóa, 1 bài lập trình,
   19 file, 1 ghi danh**. Không còn rỗng như hồi 26/08 — **mọi lần phát hành từ giờ phải cân
   nhắc thời điểm thật sự**, đừng lặp lại lập luận "DB rỗng nên restart thoải mái".
@@ -154,6 +157,29 @@ một lượt trao lo cả huy hiệu lẫn XP nên tên theo việc nó làm).
 3. Nhóm **`award`** là nhóm thứ 6, thêm cho `gamification.award` — thiết kế gốc chưa biết action này.
 
 ---
+
+### Vá 04/09 (lô 2) — sửa được đề bài lập trình
+
+Người dùng: *"không thể sửa được đề bài, tôi toàn phải xóa đi làm lại"*.
+
+`PATCH /coding-problems/:id` và `useUpdateCodingProblem` **đã có sẵn từ lâu** — chỉ là `TeachCoding`
+chưa bao giờ nối vào, nó chỉ import `create` + `delete`. Xoá bài để sửa một dòng đề là **mất luôn
+toàn bộ test case**.
+
+Quét 4 màn hình khu Giảng dạy: **chỉ `TeachCoding` thiếu**; `TeachQuiz` / `TeachAssignments` /
+`TeachClasses` đều đã có đường sửa từ trước.
+
+- Form sửa tại chỗ đủ mặt DTO: title, statementMd, starterCode, solutionCode, difficulty,
+  maxScore, timeLimitMs, memoryLimitMb.
+- **`starterCode` / `solutionCode` trước nay KHÔNG đặt được ở đâu cả** — form tạo mới không có hai
+  trường đó. Đây là đường duy nhất.
+- Thêm 4 test cho `coding.update` (trước đó endpoint này KHÔNG có test nào). Quan trọng nhất:
+  sửa một trường không được đụng trường khác — form dựa vào việc Prisma coi `undefined` là "đừng
+  đổi"; tính chất đó hỏng thì sửa đề sẽ xoá trắng mã khởi đầu mà không ai biết.
+
+> 🔁 **Mẫu lỗi lặp lại lần thứ ba** (khoá học, bài lập trình): *backend có đủ endpoint, giao diện
+> chưa nối vào*. Trước khi kết luận "thiếu tính năng", hãy grep xem controller đã có `@Patch` /
+> `@Delete` chưa và hook FE đã tồn tại chưa — thường là có.
 
 ### Vá 04/09 — học viên thấy markdown thô, và không thấy đề bài tập lần nào
 
