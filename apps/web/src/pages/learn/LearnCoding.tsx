@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MarkdownBlock } from '../../features/lesson-activities/ActivityBlocks';
 import Editor from '@monaco-editor/react';
 import type { CodingSubmissionDto } from '@lms/contracts';
 import '../../lib/monaco-setup';
@@ -71,7 +72,11 @@ export function LearnCodingWorkspace({
           <div className="space-y-4">
             <div>
               <h1 className="cx-display text-2xl">{attempt.data.title}</h1>
-              <p className="text-muted mt-1 whitespace-pre-wrap text-sm">{attempt.data.statementMd}</p>
+              {/* Đề bài là markdown. Trước đây đổ thẳng vào <p> nên học viên thấy nguyên ký tự
+                  `#`, `**`, ```` ``` ```` — trong khi màn hình GV lại render đẹp, nên lỗi lọt lâu. */}
+              <div className="mt-1">
+                <MarkdownBlock content={attempt.data.statementMd} />
+              </div>
             </div>
 
             {attempt.data.sampleTests.length > 0 && (

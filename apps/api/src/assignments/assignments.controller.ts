@@ -30,7 +30,7 @@ export class AssignmentsController {
   listForClass(
     @Param('classId') classId: string,
     @CurrentUser() user: AuthPrincipal,
-  ): Promise<AssignmentSummary[]> {
+  ): Promise<AssignmentDetail[]> {
     return this.assignments.listForClass(classId, user.userId);
   }
 

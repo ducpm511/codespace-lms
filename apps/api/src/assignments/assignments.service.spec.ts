@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AssignmentsService } from './assignments.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
@@ -14,6 +14,9 @@ function makePrisma() {
     },
     course: { findUnique: jest.fn() },
     lesson: { findUnique: jest.fn() },
+    classMember: { findUnique: jest.fn() },
+    classCourse: { findMany: jest.fn() },
+    lessonGate: { findMany: jest.fn() },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
 }
@@ -43,6 +46,47 @@ describe('AssignmentsService', () => {
   beforeEach(() => {
     prisma = makePrisma();
     service = new AssignmentsService(prisma as unknown as PrismaService);
+  });
+
+
+  describe('listForClass', () => {
+    function asActiveMember() {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.classCourse.findMany.mockResolvedValue([{ courseId: 'c1' }]);
+      prisma.lessonGate.findMany.mockResolvedValue([]);
+    }
+
+    it('TRẢ KÈM descriptionMd — đây là đường DUY NHẤT học viên đọc được đề bài', async () => {
+      // `GET /assignments/:id` đòi `assignment.read`, quyền mà học viên không có. Nếu endpoint này
+      // chỉ trả Summary thì giáo viên soạn đề xong không ai đọc được.
+      asActiveMember();
+      prisma.assignment.findMany.mockResolvedValue([
+        row({ descriptionMd: '# Đề bài\n\nTính tổng hai số.' }),
+      ]);
+
+      const res = await service.listForClass('cl1', 'u1');
+
+      expect(res).toHaveLength(1);
+      expect(res[0].descriptionMd).toBe('# Đề bài\n\nTính tổng hai số.');
+    });
+
+    it('403 khi không phải thành viên đang hoạt động của lớp', async () => {
+      prisma.classMember.findUnique.mockResolvedValue(null);
+      await expect(service.listForClass('cl1', 'outsider')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('ẩn bài tập gắn bài học CHƯA mở gate (INVARIANT #3)', async () => {
+      asActiveMember();
+      prisma.assignment.findMany.mockResolvedValue([
+        row({ id: 'a-chung', lessonId: null }),
+        row({ id: 'a-khoa', lessonId: 'l-chua-mo' }),
+      ]);
+
+      const res = await service.listForClass('cl1', 'u1');
+      expect(res.map((a) => a.id)).toEqual(['a-chung']);
+    });
   });
 
   describe('create', () => {

@@ -27,7 +27,7 @@ export class AssignmentsService {
    * hoặc gắn lesson ĐÃ mở gate (INVARIANT #3). Mirror `CodingService.listForClass` / quiz `for-class`.
    * Không dùng `assignment.read` (student không có quyền này) — quyền = thành viên active của lớp.
    */
-  async listForClass(classId: string, userId: string): Promise<AssignmentSummary[]> {
+  async listForClass(classId: string, userId: string): Promise<AssignmentDetail[]> {
     const member = await this.prisma.classMember.findUnique({
       where: { classId_userId: { classId, userId } },
       select: { status: true },
@@ -51,7 +51,11 @@ export class AssignmentsService {
     ]);
 
     const openLessons = new Set(gates.map((g) => g.lessonId));
-    return rows.filter((a) => a.lessonId === null || openLessons.has(a.lessonId)).map(toSummary);
+    // `toDetail` chứ không phải `toSummary`: học viên cần ĐỌC ĐƯỢC ĐỀ BÀI. `AssignmentSummary`
+    // không mang `descriptionMd` nên trước đây giáo viên soạn đề xong không ai thấy. Đây là đường
+    // duy nhất học viên lấy được bài tập — `GET /assignments/:id` đòi `assignment.read`, quyền mà
+    // học viên không có.
+    return rows.filter((a) => a.lessonId === null || openLessons.has(a.lessonId)).map(toDetail);
   }
 
   async create(dto: CreateAssignmentDto, createdById: string): Promise<AssignmentDetail> {

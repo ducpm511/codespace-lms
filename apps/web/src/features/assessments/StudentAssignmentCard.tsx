@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AssignmentSummary } from '@lms/contracts';
+import type { AssignmentDetail } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import { useMySubmission, useSaveSubmission, useSubmitSubmission } from './hooks';
+import { MarkdownBlock } from '../lesson-activities/ActivityBlocks';
 
 export function StudentAssignmentCard({
   classId,
   assignment,
 }: {
   classId: string;
-  assignment: AssignmentSummary;
+  assignment: AssignmentDetail;
 }): JSX.Element {
   const { t } = useTranslation();
   const subQuery = useMySubmission(assignment.id, classId);
@@ -71,6 +72,13 @@ export function StudentAssignmentCard({
             {t('assignments.maxScore')}: {assignment.maxScore} · {assignment.submissionType}
             {assignment.dueAt && ` · ${t('assignments.dueAt')}: ${new Date(assignment.dueAt).toLocaleDateString()}`}
           </p>
+          {/* Đề bài của giáo viên. Trước đây KHÔNG hiển thị ở đâu cả: `AssignmentSummary` không
+              mang `descriptionMd`, nên GV soạn đề xong học viên không bao giờ đọc được. */}
+          {assignment.descriptionMd && (
+            <div className="mt-2">
+              <MarkdownBlock content={assignment.descriptionMd} />
+            </div>
+          )}
         </div>
         {submission && (
           <span className={isGraded ? 'tag tag-accent' : isSubmitted ? 'tag tag-outline' : 'tag tag-neutral'}>
@@ -85,9 +93,10 @@ export function StudentAssignmentCard({
             {t('submissions.scoreTitle')}: {submission.score} / {assignment.maxScore}
           </p>
           {submission.feedbackMd && (
-            <p style={{ color: 'var(--color-accent-300)' }}>
-              <span className="font-medium">{t('assignments.feedback')}:</span> {submission.feedbackMd}
-            </p>
+            <div style={{ color: 'var(--color-accent-300)' }}>
+              <span className="font-medium">{t('assignments.feedback')}:</span>
+              <MarkdownBlock content={submission.feedbackMd} />
+            </div>
           )}
         </div>
       )}
