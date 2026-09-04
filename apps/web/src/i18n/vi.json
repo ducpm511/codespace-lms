@@ -383,7 +383,15 @@
     "statementHeading": "Đề bài",
     "kindSampleLong": "Ví dụ (học viên thấy)",
     "kindHiddenLong": "Ẩn (dùng để chấm)",
-    "weightLabel": "Trọng số {{weight}}"
+    "weightLabel": "Trọng số {{weight}}",
+    "editProblem": "Sửa đề bài",
+    "statementMdHint": "Hỗ trợ Markdown: # tiêu đề, **in đậm**, ``` khối code.",
+    "starterCode": "Mã khởi đầu (học viên thấy sẵn trong trình soạn)",
+    "starterCodeHint": "Để trống nếu muốn học viên tự viết từ đầu",
+    "solutionCode": "Lời giải (chỉ giáo viên xem)",
+    "solutionCodeHint": "Không gửi cho học viên",
+    "timeLimit": "Giới hạn thời gian (ms)",
+    "memoryLimit": "Giới hạn bộ nhớ (MB)"
   },
   "assignments": {
     "heading": "Bài tập",

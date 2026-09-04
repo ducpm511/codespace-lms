@@ -383,7 +383,15 @@
     "statementHeading": "Problem statement",
     "kindSampleLong": "Example (visible to students)",
     "kindHiddenLong": "Hidden (used for grading)",
-    "weightLabel": "Weight {{weight}}"
+    "weightLabel": "Weight {{weight}}",
+    "editProblem": "Edit problem",
+    "statementMdHint": "Markdown supported: # heading, **bold**, ``` code block.",
+    "starterCode": "Starter code (pre-filled in the student's editor)",
+    "starterCodeHint": "Leave empty to let students start from scratch",
+    "solutionCode": "Solution (teachers only)",
+    "solutionCodeHint": "Never sent to students",
+    "timeLimit": "Time limit (ms)",
+    "memoryLimit": "Memory limit (MB)"
   },
   "assignments": {
     "heading": "Assignments",

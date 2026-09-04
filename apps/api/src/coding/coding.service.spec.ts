@@ -90,6 +90,58 @@ describe('CodingService', () => {
     });
   });
 
+  describe('update (sửa đề bài)', () => {
+    it('sửa được statementMd mà KHÔNG đụng các trường khác', async () => {
+      // Prisma coi `undefined` là "đừng đổi". Form sửa đề dựa vào đúng tính chất này: chỉ gửi
+      // những trường người dùng thực sự chạm tới.
+      prisma.codingProblem.findUnique.mockResolvedValue(problemRow());
+      prisma.codingProblem.update.mockResolvedValue({});
+
+      await service.update('p1', { statementMd: '# Đề bài mới' });
+
+      expect(prisma.codingProblem.update).toHaveBeenCalledWith({
+        where: { id: 'p1' },
+        data: {
+          title: undefined,
+          statementMd: '# Đề bài mới',
+          starterCode: undefined,
+          solutionCode: undefined,
+          timeLimitMs: undefined,
+          memoryLimitMb: undefined,
+          difficulty: undefined,
+          maxScore: undefined,
+        },
+      });
+    });
+
+    it('gửi null thì XOÁ HẲN starterCode (khác với bỏ trống = giữ nguyên)', async () => {
+      prisma.codingProblem.findUnique.mockResolvedValue(problemRow());
+      prisma.codingProblem.update.mockResolvedValue({});
+
+      await service.update('p1', { starterCode: null });
+
+      expect(prisma.codingProblem.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ starterCode: null }) }),
+      );
+    });
+
+    it('trả về detail của GV sau khi sửa (kèm hidden test + solution)', async () => {
+      prisma.codingProblem.findUnique.mockResolvedValue(problemRow({ title: 'Tên mới' }));
+      prisma.codingProblem.update.mockResolvedValue({});
+
+      const res = await service.update('p1', { title: 'Tên mới' });
+
+      expect(res.title).toBe('Tên mới');
+      expect(res.testCases).toHaveLength(2);
+    });
+
+    it('404 khi bài không tồn tại — không ghi gì cả', async () => {
+      prisma.codingProblem.findUnique.mockResolvedValue(null);
+      await expect(service.update('nope', { title: 'X' })).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.codingProblem.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getStudentDetail (INVARIANT: không lộ hidden/solution)', () => {
     const okMembership = () => {
       prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });

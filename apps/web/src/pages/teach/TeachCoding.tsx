@@ -14,6 +14,7 @@ import {
   useCodingProblems,
   useCreateCodingProblem,
   useDeleteCodingProblem,
+  useUpdateCodingProblem,
   useDeleteTestCase,
   useUpsertTestCase,
 } from '../../features/coding/hooks';
@@ -274,6 +275,7 @@ function ProblemEditor({
   const problem = useCodingProblem(problemId);
   const course = useCourse(courseId || null);
   const del = useDeleteCodingProblem(courseId);
+  const [editing, setEditing] = useState(false);
 
   if (problem.isLoading || !problem.data) {
     return <p className="text-muted text-sm">{t('common.loading')}</p>;
@@ -307,6 +309,9 @@ function ProblemEditor({
         actions={
           <>
             <DifficultyTag difficulty={p.difficulty} />
+            <PillButton icon="ph-pencil-simple" variant="secondary" onClick={() => setEditing(true)}>
+              {t('coding.edit')}
+            </PillButton>
             <PillButton
               icon="ph-trash"
               variant="secondary"
@@ -321,20 +326,203 @@ function ProblemEditor({
       />
 
       <DetailSection icon="ph-article" color="var(--cx-blue)" title={t('coding.statementHeading')}>
-        <div
-          style={{
-            borderRadius: 18,
-            background: 'var(--color-neutral-900)',
-            boxShadow: 'inset 0 0 0 1px var(--color-divider)',
-            padding: 'var(--space-6)',
-          }}
-        >
-          <MarkdownBlock content={p.statementMd} />
-        </div>
+        {editing ? (
+          <EditProblemForm problem={p} onDone={() => setEditing(false)} />
+        ) : (
+          <div
+            style={{
+              borderRadius: 18,
+              background: 'var(--color-neutral-900)',
+              boxShadow: 'inset 0 0 0 1px var(--color-divider)',
+              padding: 'var(--space-6)',
+            }}
+          >
+            <MarkdownBlock content={p.statementMd} />
+          </div>
+        )}
       </DetailSection>
 
       <TestCasesManager problem={p} />
     </DetailColumn>
+  );
+}
+
+/**
+ * Sửa đề bài tại chỗ.
+ *
+ * `PATCH /coding-problems/:id` và `useUpdateCodingProblem` đã có sẵn từ lâu — chỉ là màn hình này
+ * chưa bao giờ nối vào, nên giáo viên phải XOÁ bài rồi tạo lại chỉ để sửa một dòng đề. Xoá bài là
+ * mất luôn toàn bộ test case và bài nộp của học viên.
+ *
+ * `starterCode` / `solutionCode` cũng chỉ đặt được ở đây: form tạo mới không có hai trường đó.
+ */
+function EditProblemForm({
+  problem,
+  onDone,
+}: {
+  problem: CodingProblemAuthorDetail;
+  onDone: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const update = useUpdateCodingProblem(problem.id);
+
+  const [title, setTitle] = useState(problem.title);
+  const [statementMd, setStatementMd] = useState(problem.statementMd);
+  const [starterCode, setStarterCode] = useState(problem.starterCode ?? '');
+  const [solutionCode, setSolutionCode] = useState(problem.solutionCode ?? '');
+  // `difficulty` trong contract khai là string chung, thu hẹp lại ở đây cho ô select.
+  const [difficulty, setDifficulty] = useState<CodingDifficultyValue>(
+    problem.difficulty as CodingDifficultyValue,
+  );
+  const [maxScore, setMaxScore] = useState(problem.maxScore);
+  const [timeLimitMs, setTimeLimitMs] = useState(problem.timeLimitMs);
+  const [memoryLimitMb, setMemoryLimitMb] = useState(problem.memoryLimitMb);
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    update.mutate(
+      {
+        title: title.trim(),
+        statementMd: statementMd.trim(),
+        // Xoá trắng ô = gỡ hẳn, nên gửi null chứ không phải chuỗi rỗng.
+        starterCode: starterCode.trim() || null,
+        solutionCode: solutionCode.trim() || null,
+        difficulty,
+        maxScore: Number(maxScore),
+        timeLimitMs: Number(timeLimitMs),
+        memoryLimitMb: Number(memoryLimitMb),
+      },
+      { onSuccess: onDone },
+    );
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      className="card"
+      style={{ borderRadius: 18, padding: 'var(--space-6)', gap: 'var(--space-4)' }}
+    >
+      <div className="field">
+        <label htmlFor="cp-title">{t('coding.title')}</label>
+        <input
+          id="cp-title"
+          className="input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          autoFocus
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="cp-statement">{t('coding.statement')}</label>
+        <textarea
+          id="cp-statement"
+          className="input font-mono text-xs"
+          rows={12}
+          value={statementMd}
+          onChange={(e) => setStatementMd(e.target.value)}
+          required
+        />
+        <p className="text-muted m-0" style={{ fontSize: 11 }}>
+          {t('coding.statementMdHint')}
+        </p>
+      </div>
+
+      <div className="field">
+        <label htmlFor="cp-starter">{t('coding.starterCode')}</label>
+        <textarea
+          id="cp-starter"
+          className="input font-mono text-xs"
+          rows={5}
+          value={starterCode}
+          onChange={(e) => setStarterCode(e.target.value)}
+          placeholder={t('coding.starterCodeHint')}
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="cp-solution">{t('coding.solutionCode')}</label>
+        <textarea
+          id="cp-solution"
+          className="input font-mono text-xs"
+          rows={5}
+          value={solutionCode}
+          onChange={(e) => setSolutionCode(e.target.value)}
+          placeholder={t('coding.solutionCodeHint')}
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="field">
+          <label htmlFor="cp-diff">{t('coding.difficulty')}</label>
+          <select
+            id="cp-diff"
+            className="input"
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value as CodingDifficultyValue)}
+          >
+            {(['easy', 'medium', 'hard'] as CodingDifficultyValue[]).map((d) => (
+              <option key={d} value={d}>
+                {t(`coding.diff_${d}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="cp-score">{t('coding.maxScore')}</label>
+          <input
+            id="cp-score"
+            className="input"
+            type="number"
+            min={0}
+            max={10000}
+            value={maxScore}
+            onChange={(e) => setMaxScore(Number(e.target.value))}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="cp-time">{t('coding.timeLimit')}</label>
+          <input
+            id="cp-time"
+            className="input"
+            type="number"
+            min={100}
+            max={60000}
+            step={100}
+            value={timeLimitMs}
+            onChange={(e) => setTimeLimitMs(Number(e.target.value))}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="cp-mem">{t('coding.memoryLimit')}</label>
+          <input
+            id="cp-mem"
+            className="input"
+            type="number"
+            min={16}
+            max={1024}
+            value={memoryLimitMb}
+            onChange={(e) => setMemoryLimitMb(Number(e.target.value))}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <PillButton type="submit" icon="ph-check" disabled={update.isPending}>
+          {t('coding.save')}
+        </PillButton>
+        <PillButton variant="secondary" onClick={onDone}>
+          {t('coding.cancel')}
+        </PillButton>
+      </div>
+
+      {update.isError && (
+        <p className="m-0 text-xs" style={{ color: '#f4a3a3' }}>
+          {errMsg(update.error)}
+        </p>
+      )}
+    </form>
   );
 }
 
