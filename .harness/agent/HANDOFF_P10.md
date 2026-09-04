@@ -14,7 +14,7 @@
 - Repo trên máy: `/srv/lms`. Secret ở `/srv/lms/.env.production` (chmod 600).
 - Admin: `ducpm@codespace.edu.vn` (Phạm Minh Đức) và `huyenhn@codespace.edu.vn` (Hoàng Ngọc Huyền).
 - 4 container: caddy / api / postgres / piston. `STORAGE_DRIVER=local`, `CODE_QUEUE_DRIVER=inline`.
-- **`main` = `7b3a907` — ĐÃ PHÁT HÀNH 04/09/2026.** Digest ảnh api VÀ web đang chạy khớp tuyệt
+- **`main` = `77075de` — ĐÃ PHÁT HÀNH 04/09/2026 (lô 3).** Digest ảnh api VÀ web đang chạy khớp tuyệt
   đối với bản merge (đã đối chiếu, không chỉ tin `release.sh` báo OK).
   > Lưu ý đọc log `release.sh`: nếu thay đổi CHỈ ở frontend thì ảnh api giữ nguyên digest và
   > container api **không được tạo lại** (`Up About an hour`). Đó là ĐÚNG, không phải deploy sót —
@@ -22,7 +22,8 @@
 - ⚠️ **PRODUCTION ĐÃ CÓ DỮ LIỆU THẬT** (04/09): 2 user, **1 lớp, 2 khóa, 1 bài lập trình,
   19 file, 1 ghi danh**. Không còn rỗng như hồi 26/08 — **mọi lần phát hành từ giờ phải cân
   nhắc thời điểm thật sự**, đừng lặp lại lập luận "DB rỗng nên restart thoải mái".
-- RAM sau phát hành 04/09: **562 MB / 1967**, swap chưa chạm. Còn trống ~1.4 GB.
+- RAM sau phát hành 04/09: **622 MB / 1967**, swap chưa chạm. Còn trống ~1.35 GB.
+- Thư mục `uploads` đã lên **24 MB** (26/08 còn rỗng) — `backup.sh` có đóng gói nó.
 
 ### ✅ ĐÃ ĐÓNG — khoá host SSH đổi (phát hiện 03/09, kết luận cùng ngày)
 
@@ -157,6 +158,23 @@ một lượt trao lo cả huy hiệu lẫn XP nên tên theo việc nó làm).
 3. Nhóm **`award`** là nhóm thứ 6, thêm cho `gamification.award` — thiết kế gốc chưa biết action này.
 
 ---
+
+### Vá 04/09 (lô 3) — gỡ học viên khỏi lớp + favicon ✅ ĐÃ XEM BẰNG MẮT
+
+- **Gỡ học viên**: mẫu "backend có, UI chưa nối" **lần thứ TƯ**. `DELETE /classes/:id/members/:userId`
+  có sẵn và backend còn có sẵn test cho nó; FE không có hook nào. Gọi theo **`m.userId` chứ không
+  phải `m.id`** (`m.id` là id `ClassMember`, route là `/members/:userId`). Soft remove — tiến độ và
+  bài nộp giữ nguyên.
+- **Favicon**: dùng BIỂU TƯỢNG logo, cắt bỏ chữ (ở 16px chữ chỉ thành vệt mờ), đặt trên nền trắng
+  bo góc vì navy trong suốt chìm trên thanh tab tối. KHÔNG dùng mascot: mascot chủ yếu trắng nên
+  trên tab sáng gần như biến mất. Sinh bằng Pillow từ `brand/logo-horizontal.png`.
+  > ⚠️ Tên file logo trong `brand/` **bị đảo**: `logo-vertical.png` thật ra rộng ngang
+  > (11775×3132), `logo-horizontal.png` mới là bản gần vuông (6825×5034).
+
+**Đã xem bằng mắt trên máy dev (04/09) — cả 4 bản vá:** markdown học viên render đủ
+h1/h2/strong/ol/pre/blockquote và hết ký tự thô; `/assignments/for-class` trả kèm `descriptionMd`;
+form sửa đề bài đủ 8 trường, sửa 4 trường thì 3 trường còn lại **giữ nguyên**; nút gỡ học viên
+chuyển `status=removed` đúng. Dữ liệu thử đã dọn sạch.
 
 ### Vá 04/09 (lô 2) — sửa được đề bài lập trình
 
