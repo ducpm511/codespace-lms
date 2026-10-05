@@ -158,6 +158,21 @@ một lượt trao lo cả huy hiệu lẫn XP nên tên theo việc nó làm).
 
 ---
 
+### Vá 05/10 (lô 2) — nút xóa "không làm gì"; quiz không thấy nút sửa
+
+Sau phát hành `d11045b` người dùng báo vẫn không xóa được bài tập và quiz không có chỗ sửa tiêu đề.
+**Code đã đúng** — xem bằng mắt trên dev: nút có hiện. Nguyên nhân thật:
+
+1. **Mọi nút xóa dùng `window.confirm()`.** Trình duyệt chặn hộp thoại (từng tick "chặn hộp thoại
+   của trang này", trình duyệt nhúng trong app…) thì `confirm()` trả `false` NGAY, không hiện gì
+   → không gửi request nào. Tái hiện được: khung trình duyệt của Claude Desktop cũng trả `false`.
+   → `ConfirmProvider` + `useConfirm()` (`components/ConfirmDialog.tsx`, `components/useConfirm.ts`),
+   thay cả **10 chỗ** ở khu Giảng dạy. **Đừng dùng lại `window.confirm/alert/prompt`.**
+2. **Quiz:** nút sửa có từ trước nhưng nhãn "Cài đặt" + icon bánh răng → không ai nghĩ là "sửa tiêu
+   đề". Đổi thành "Sửa thông tin" + icon bút.
+
+Đã xem bằng mắt trên dev (DB Docker): hộp xác nhận hiện, Hủy không xóa, Đồng ý xóa thật.
+
 ### Vá 05/10 — sửa/xóa bài tập; giải thích bảng xếp hạng cho phụ huynh
 
 Người dùng: *"không thể xóa, và sửa bài tập đã thêm vào khóa và lớp"* + *"các loại bài tập đều
@@ -180,6 +195,12 @@ builder bài học không cũ; câu xác nhận xóa nói rõ **bài nộp/lư�
 
 Bảng xếp hạng lớp: thêm khung "Không phải kết quả học tập chính thức" + mục gấp "XP được tính thế
 nào?". Mức XP chuyển vào `XP_REWARDS` (contracts) — backend cộng và FE giải thích từ CÙNG một hằng.
+
+**Đã phát hành 05/10 (~21:00 giờ VN):** PR #4 → `main` = `d11045b`, CI + Release images xanh,
+người dùng tự chạy `ops/release.sh`. Kiểm từ ngoài: `/` 200, `/api/health` ok, bundle
+`index-DiYwW0Km.js` có chuỗi mới (`leaderboardDisclaimerTitle`, `selectClassToGrade`).
+> Bẫy gặp lúc phát hành: dán `git pull && ops/release.sh` bị rơi `&&` → `git pull ops/release.sh`
+> → `fatal: invalid gitfile format`. Vô hại (git dừng trước khi fetch); chạy từng lệnh một dòng.
 
 **Chưa xem bằng mắt** — DB dev (Docker, cổng 5433) tắt lúc vá. `pnpm validate` 16/16, api 334 test.
 **Việc còn lại:** mở tab Bài tập bằng tài khoản GV (sửa đề, đổi hình thức nộp, xóa) và trang Học

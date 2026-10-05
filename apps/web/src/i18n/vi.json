@@ -40,6 +40,7 @@
     "edit": "Sửa",
     "delete": "Xóa",
     "cancel": "Hủy",
+    "confirmTitle": "Xác nhận",
     "save": "Lưu",
     "empty": "Trống"
   },
@@ -253,7 +254,7 @@
     "add": "Tạo bài",
     "empty": "Chưa có bài trắc nghiệm nào cho khóa học này.",
     "selectHint": "Chọn một bài trắc nghiệm để chỉnh sửa, hoặc tạo bài mới.",
-    "settings": "Cài đặt",
+    "settings": "Sửa thông tin",
     "draft": "Bản nháp",
     "published": "Đã phát hành",
     "delete": "Xóa",

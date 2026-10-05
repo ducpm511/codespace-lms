@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useConfirm } from '../../components/useConfirm';
 import { LESSON_ACTIVITY_TYPES, MAX_UPLOAD_BYTES } from '@lms/contracts';
 import type { CreateLessonActivityRequest, LessonActivityDto, LessonActivityTypeValue } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
@@ -44,6 +45,7 @@ export function LessonActivityBuilder({
   onClose: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const detail = useLessonDetail(courseId, sectionId, lessonId);
   const remove = useRemoveActivity(courseId, sectionId, lessonId);
   const reorder = useReorderActivities(courseId, sectionId, lessonId);
@@ -129,8 +131,8 @@ export function LessonActivityBuilder({
                   index={i}
                   total={activities.length}
                   onEdit={() => setEditingId(a.id)}
-                  onRemove={() => {
-                    if (confirm(t('activity.confirmRemove', { title: a.title || t(`activity.type_${a.type}`) }))) {
+                  onRemove={async () => {
+                    if (await confirm(t('activity.confirmRemove', { title: a.title || t(`activity.type_${a.type}`) }))) {
                       remove.mutate(a.id);
                     }
                   }}

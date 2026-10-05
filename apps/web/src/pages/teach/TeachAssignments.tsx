@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useConfirm } from '../../components/useConfirm';
 import type { AssignmentDetail, AssignmentSummary, SubmissionDto, SubmissionTypeValue } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import { useCourses } from '../../features/courses/hooks';
@@ -199,13 +200,14 @@ function AssignmentDetail({
   onDeleted: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const del = useDeleteAssignment();
   const due = fmtDate(assignment.dueAt);
 
-  const remove = () => {
+  const remove = async () => {
     // Backend xóa cascade mọi bài nộp (của MỌI lớp học khóa này) → phải nói rõ trước khi xóa.
-    if (confirm(t('assignments.confirmDelete', { title: assignment.title }))) {
+    if (await confirm(t('assignments.confirmDelete', { title: assignment.title }))) {
       del.mutate(assignment.id, { onSuccess: onDeleted });
     }
   };
