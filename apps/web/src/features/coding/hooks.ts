@@ -48,6 +48,8 @@ export function useUpdateCodingProblem(id: string) {
     onSuccess: (data) => {
       qc.setQueryData(codingProblemKey(id), data);
       void qc.invalidateQueries({ queryKey: ['codingProblems'] });
+      // Tên bài hiện trong builder bài học (`refTitle`).
+      void qc.invalidateQueries({ queryKey: ['lesson-detail'] });
     },
   });
 }
@@ -59,6 +61,7 @@ export function useDeleteCodingProblem(courseId?: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: codingProblemsKey(courseId) });
       void qc.invalidateQueries({ queryKey: ['codingProblems'] });
+      void qc.invalidateQueries({ queryKey: ['lesson-detail'] });
     },
   });
 }

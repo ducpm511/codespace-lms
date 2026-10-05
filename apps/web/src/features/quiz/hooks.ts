@@ -45,6 +45,8 @@ export function useUpdateQuiz(id: string) {
     onSuccess: (data) => {
       qc.setQueryData(quizKey(id), data);
       void qc.invalidateQueries({ queryKey: ['quizzes'] });
+      // Tên quiz hiện trong builder bài học (`refTitle`).
+      void qc.invalidateQueries({ queryKey: ['lesson-detail'] });
     },
   });
 }
@@ -56,6 +58,7 @@ export function useDeleteQuiz(courseId?: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: quizzesKey(courseId) });
       void qc.invalidateQueries({ queryKey: ['quizzes'] });
+      void qc.invalidateQueries({ queryKey: ['lesson-detail'] });
     },
   });
 }

@@ -50,25 +50,32 @@ export function useCreateAssignment() {
   });
 }
 
-export function useUpdateAssignment(courseId?: string) {
+export function useUpdateAssignment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: UpdateAssignmentRequest }) =>
       api.updateAssignment(id, body),
     onSuccess: (data) => {
       qc.setQueryData(assignmentKey(data.id), data);
-      void qc.invalidateQueries({ queryKey: assignmentsKey(courseId) });
+      // Prefix `['assignments']` — phủ cả danh sách theo khóa lẫn `for-class`. Trước đây chỉ
+      // invalidate `assignmentsKey(undefined)` = `['assignments','_all']`, trong khi màn hình giáo
+      // viên đọc theo khóa → lưu xong vẫn hiện dữ liệu cũ, trông như "không sửa được".
+      void qc.invalidateQueries({ queryKey: ['assignments'] });
+      // Tên bài tập hiện trong builder bài học (`refTitle`).
+      void qc.invalidateQueries({ queryKey: ['lesson-detail'] });
     },
   });
 }
 
-export function useDeleteAssignment(courseId?: string) {
+export function useDeleteAssignment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.deleteAssignment(id),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: assignmentsKey(courseId) });
+    onSuccess: (_data, id) => {
+      qc.removeQueries({ queryKey: assignmentKey(id) });
       void qc.invalidateQueries({ queryKey: ['assignments'] });
+      void qc.invalidateQueries({ queryKey: ['submissions'] });
+      void qc.invalidateQueries({ queryKey: ['lesson-detail'] });
     },
   });
 }

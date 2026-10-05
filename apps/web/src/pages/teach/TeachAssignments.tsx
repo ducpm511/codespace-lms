@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AssignmentSummary, SubmissionDto, SubmissionTypeValue } from '@lms/contracts';
+import type { AssignmentDetail, AssignmentSummary, SubmissionDto, SubmissionTypeValue } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import { useCourses } from '../../features/courses/hooks';
 import { useClasses } from '../../features/classes/hooks';
 import { AwardPanel } from '../../features/gamification/AwardPanel';
 import {
+  useAssignment,
   useAssignments,
   useCreateAssignment,
+  useDeleteAssignment,
   useGradeSubmission,
   useUpdateAssignment,
   useSubmissions,
@@ -168,8 +170,15 @@ export function TeachAssignments(): JSX.Element {
           </Sidebar>
         }
       >
-        {selected && activeClassId ? (
-          <AssignmentDetail assignment={selected} classId={activeClassId} stats={statsById.get(selected.id)} />
+        {/* Không bắt buộc đã chọn lớp: sửa/xóa bài tập là việc của KHÓA. Trước đây khi chưa có lớp
+            nào thì không mở được chi tiết → không có đường sửa/xóa. Chỉ phần chấm bài cần lớp. */}
+        {selected ? (
+          <AssignmentDetail
+            assignment={selected}
+            classId={activeClassId || null}
+            stats={statsById.get(selected.id)}
+            onDeleted={() => setSelectedAssignmentId(null)}
+          />
         ) : (
           <EmptyHint icon="ph-hand-pointing">{t('assignments.selectHint')}</EmptyHint>
         )}
@@ -182,14 +191,24 @@ function AssignmentDetail({
   assignment,
   classId,
   stats,
+  onDeleted,
 }: {
   assignment: AssignmentSummary;
-  classId: string;
+  classId: string | null;
   stats?: { submitted: number; pending: number };
+  onDeleted: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
+  const del = useDeleteAssignment();
   const due = fmtDate(assignment.dueAt);
+
+  const remove = () => {
+    // Backend xóa cascade mọi bài nộp (của MỌI lớp học khóa này) → phải nói rõ trước khi xóa.
+    if (confirm(t('assignments.confirmDelete', { title: assignment.title }))) {
+      del.mutate(assignment.id, { onSuccess: onDeleted });
+    }
+  };
 
   const chips = [
     {
@@ -226,11 +245,21 @@ function AssignmentDetail({
           </span>
         }
         actions={
-          <PillButton variant="secondary" icon="ph-pencil-simple" onClick={() => setEditing(true)}>
-            {t('assignments.edit')}
-          </PillButton>
+          <>
+            <PillButton variant="secondary" icon="ph-pencil-simple" onClick={() => setEditing(true)}>
+              {t('assignments.edit')}
+            </PillButton>
+            <PillButton variant="ghost" icon="ph-trash" disabled={del.isPending} onClick={remove}>
+              {t('assignments.delete')}
+            </PillButton>
+          </>
         }
       >
+        {del.isError && (
+          <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>
+            {errMsg(del.error)}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2.5">
           {chips.map((c) => (
             <div
@@ -258,12 +287,14 @@ function AssignmentDetail({
       </DetailHeader>
 
       <DetailSection icon="ph-check-square-offset" color={DONE_COLOR} title={t('assignments.gradingHeading')}>
-        <SubmissionsGradingPanel classId={classId} assignment={assignment} />
+        {classId ? (
+          <SubmissionsGradingPanel classId={classId} assignment={assignment} />
+        ) : (
+          <EmptyHint icon="ph-users-three">{t('assignments.selectClassToGrade')}</EmptyHint>
+        )}
       </DetailSection>
 
-      {editing && (
-        <EditAssignmentDialog assignment={assignment} onClose={() => setEditing(false)} />
-      )}
+      {editing && <EditAssignmentDialog assignment={assignment} onClose={() => setEditing(false)} />}
     </DetailColumn>
   );
 }
@@ -271,6 +302,9 @@ function AssignmentDetail({
 /**
  * Sửa bài tập. `courseId` KHÔNG đổi được ở đây: chuyển bài tập sang khóa khác sẽ làm mồ côi
  * các bài đã nộp theo lớp cũ — muốn vậy thì tạo bài mới.
+ *
+ * Danh sách chỉ mang `AssignmentSummary` (không có `descriptionMd`) → phải tải bản đầy đủ trước
+ * khi mở form, nếu không form sẽ khởi tạo đề bài rỗng và lưu đè mất đề.
  */
 function EditAssignmentDialog({
   assignment,
@@ -280,8 +314,41 @@ function EditAssignmentDialog({
   onClose: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const detail = useAssignment(assignment.id);
+
+  return (
+    <div className="dialog-backdrop" onClick={onClose}>
+      {detail.data ? (
+        <EditAssignmentForm assignment={detail.data} onClose={onClose} />
+      ) : (
+        <div className="dialog" style={{ borderRadius: 'var(--cx-radius)' }} onClick={(e) => e.stopPropagation()}>
+          {detail.isError ? (
+            <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>
+              {t('assignments.editLoadFailed')} {errMsg(detail.error)}
+            </p>
+          ) : (
+            <p className="text-muted m-0 text-sm">{t('common.loading')}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EditAssignmentForm({
+  assignment,
+  onClose,
+}: {
+  assignment: AssignmentDetail;
+  onClose: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(assignment.title);
+  const [descriptionMd, setDescriptionMd] = useState(assignment.descriptionMd ?? '');
   const [maxScore, setMaxScore] = useState(assignment.maxScore);
+  const [submissionType, setSubmissionType] = useState<SubmissionTypeValue>(
+    assignment.submissionType as SubmissionTypeValue,
+  );
   const [allowLate, setAllowLate] = useState(assignment.allowLate);
   const [dueAt, setDueAt] = useState(assignment.dueAt ? toLocalInput(assignment.dueAt) : '');
   const update = useUpdateAssignment();
@@ -293,7 +360,9 @@ function EditAssignmentDialog({
         id: assignment.id,
         body: {
           title: title.trim(),
+          descriptionMd: descriptionMd.trim() || null,
           maxScore: Number(maxScore),
+          submissionType,
           allowLate,
           dueAt: dueAt ? new Date(dueAt).toISOString() : null,
         },
@@ -303,62 +372,81 @@ function EditAssignmentDialog({
   };
 
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <form
-        className="dialog"
-        style={{ borderRadius: 'var(--cx-radius)' }}
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={submit}
-      >
-        <p className="dialog-title cx-display">{t('assignments.edit')}</p>
+    <form
+      className="dialog"
+      style={{ borderRadius: 'var(--cx-radius)' }}
+      onClick={(e) => e.stopPropagation()}
+      onSubmit={submit}
+    >
+      <p className="dialog-title cx-display">{t('assignments.edit')}</p>
 
-        <div className="field">
-          <label>{t('assignments.title')}</label>
-          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <div className="field">
+        <label>{t('assignments.title')}</label>
+        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} required />
+      </div>
+
+      <div className="field">
+        <label>{t('assignments.description')}</label>
+        <textarea
+          className="input text-sm"
+          value={descriptionMd}
+          onChange={(e) => setDescriptionMd(e.target.value)}
+          rows={6}
+          style={{ resize: 'vertical' }}
+        />
+      </div>
+
+      <div className="field">
+        <label>{t('assignments.submissionType')}</label>
+        <select
+          className="input"
+          value={submissionType}
+          onChange={(e) => setSubmissionType(e.target.value as SubmissionTypeValue)}
+        >
+          <option value="text">Text</option>
+          <option value="link">Link</option>
+          <option value="file">File</option>
+        </select>
+      </div>
+
+      <div className="flex gap-2">
+        <div className="field flex-1">
+          <label>{t('assignments.maxScore')}</label>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={1000}
+            value={maxScore}
+            onChange={(e) => setMaxScore(Number(e.target.value))}
+          />
         </div>
-
-        <div className="flex gap-2">
-          <div className="field flex-1">
-            <label>{t('assignments.maxScore')}</label>
-            <input
-              className="input"
-              type="number"
-              min={1}
-              max={1000}
-              value={maxScore}
-              onChange={(e) => setMaxScore(Number(e.target.value))}
-            />
-          </div>
-          <div className="field flex-1">
-            <label>{t('assignments.dueAt')}</label>
-            <input
-              className="input"
-              type="datetime-local"
-              value={dueAt}
-              onChange={(e) => setDueAt(e.target.value)}
-            />
-          </div>
+        <div className="field flex-1">
+          <label>{t('assignments.dueAt')}</label>
+          <input className="input" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
         </div>
+      </div>
 
-        <label className="radio">
-          <input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} />
-          <span>{t('assignments.allowLate')}</span>
-        </label>
+      <label className="radio">
+        <input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} />
+        <span>{t('assignments.allowLate')}</span>
+      </label>
 
-        {update.isError && (
-          <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(update.error)}</p>
-        )}
+      {update.isError && (
+        <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>
+          {errMsg(update.error)}
+        </p>
+      )}
 
-        <div className="dialog-actions">
-          <PillButton variant="secondary" onClick={onClose}>
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton type="submit" icon="ph-check" disabled={update.isPending}>
-            {t('common.save')}
-          </PillButton>
-        </div>
-      </form>
-    </div>
+      <div className="dialog-actions">
+        <PillButton variant="secondary" onClick={onClose}>
+          {t('common.cancel')}
+        </PillButton>
+        <PillButton type="submit" icon="ph-check" disabled={update.isPending}>
+          {t('common.save')}
+        </PillButton>
+      </div>
+    </form>
   );
 }
 
