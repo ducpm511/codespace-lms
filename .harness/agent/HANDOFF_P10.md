@@ -158,6 +158,33 @@ một lượt trao lo cả huy hiệu lẫn XP nên tên theo việc nó làm).
 
 ---
 
+### Vá 05/10 — sửa/xóa bài tập; giải thích bảng xếp hạng cho phụ huynh
+
+Người dùng: *"không thể xóa, và sửa bài tập đã thêm vào khóa và lớp"* + *"các loại bài tập đều
+không thể sửa được sau khi tạo — rà soát tất cả"*.
+
+Backend KHÔNG lỗi (PATCH/DELETE đủ cho cả 3 loại, quyền instructor đủ). Lỗi đều ở `TeachAssignments`:
+1. **Không có nút xóa** — `useDeleteAssignment` có sẵn, chưa nối (mẫu lỗi lần thứ tư).
+2. **Sửa xong trông như không lưu**: `useUpdateAssignment` chỉ invalidate `['assignments','_all']`
+   trong khi màn hình đọc `['assignments', courseId]` → danh sách/tiêu đề giữ dữ liệu cũ.
+   → invalidate prefix `['assignments']`.
+3. Form sửa thiếu **đề bài (`descriptionMd`)** và **hình thức nộp** — DTO cho sửa, UI không.
+   Form tải `AssignmentDetail` trước (danh sách chỉ có Summary, không có đề → khởi tạo rỗng sẽ lưu
+   đè mất đề).
+4. Chưa chọn được lớp (giáo viên chưa có lớp) thì **không mở được chi tiết** → không có đường
+   sửa/xóa. Giờ chi tiết mở theo khóa; chỉ phần chấm bài cần lớp.
+
+Quiz/lập trình: đã có sửa + xóa. Bổ sung: đổi tên/xóa invalidate `['lesson-detail']` để tên trong
+builder bài học không cũ; câu xác nhận xóa nói rõ **bài nộp/lượt làm của học viên bị xóa theo**
+(cascade FK).
+
+Bảng xếp hạng lớp: thêm khung "Không phải kết quả học tập chính thức" + mục gấp "XP được tính thế
+nào?". Mức XP chuyển vào `XP_REWARDS` (contracts) — backend cộng và FE giải thích từ CÙNG một hằng.
+
+**Chưa xem bằng mắt** — DB dev (Docker, cổng 5433) tắt lúc vá. `pnpm validate` 16/16, api 334 test.
+**Việc còn lại:** mở tab Bài tập bằng tài khoản GV (sửa đề, đổi hình thức nộp, xóa) và trang Học
+tập bằng tài khoản học viên để nhìn khung giải thích.
+
 ### Vá 04/09 (lô 2) — sửa được đề bài lập trình
 
 Người dùng: *"không thể sửa được đề bài, tôi toàn phải xóa đi làm lại"*.

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@lms/database';
+import { XP_REWARDS } from '@lms/contracts';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RunnerService } from '../runner/runner.types';
 import { GamificationService } from '../../gamification/gamification.service';
@@ -169,7 +170,7 @@ export class AutograderService {
           userId: submission.userId,
           source: 'coding_pass',
           sourceId: submission.problem.id ?? submission.id,
-          xpAmount: 100,
+          xpAmount: XP_REWARDS.coding_pass,
           classId: submission.classId,
         });
       }

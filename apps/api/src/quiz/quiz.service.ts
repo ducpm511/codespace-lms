@@ -9,6 +9,7 @@ import { Prisma } from '@lms/database';
 import {
   CHOICE_QUESTION_TYPES,
   PERMISSIONS,
+  XP_REWARDS,
   type Paginated,
   type QuizAttemptDto,
   type QuizAuthorDetail,
@@ -314,7 +315,7 @@ export class QuizService {
           userId,
           source: 'quiz_pass',
           sourceId: quizId,
-          xpAmount: 100,
+          xpAmount: XP_REWARDS.quiz_pass,
           classId: dto.classId,
         });
       }

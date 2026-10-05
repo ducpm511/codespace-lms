@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MANUAL_XP_MAX, MANUAL_XP_MIN, XP_REWARDS } from '@lms/contracts';
 import type { LeaderboardEntryDto, LeaderboardWeek } from '@lms/contracts';
 import { useClassLeaderboard } from '../../features/gamification/useGamification';
 
@@ -28,8 +29,8 @@ function formatDay(iso: string): string {
 /**
  * Bảng xếp hạng XP theo TUẦN trong phạm vi lớp (T10.1).
  *
- * Cố ý: phạm vi lớp (không phải toàn trường), reset mỗi thứ Hai, và chỉ số là số bài đã hoàn
- * thành — không phải điểm hay tốc độ. Xếp theo tốc độ/điểm là khuyến khích chép bài.
+ * Cố ý: phạm vi lớp (không phải toàn trường), reset mỗi thứ Hai, và chỉ số là XP — mức cố định
+ * cho mỗi bài HOÀN THÀNH, không phải điểm hay tốc độ. Xếp theo tốc độ/điểm là khuyến khích chép bài.
  */
 export function ClassLeaderboard({ classId }: { classId: string | null }): JSX.Element | null {
   const { t } = useTranslation();
@@ -96,6 +97,8 @@ export function ClassLeaderboard({ classId }: { classId: string | null }): JSX.E
 
       <p className="text-xs text-[var(--color-text)]/55">{t('learn.leaderboardSubtitle')}</p>
 
+      <LeaderboardExplainer />
+
       {isLoading && <p className="text-muted">{t('common.loading')}</p>}
 
       {!isLoading && entries.length === 0 && (
@@ -129,6 +132,79 @@ export function ClassLeaderboard({ classId }: { classId: string | null }): JSX.E
             : t('learn.leaderboardShowAll', { count: entries.length })}
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * Nói rõ bảng này là gì và KHÔNG là gì. Phụ huynh nhìn thấy "hạng 12/15" rất dễ hiểu thành con
+ * học kém — trong khi XP chỉ đo việc chăm làm bài trên LMS. Lời miễn trừ luôn hiện; cách tính
+ * gấp lại để không đè lên bảng, nhưng mở ra là thấy đủ từng nguồn XP.
+ * Mức XP lấy từ `XP_REWARDS` (cùng nguồn backend dùng để cộng) — không gõ tay số vào bản dịch.
+ */
+function LeaderboardExplainer(): JSX.Element {
+  const { t } = useTranslation();
+  const rules = [
+    {
+      icon: 'ph-book-open-text',
+      text: t('learn.leaderboardHowLesson', { xp: XP_REWARDS.lesson_complete }),
+    },
+    {
+      icon: 'ph-check-square-offset',
+      text: t('learn.leaderboardHowQuiz', { xp: XP_REWARDS.quiz_pass }),
+    },
+    { icon: 'ph-code', text: t('learn.leaderboardHowCoding', { xp: XP_REWARDS.coding_pass }) },
+    {
+      icon: 'ph-gift',
+      text: t('learn.leaderboardHowBonus', { min: MANUAL_XP_MIN, max: MANUAL_XP_MAX }),
+    },
+  ];
+  const notes = [
+    t('learn.leaderboardHowOnce'),
+    t('learn.leaderboardHowNotScore'),
+    t('learn.leaderboardHowWeekly'),
+    t('learn.leaderboardHowTotal'),
+    t('learn.leaderboardHowGradebook'),
+  ];
+
+  return (
+    <div
+      className="space-y-3 rounded-2xl p-4"
+      style={{
+        background: 'color-mix(in srgb, var(--cx-amber) 8%, var(--color-surface))',
+        boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--cx-amber) 35%, transparent)',
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <i className="ph-fill ph-info shrink-0 text-xl" style={{ color: 'var(--cx-amber)' }} aria-hidden />
+        <div className="min-w-0 space-y-1">
+          <p className="card-title m-0 text-sm">{t('learn.leaderboardDisclaimerTitle')}</p>
+          <p className="m-0 text-xs text-[var(--color-text)]/75">{t('learn.leaderboardDisclaimer')}</p>
+        </div>
+      </div>
+
+      <details className="group">
+        <summary
+          className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold"
+          style={{ color: 'var(--cx-amber)' }}
+        >
+          <i className="ph ph-caret-right transition-transform group-open:rotate-90" aria-hidden />
+          {t('learn.leaderboardHowTitle')}
+        </summary>
+        <ul className="mt-3 space-y-1.5 pl-0">
+          {rules.map((r) => (
+            <li key={r.icon} className="flex items-start gap-2 text-xs">
+              <i className={`ph ${r.icon} mt-0.5 shrink-0`} style={{ color: 'var(--cx-teal)' }} aria-hidden />
+              <span>{r.text}</span>
+            </li>
+          ))}
+        </ul>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-[var(--color-text)]/70">
+          {notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      </details>
     </div>
   );
 }

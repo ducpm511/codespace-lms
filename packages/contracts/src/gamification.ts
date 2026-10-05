@@ -72,6 +72,17 @@ export interface ClassLeaderboardDto {
   me: LeaderboardEntryDto | null;
 }
 
+/**
+ * XP cộng tự động khi HOÀN THÀNH một hoạt động — mức cố định, không theo điểm số hay tốc độ.
+ * Một nguồn duy nhất cho cả backend (cộng XP) lẫn frontend (giải thích cách tính cho học viên /
+ * phụ huynh) — đổi ở đây là hai phía khớp nhau.
+ */
+export const XP_REWARDS = {
+  lesson_complete: 50,
+  quiz_pass: 100,
+  coding_pass: 100,
+} as const;
+
 // --- T10.3 — Giáo viên trao thưởng thủ công ---
 
 /**

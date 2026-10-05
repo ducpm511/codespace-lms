@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@lms/database';
-import { PERMISSIONS } from '@lms/contracts';
+import { PERMISSIONS, XP_REWARDS } from '@lms/contracts';
 import type {
   ClassDetail,
   ClassLeaderboardDto,
@@ -343,7 +343,7 @@ export class ClassesService {
           userId,
           source: 'lesson_complete',
           sourceId: lessonId,
-          xpAmount: 50,
+          xpAmount: XP_REWARDS.lesson_complete,
           classId,
         });
       }
