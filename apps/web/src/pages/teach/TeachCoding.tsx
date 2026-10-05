@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useConfirm } from '../../components/useConfirm';
 import type {
   AuthorTestCaseDto,
   CodingDifficultyValue,
@@ -272,6 +273,7 @@ function ProblemEditor({
   onDeleted: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const problem = useCodingProblem(problemId);
   const course = useCourse(courseId || null);
   const del = useDeleteCodingProblem(courseId);
@@ -315,8 +317,8 @@ function ProblemEditor({
             <PillButton
               icon="ph-trash"
               variant="secondary"
-              onClick={() => {
-                if (confirm(t('coding.confirmDelete'))) del.mutate(p.id, { onSuccess: onDeleted });
+              onClick={async () => {
+                if (await confirm(t('coding.confirmDelete'))) del.mutate(p.id, { onSuccess: onDeleted });
               }}
             >
               {t('coding.delete')}

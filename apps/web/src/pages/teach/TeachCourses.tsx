@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useConfirm } from '../../components/useConfirm';
 import type {
   CourseDetail,
   CourseLanguageValue,
@@ -317,6 +318,7 @@ function CourseDetailPanel({
   onDeleted: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const course = useCourse(courseId);
   const addSection = useAddSection(courseId);
   const publish = usePublishCourse(courseId);
@@ -371,8 +373,8 @@ function CourseDetailPanel({
               tone="danger"
               title={t('courses.removeCourse')}
               disabled={removeCourse.isPending}
-              onClick={() => {
-                if (!confirm(t('courses.confirmRemoveCourse', { title: c.title }))) return;
+              onClick={async () => {
+                if (!(await confirm(t('courses.confirmRemoveCourse', { title: c.title })))) return;
                 removeCourse.mutate(courseId, { onSuccess: onDeleted });
               }}
             />
@@ -489,6 +491,7 @@ function SectionCard({
   onOpenBuilder: (lesson: LessonSummary) => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const updateSection = useUpdateSection(courseId);
   const removeSection = useRemoveSection(courseId);
   const [editing, setEditing] = useState(false);
@@ -557,8 +560,8 @@ function SectionCard({
               icon="ph-trash"
               tone="danger"
               title={t('courses.removeSection')}
-              onClick={() => {
-                if (confirm(t('courses.confirmRemoveSection', { title: section.title }))) {
+              onClick={async () => {
+                if (await confirm(t('courses.confirmRemoveSection', { title: section.title }))) {
                   removeSection.mutate(section.id);
                 }
               }}
@@ -603,6 +606,7 @@ function LessonRow({
   onOpenBuilder: (lesson: LessonSummary) => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const updateLesson = useUpdateLesson(courseId);
   const removeLesson = useRemoveLesson(courseId);
   const [editing, setEditing] = useState(false);
@@ -667,8 +671,8 @@ function LessonRow({
               icon="ph-trash"
               tone="danger"
               title={t('courses.removeLesson')}
-              onClick={() => {
-                if (confirm(t('courses.confirmRemoveLesson', { title: lesson.title }))) {
+              onClick={async () => {
+                if (await confirm(t('courses.confirmRemoveLesson', { title: lesson.title }))) {
                   removeLesson.mutate({ sectionId, lessonId: lesson.id });
                 }
               }}

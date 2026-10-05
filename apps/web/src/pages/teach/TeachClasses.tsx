@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useConfirm } from '../../components/useConfirm';
 import type {
   ClassCourseDto,
   ClassDetail,
@@ -447,6 +448,7 @@ function ClassReportPanel({ classId }: { classId: string }): JSX.Element {
 
 function CoursesPanel({ classId, courses }: { classId: string; courses: ClassCourseDto[] }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const allCourses = useCourses();
   const assign = useAssignCourse(classId);
   const unassign = useUnassignCourse(classId);
@@ -477,9 +479,9 @@ function CoursesPanel({ classId, courses }: { classId: string; courses: ClassCou
               title={t('classes.unassignCourse')}
               tone="danger"
               disabled={unassign.isPending}
-              onClick={() => {
+              onClick={async () => {
                 // Gỡ khóa là ẩn luôn các bài của khóa đó khỏi lớp -> hỏi lại trước khi làm.
-                if (window.confirm(t('classes.unassignConfirm', { title: cc.title }))) {
+                if (await confirm(t('classes.unassignConfirm', { title: cc.title }))) {
                   unassign.mutate(cc.courseId);
                 }
               }}
@@ -525,6 +527,7 @@ const AVATAR_COLORS = ['var(--cx-purple)', 'var(--cx-teal)', 'var(--cx-amber)', 
 function MembersPanel({ classId, members }: { classId: string; members: ClassMemberDto[] }): JSX.Element {
   const removeMember = useRemoveMember(classId);
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const enroll = useEnrollMember(classId);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<ClassMemberRoleValue>('student');
@@ -570,8 +573,8 @@ function MembersPanel({ classId, members }: { classId: string; members: ClassMem
                 tone="danger"
                 title={t('classes.removeMember')}
                 disabled={removeMember.isPending}
-                onClick={() => {
-                  if (!confirm(t('classes.confirmRemoveMember', { name }))) return;
+                onClick={async () => {
+                  if (!(await confirm(t('classes.confirmRemoveMember', { name })))) return;
                   removeMember.mutate(m.userId);
                 }}
               />

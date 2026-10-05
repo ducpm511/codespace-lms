@@ -40,6 +40,7 @@
     "edit": "Edit",
     "delete": "Delete",
     "cancel": "Cancel",
+    "confirmTitle": "Please confirm",
     "save": "Save",
     "empty": "Empty"
   },
@@ -253,7 +254,7 @@
     "add": "Create quiz",
     "empty": "No quizzes yet for this course.",
     "selectHint": "Select a quiz to edit, or create a new one.",
-    "settings": "Settings",
+    "settings": "Edit details",
     "draft": "Draft",
     "published": "Published",
     "delete": "Delete",

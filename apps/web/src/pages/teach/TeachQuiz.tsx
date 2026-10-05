@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useConfirm } from '../../components/useConfirm';
 import {
   CHOICE_QUESTION_TYPES,
   type AuthorQuizQuestionDto,
@@ -301,6 +302,7 @@ function QuizEditor({
   onDeleted: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const quiz = useQuiz(quizId);
   const course = useCourse(courseId || null);
   const update = useUpdateQuiz(quizId);
@@ -359,14 +361,14 @@ function QuizEditor({
                 <span className="cx-toggle-thumb" />
               </label>
             </span>
-            <PillButton icon="ph-gear" variant="secondary" onClick={() => setSettingsOpen(true)}>
+            <PillButton icon="ph-pencil-simple" variant="secondary" onClick={() => setSettingsOpen(true)}>
               {t('quiz.settings')}
             </PillButton>
             <PillButton
               icon="ph-trash"
               variant="ghost"
-              onClick={() => {
-                if (confirm(t('quiz.confirmDelete'))) del.mutate(q.id, { onSuccess: onDeleted });
+              onClick={async () => {
+                if (await confirm(t('quiz.confirmDelete'))) del.mutate(q.id, { onSuccess: onDeleted });
               }}
             >
               {t('quiz.delete')}
@@ -488,6 +490,7 @@ function QuizSettingsDialog({
 
 function QuestionsManager({ quiz }: { quiz: QuizAuthorDetail }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
   const del = useDeleteQuestion(quiz.id);
   const [editing, setEditing] = useState<AuthorQuizQuestionDto | 'new' | null>(null);
 
@@ -526,8 +529,8 @@ function QuestionsManager({ quiz }: { quiz: QuizAuthorDetail }): JSX.Element {
               index={idx}
               question={question}
               onEdit={() => setEditing(question)}
-              onDelete={() => {
-                if (confirm(t('quiz.confirmDeleteQuestion'))) del.mutate(question.id);
+              onDelete={async () => {
+                if (await confirm(t('quiz.confirmDeleteQuestion'))) del.mutate(question.id);
               }}
             />
           ))}
