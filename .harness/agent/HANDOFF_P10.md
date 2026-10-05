@@ -181,6 +181,12 @@ builder bài học không cũ; câu xác nhận xóa nói rõ **bài nộp/lư�
 Bảng xếp hạng lớp: thêm khung "Không phải kết quả học tập chính thức" + mục gấp "XP được tính thế
 nào?". Mức XP chuyển vào `XP_REWARDS` (contracts) — backend cộng và FE giải thích từ CÙNG một hằng.
 
+**Đã phát hành 05/10 (~21:00 giờ VN):** PR #4 → `main` = `d11045b`, CI + Release images xanh,
+người dùng tự chạy `ops/release.sh`. Kiểm từ ngoài: `/` 200, `/api/health` ok, bundle
+`index-DiYwW0Km.js` có chuỗi mới (`leaderboardDisclaimerTitle`, `selectClassToGrade`).
+> Bẫy gặp lúc phát hành: dán `git pull && ops/release.sh` bị rơi `&&` → `git pull ops/release.sh`
+> → `fatal: invalid gitfile format`. Vô hại (git dừng trước khi fetch); chạy từng lệnh một dòng.
+
 **Chưa xem bằng mắt** — DB dev (Docker, cổng 5433) tắt lúc vá. `pnpm validate` 16/16, api 334 test.
 **Việc còn lại:** mở tab Bài tập bằng tài khoản GV (sửa đề, đổi hình thức nộp, xóa) và trang Học
 tập bằng tài khoản học viên để nhìn khung giải thích.
