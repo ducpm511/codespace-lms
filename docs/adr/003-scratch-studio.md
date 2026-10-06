@@ -1,7 +1,7 @@
 # ADR 003: Scratch Studio — nền tảng sáng tạo Scratch thay thế scratch.mit.edu
 
 Date: 2026-10-07
-Status: **Accepted** (2026-10-07) — người dùng chốt Q1, Q3–Q6; còn Q2 (tên) và rà soát pháp lý AGPL.
+Status: **Accepted** (2026-10-07) — người dùng chốt Q1–Q6; còn rà soát pháp lý AGPL.
 
 ## Context
 
@@ -29,6 +29,7 @@ Ràng buộc đã biết:
 
 | Câu | Chốt | Hệ quả bắt buộc |
 |---|---|---|
+| Q2 | Tên sản phẩm **BlockSpace**; nhân vật mặc định = **mascot CodeSpace** thay Mèo Scratch | Xem D2 |
 | Q1 | **scratch-gui mới nhất (AGPL-3.0)**, monorepo `scratch-editor` | Fork công khai + link "Mã nguồn" trong trình soạn (AGPL §13) |
 | Q3 | **Có cả công khai** (ai có link cũng xem được) | Xem D4′ — duyệt trước khi công khai, ẩn danh tính |
 | Q4 | **Bật bình luận** | Xem D8 — kiểm duyệt, báo cáo, không bình luận ở chế độ công khai |
@@ -44,8 +45,16 @@ chương trình rõ ràng cho nghĩa vụ giấy phép; (c) tải lười — tr
 Nhánh mã nguồn trình soạn đã sửa để trong repo riêng công khai (nghĩa vụ AGPL/GPL: cung cấp mã nguồn
 cho người dùng qua mạng) — **cần người chọn bản gốc, xem Q1**.
 
-**D2. Đổi thương hiệu**: tên sản phẩm (đề xuất *CodeSpace Studio*), logo, nhân vật mặc định = mascot
-CodeSpace. Bỏ link về scratch.mit.edu trong menu. Thư viện nhân vật/âm thanh mặc định tạm lấy từ CDN
+**D2. Đổi thương hiệu → BlockSpace.** Tên "BlockSpace" ở thanh menu, tiêu đề tab, màn hình tải, file
+tải về; logo CodeSpace thay logo Scratch; bỏ link về scratch.mit.edu. **Nhân vật mặc định** của dự án
+mới = mascot CodeSpace (`apps/web/public/brand/mascot-*.png`, PNG nền trong suốt) thay Mèo Scratch:
+- 2 costume để demo "chuyển costume/đi bộ" như Mèo: `mascot-default` + `mascot-huh` (tên costume
+  tiếng Việt). Ảnh gốc cao ~820–950 px → thu nhỏ còn cao ~200 px, `bitmapResolution: 2` (≈ 100 đơn
+  vị sân khấu, cỡ tương đương Mèo), tâm xoay giữa ảnh. Bước build tự sinh `md5ext` cho 2 asset.
+- Thêm cả 6 tư thế vào **thư viện nhân vật** (mục "CodeSpace") để học viên chọn.
+- Nên xin thiết kế bản **SVG** của mascot: costume vector phóng to không vỡ; PNG dùng tạm.
+- Rà mọi chỗ khác dùng Mèo/Gobo… trong giao diện trình soạn (ảnh hướng dẫn, thư viện mặc định)
+  và thay hoặc gỡ — danh sách cụ thể lập ở spike T11.1. Thư viện nhân vật/âm thanh mặc định tạm lấy từ CDN
 `assets.scratch.mit.edu` như bản gốc; tự host thư viện là việc sau (cần kiểm giấy phép từng asset).
 
 **D3. Lưu trữ dự án theo kiểu Scratch: tách `project.json` và asset.**
@@ -104,7 +113,6 @@ trường quản lý). Không bình luận trên trang `public`.
 
 ## Open Questions (còn mở)
 
-- **Q2. Tên sản phẩm** — tạm dùng *CodeSpace Studio* cho tới khi chốt.
 - **Pháp lý:** nhờ người có chuyên môn xác nhận ranh giới AGPL giữa trình soạn (iframe) và LMS.
 - **Người duyệt công khai** mặc định là GV của lớp — cần xác nhận quy trình nếu em học nhiều lớp.
 
@@ -114,7 +122,7 @@ trường quản lý). Không bình luận trên trang `public`.
   (b) TurboWarp — GPL-3.0, chạy nhanh hơn, nhiều tính năng; (c) scratch-gui bản BSD cuối cùng — không
   copyleft nhưng đóng băng, không nhận bản vá mới. Cả (a)(b) đều buộc công khai mã nguồn phần trình soạn.
   Nên hỏi ý kiến pháp lý về ranh giới iframe/postMessage với AGPL.
-- **Q2. Tên sản phẩm** thay cho "Scratch" (đề xuất *CodeSpace Studio*).
+- **Q2. Tên sản phẩm** thay cho "Scratch" → đã chốt **BlockSpace**.
 - **Q3. Phạm vi chia sẻ cao nhất:** chỉ lớp / toàn trường / có cả công khai internet.
 - **Q4. Bình luận** trên dự án: bật (trong lớp, GV kiểm duyệt) hay tắt ở giai đoạn đầu.
 - **Q5. Ghi âm micro + tải ảnh lên** trong trình soạn: cho phép hay tắt với học viên.
