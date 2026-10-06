@@ -25,7 +25,7 @@ Updated: 2026-08-26
 | **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ✅ Done (T8.0–T8.5) |
 | **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ✅ Done + **đã deploy thật** |
 | **P10** Gamification G2 + Admin redesign | xếp hạng theo lớp/tuần, mục tiêu lớp, giáo viên trao thưởng, streak nhân văn, áp design mới khu Quản trị | 🔄 **Đang chạy** — T10.1/T10.3/T10.5 ✅ **đã lên production** (`main` = `a10b41f`, 2026-08-26); còn T10.2, T10.4 |
-| **P11** Scratch Studio | trình soạn Scratch tự host, dự án cá nhân, chia sẻ trong trường, remix, làm chung, gắn vào bài học/bài tập | 📝 **Kế hoạch** — chờ chốt H6 (`docs/adr/003-scratch-studio.md`) |
+| **P11** Scratch Studio | trình soạn Scratch tự host, dự án cá nhân, chia sẻ trong trường, remix, làm chung, gắn vào bài học/bài tập | 📝 **Kế hoạch đã chốt** (ADR 003 Accepted) — chưa code; còn Q2 tên + rà pháp lý AGPL |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -94,24 +94,26 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | H2 | Chốt email provider (gợi ý Resend) | Quên-mật-khẩu |
 | H3 | **Chốt đích sao lưu ngoài máy (R2/B2)** | **O4b — rủi ro cao nhất hiện nay** |
 | H5 | `Class` chưa có lịch học hằng tuần → "streak khớp lịch học" dựa vào đâu? | **T10.4** (xem HANDOFF §T10.4) |
-| H6 | **Scratch Studio — 6 câu hỏi Q1–Q6** trong `docs/adr/003-scratch-studio.md` (bản gốc trình soạn + giấy phép AGPL/GPL, tên sản phẩm, phạm vi chia sẻ, bình luận, ghi âm/ảnh, làm chung theo lượt) | **Toàn bộ P11** |
+| H6 | Scratch Studio: **tên sản phẩm** (Q2) + **rà pháp lý AGPL** (ADR 003). Q1,Q3–Q6 đã chốt 07/10 | Phát hành P11 (không chặn spike) |
 | ~~H4~~ | ✅ **Đã chốt 2026-08-26** — audit không tra tên (câu mô tả chung, 0 PII); **bỏ hẳn** nhóm login; **thêm** dãy số liệu khu Quản trị. Chi tiết `HANDOFF_P10.md §T10.5`. | — |
 
 ### Phase P11 — Scratch Studio 📝 KẾ HOẠCH (chưa code)
 
-Thiết kế: **`docs/adr/003-scratch-studio.md`**. Chặn bởi **H6**. Thứ tự T11.0 → T11.1 → T11.2 → T11.3‖T11.4 → T11.5–T11.8.
+Thiết kế: **`docs/adr/003-scratch-studio.md`** (chốt: scratch-gui AGPL, có công khai, bình luận, ghi âm/ảnh, làm chung realtime). Thứ tự T11.0 → T11.1 → T11.2 → T11.3‖T11.4 → T11.5–T11.8.
 
 | Task | Nội dung | Surface | Rủi ro |
 |---|---|---|---|
-| T11.0 | Chốt H6, ADR 003 → Accepted; repo công khai cho mã nguồn trình soạn đã sửa | docs | giấy phép |
+| T11.0 | Fork công khai `scratch-editor` + đổi tên/mascot; link "Mã nguồn" (AGPL §13) | ops | giấy phép |
 | T11.1 | **Spike**: build trình soạn đã đổi tên, nhúng iframe `/studio/editor/`, `postMessage` nạp/lưu `.sb3`; đo dung lượng bundle, thời gian tải, máy tính bảng | web + ops | bundle/ảnh Docker |
 | T11.2 | Contracts + schema: `ScratchProject` (owner, visibility, remixOf), `ScratchProjectVersion` (project.json, frozen), `ScratchAsset` (md5ext, size, mime, owner), `ScratchCollaborator`, `ScratchProjectLike` | contracts + schema | migration |
 | T11.3 | Backend dự án: CRUD, autosave phiên bản, asset upload theo md5 (magic bytes, giới hạn cỡ, hạn mức), phục vụ asset private có kiểm quyền | api | **IDOR, upload PII** |
 | T11.4 | FE "Dự án của tôi" + trang trình soạn + trang dự án (player) | web | — |
-| T11.5 | Chia sẻ theo `visibility`, gallery lớp, remix (dòng dõi), thích | api + web | IDOR |
-| T11.6 | Làm chung nấc 1: đồng tác giả + khóa sửa có heartbeat, "xin lượt" | api + web | race |
+| T11.5 | Chia sẻ `private/class/school`, gallery, remix (dòng dõi), thích | api + web | IDOR |
+| T11.5b | **Công khai**: xin → GV duyệt, phiên bản đóng băng, biệt danh, ẩn danh tính, Báo cáo + gỡ | api + web | **trẻ em, PII** |
+| T11.6a | **Spike realtime**: WS gateway, phòng, op có thứ tự, đo RAM ≤ 6 người/phòng | api + web | RAM VPS |
+| T11.6b | Realtime đầy đủ: mời đồng tác giả, đồng bộ khối/sprite/costume, snapshot, nối lại | api + web | race, mất dữ liệu |
 | T11.7 | Gắn LMS: hoạt động bài học `scratch` (dự án mẫu → bản sao mỗi em), hình thức nộp `scratch` (phiên bản đóng băng), màn chấm có player + gợi ý tiêu chí tĩnh | api + web | — |
-| T11.8 | (tùy Q4) Bình luận trong lớp + kiểm duyệt GV + audit | api + web | an toàn trẻ em |
+| T11.8 | Bình luận (class/school) + GV ẩn/xóa + báo cáo + rate-limit + audit | api + web | an toàn trẻ em |
 
 **Acceptance:** tạo dự án không cần tài khoản ngoài; tự lưu, mở lại còn nguyên; chia sẻ lớp → bạn chạy + remix được, ngoài lớp 403;
 đồng tác giả không ghi đè nhau; GV chạy bài nộp, thấy gợi ý tiêu chí, cho điểm; RAM VPS tăng ≤ 50 MB so với P10.
@@ -168,8 +170,7 @@ refId null. Chi tiết đầy đủ: `CURRENT_STATE.md §P7`.
 
 ## Bản vá đã hoàn thành
 
-Ba bản vá của phiên P7 (lỗi bảo mật P5 `currentUser.id`, PDF chứng chỉ tiếng Việt, thêm học viên bằng
-email) đã chuyển sang [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md](../../docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md).
+Ba bản vá phiên P7 → [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md](../../docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md).
 
 ## Nợ kỹ thuật đã giải quyết (Phase P6 Tech Debt Cleaned)
 
@@ -178,8 +179,7 @@ email) đã chuyển sang [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixe
 - ✅ **P5 PDF**: Đã sinh PDF chứng chỉ hoàn chỉnh qua `pdf-lib` + `StorageAdapter` lưu file và tải về qua `GET /certificates/:id/pdf` (D1 fix).
 - ✅ **Quiz.published**: Đã thêm trường schema + toggle hoạt động trong TeachQuiz (T6.5).
 - ✅ **Gamification**: Đã chuyển từ mock sang backend thật (Level, XP, Streak, Badges, triggers) (D4 fix).
-- ✅ **Discussion/comment**: Đã có module comment + form thảo luận bài học (D5 fix).
-- ✅ **Section/Lesson edit/delete**: Đã có UI inline edit/delete trong TeachCourses (T6.4).
+- ✅ **Discussion/comment** (D5) · ✅ **Section/Lesson edit/delete** UI inline trong TeachCourses (T6.4).
 
 ---
 

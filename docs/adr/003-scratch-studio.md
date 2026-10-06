@@ -1,7 +1,7 @@
 # ADR 003: Scratch Studio — nền tảng sáng tạo Scratch thay thế scratch.mit.edu
 
 Date: 2026-10-07
-Status: **Proposed** — chờ người chốt các câu hỏi ở §Open Questions trước khi code.
+Status: **Accepted** (2026-10-07) — người dùng chốt Q1, Q3–Q6; còn Q2 (tên) và rà soát pháp lý AGPL.
 
 ## Context
 
@@ -25,7 +25,17 @@ Ràng buộc đã biết:
   Nano, Tera, Giga để quảng bá sản phẩm phái sinh nếu không có văn bản cho phép của MIT
   → bản của mình phải **đổi tên + đổi nhân vật mặc định**.
 
-## Decision (đề xuất)
+## Quyết định của người dùng (2026-10-07)
+
+| Câu | Chốt | Hệ quả bắt buộc |
+|---|---|---|
+| Q1 | **scratch-gui mới nhất (AGPL-3.0)**, monorepo `scratch-editor` | Fork công khai + link "Mã nguồn" trong trình soạn (AGPL §13) |
+| Q3 | **Có cả công khai** (ai có link cũng xem được) | Xem D4′ — duyệt trước khi công khai, ẩn danh tính |
+| Q4 | **Bật bình luận** | Xem D8 — kiểm duyệt, báo cáo, không bình luận ở chế độ công khai |
+| Q5 | **Bật ghi âm micro + tải ảnh/âm thanh** | D7 càng quan trọng: asset private, chỉ lộ theo visibility |
+| Q6 | **Làm chung thời gian thực ngay** | D5 thay bằng D5′ — WebSocket ở P11 |
+
+## Decision
 
 **D1. Trình soạn = bản build tĩnh của scratch-gui, tự host, nhúng bằng `<iframe>` cùng origin
 (`/studio/editor/`).** LMS và trình soạn nói chuyện qua `postMessage` (nạp dự án, lưu, báo thay đổi).
@@ -45,19 +55,30 @@ CodeSpace. Bỏ link về scratch.mit.edu trong menu. Thư viện nhân vật/â
   nhất + mọi bản đã nộp bài/chia sẻ). Nộp bài = **đóng băng** một phiên bản, sửa tiếp không đổi bài nộp.
 - Giới hạn: `project.json` ≤ 5 MB, mỗi asset ≤ 10 MB, tổng mỗi học viên có hạn mức (con số chốt ở T11.3).
 
-**D4. Chia sẻ trong phạm vi khép kín.** Mỗi dự án có `visibility`:
-`private` → `class` (bạn cùng lớp + GV) → `school` (mọi tài khoản CodeSpace đã đăng nhập).
-**Không có `public`** cho người ngoài internet ở giai đoạn này. Trang dự án có trình chiếu (player),
+**D4′. Chia sẻ** — `visibility`: `private` → `class` → `school` (tài khoản CodeSpace) → `public`
+(ai có link). Vì học viên phần lớn dưới 13 tuổi, `public` có rào chắn **mặc định** (đổi được bằng ADR mới):
+- Học viên **xin** công khai → GV của lớp hoặc admin **duyệt** mới lên `public`; sửa dự án đã công khai
+  thì bản công khai giữ nguyên tới khi duyệt lại (công khai = một phiên bản đóng băng).
+- Trang công khai **không hiện họ tên** — chỉ biệt danh do em tự đặt (GV duyệt), không hiện lớp/trường.
+- Trang công khai chỉ có player + remix-về-tài-khoản-của-mình (phải đăng nhập); **không bình luận**.
+- Nút **Báo cáo** trên mọi trang dự án; GV/admin gỡ công khai được ngay, có audit. Trang dự án có trình chiếu (player),
 nút **Remix** (sao chép, giữ dòng dõi "remix từ…"), **thích**. Gallery theo lớp (tương đương
 "studio" của Scratch).
 
-**D5. Làm chung — hai nấc.**
-- **Nấc 1 (P11)**: dự án có nhiều **đồng tác giả**; tại mỗi thời điểm **một người giữ quyền sửa**
-  (khóa có heartbeat, tự nhả khi đóng tab/hết hạn), người khác xem bản mới nhất và "xin lượt".
-  Đơn giản, không mất dữ liệu, không cần server thời gian thực.
-- **Nấc 2 (phase sau, ADR riêng)**: sửa đồng thời thời gian thực qua WebSocket, đồng bộ thao tác khối
-  (hướng tham khảo: Blocklive — extension mã nguồn mở đồng bộ dự án Scratch qua websocket). Phải đo RAM
-  trên VPS 2 GB và xử lý xung đột ở trình vẽ/asset trước khi cam kết.
+**D5′. Làm chung thời gian thực (P11).** Đồng tác giả được chủ dự án mời (cùng trường).
+- Server **giữ thứ tự** (authoritative sequencing): mỗi client bắt sự kiện thay đổi của VM/Blockly
+  (tạo/xóa/di chuyển khối, đổi trường, thêm/xóa nhân vật, đổi costume/âm thanh, đổi tên) → gửi op qua
+  WebSocket → server gán số thứ tự, phát lại cho cả phòng → mọi client áp op theo đúng thứ tự.
+  Hướng tham khảo: Blocklive (mã nguồn mở, đồng bộ dự án Scratch qua websocket) — **kiểm giấy phép
+  trước khi chép mã**, mặc định chỉ học ý tưởng.
+- Xung đột: khối/sprite bị người khác xóa → op sau bị bỏ, client nạp lại trạng thái; **trình vẽ**
+  (paint editor) không đồng bộ từng nét — đồng bộ khi costume được lưu, người sau ghi đè (báo cho người kia).
+- Server ghi **snapshot** `project.json` định kỳ (vd 30 giây hoặc mỗi 200 op) + khi phòng trống → nạp
+  lại không mất quá 30 giây công việc. Asset tải lên qua HTTP như D3, op chỉ mang `md5ext`.
+- Hạ tầng: gateway WebSocket trong NestJS (`@nestjs/websockets` + `ws`), Caddy proxy `/api/studio/ws`.
+  Phòng giữ trong RAM tiến trình API, giới hạn ≤ 6 người/phòng; **đo RAM** ở spike T11.6a trước khi
+  làm tiếp. Một tiến trình API → không cần Redis pub/sub ở giai đoạn này.
+- Fallback: mất kết nối → chế độ chỉ đọc + tự nối lại; không cho sửa offline rồi gộp.
 
 **D6. Gắn vào LMS:** (a) loại hoạt động bài học `scratch` (mở trình soạn với dự án mẫu của GV, mỗi em
 một bản sao riêng); (b) hình thức nộp `scratch` cho Bài tập — nộp một phiên bản đã đóng băng; (c) màn
@@ -69,6 +90,10 @@ hoạt động Scratch tính như hoàn thành bài học; không thêm nguồn 
 giọng nói/khuôn mặt học viên. Asset lưu **private storage**, phục vụ qua API có kiểm quyền theo
 `visibility` (INVARIANT #3, #5). Bình luận (nếu bật) chỉ trong lớp, GV ẩn/xóa được, có audit.
 
+**D8. Bình luận.** Chỉ ở `class`/`school`; mặc định GV của lớp thấy mọi bình luận trong lớp, ẩn/xóa
+được (xóa mềm + audit); học viên báo cáo được; giới hạn tần suất; lọc từ ngữ cơ bản (danh sách do
+trường quản lý). Không bình luận trên trang `public`.
+
 ## Consequences
 
 - LMS có thêm một "app con" tĩnh khá nặng (ước lượng vài chục MB, phải đo ở spike T11.1); Caddy phục
@@ -77,7 +102,13 @@ giọng nói/khuôn mặt học viên. Asset lưu **private storage**, phục v�
 - Phụ thuộc CDN của MIT cho thư viện asset cho tới khi tự host.
 - Dung lượng lưu trữ tăng theo số dự án; cần hạn mức + dọn phiên bản cũ.
 
-## Open Questions (người chốt)
+## Open Questions (còn mở)
+
+- **Q2. Tên sản phẩm** — tạm dùng *CodeSpace Studio* cho tới khi chốt.
+- **Pháp lý:** nhờ người có chuyên môn xác nhận ranh giới AGPL giữa trình soạn (iframe) và LMS.
+- **Người duyệt công khai** mặc định là GV của lớp — cần xác nhận quy trình nếu em học nhiều lớp.
+
+## Open Questions ban đầu (đã chốt, giữ để tra lại)
 
 - **Q1. Bản gốc trình soạn:** (a) scratch-gui mới nhất — AGPL-3.0, chính chủ, cập nhật lâu dài;
   (b) TurboWarp — GPL-3.0, chạy nhanh hơn, nhiều tính năng; (c) scratch-gui bản BSD cuối cùng — không
