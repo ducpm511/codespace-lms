@@ -29,7 +29,7 @@ Ràng buộc đã biết:
 
 | Câu | Chốt | Hệ quả bắt buộc |
 |---|---|---|
-| Q2 | Tên sản phẩm **BlockSpace**; nhân vật mặc định = **mascot CodeSpace** thay Mèo Scratch | Xem D2 |
+| Q2 | Tên sản phẩm **BlockSpace**; nhân vật mặc định = mascot CodeSpace tên **Rex** thay Mèo Scratch; SVG để sau | Xem D2 |
 | Q1 | **scratch-gui mới nhất (AGPL-3.0)**, monorepo `scratch-editor` | Fork công khai + link "Mã nguồn" trong trình soạn (AGPL §13) |
 | Q3 | **Có cả công khai** (ai có link cũng xem được) | Xem D4′ — duyệt trước khi công khai, ẩn danh tính |
 | Q4 | **Bật bình luận** | Xem D8 — kiểm duyệt, báo cáo, không bình luận ở chế độ công khai |
@@ -47,12 +47,14 @@ cho người dùng qua mạng) — **cần người chọn bản gốc, xem Q1**
 
 **D2. Đổi thương hiệu → BlockSpace.** Tên "BlockSpace" ở thanh menu, tiêu đề tab, màn hình tải, file
 tải về; logo CodeSpace thay logo Scratch; bỏ link về scratch.mit.edu. **Nhân vật mặc định** của dự án
-mới = mascot CodeSpace (`apps/web/public/brand/mascot-*.png`, PNG nền trong suốt) thay Mèo Scratch:
-- 2 costume để demo "chuyển costume/đi bộ" như Mèo: `mascot-default` + `mascot-huh` (tên costume
-  tiếng Việt). Ảnh gốc cao ~820–950 px → thu nhỏ còn cao ~200 px, `bitmapResolution: 2` (≈ 100 đơn
+mới = **Rex** — mascot CodeSpace (`apps/web/public/brand/mascot-*.png`, PNG nền trong suốt) thay Mèo Scratch.
+Nhân vật trong dự án mới tên `Rex` (như Mèo tên `Sprite1`/`Cat`):
+- 2 costume để demo "chuyển costume/đi bộ" như Mèo: `mascot-default` + `mascot-huh`, tên costume
+  `Rex 1`, `Rex 2`. Ảnh gốc cao ~820–950 px → thu nhỏ còn cao ~200 px, `bitmapResolution: 2` (≈ 100 đơn
   vị sân khấu, cỡ tương đương Mèo), tâm xoay giữa ảnh. Bước build tự sinh `md5ext` cho 2 asset.
-- Thêm cả 6 tư thế vào **thư viện nhân vật** (mục "CodeSpace") để học viên chọn.
-- Nên xin thiết kế bản **SVG** của mascot: costume vector phóng to không vỡ; PNG dùng tạm.
+- Thêm cả 6 tư thế vào **thư viện nhân vật**, mỗi mục tên `Rex …` theo dáng (vd `Rex vui`, `Rex laptop`).
+- Bản **SVG** của Rex: người dùng sẽ cân nhắc sau (2026-10-07) — P11 dùng PNG; thay SVG chỉ cần đổi
+  file asset + `md5ext`, dự án cũ giữ nguyên PNG.
 - Rà mọi chỗ khác dùng Mèo/Gobo… trong giao diện trình soạn (ảnh hướng dẫn, thư viện mặc định)
   và thay hoặc gỡ — danh sách cụ thể lập ở spike T11.1. Thư viện nhân vật/âm thanh mặc định tạm lấy từ CDN
 `assets.scratch.mit.edu` như bản gốc; tự host thư viện là việc sau (cần kiểm giấy phép từng asset).
