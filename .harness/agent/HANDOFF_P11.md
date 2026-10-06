@@ -1,0 +1,70 @@
+# Handoff P11 — BlockSpace (Scratch Studio)
+
+Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
+
+## T11.1 Spike ✅ (2026-10-07)
+
+**Chứng minh được:** trình soạn Scratch 3 (`@scratch/scratch-gui@15.2.0`, AGPL) chạy trong LMS
+dưới tên BlockSpace, nhân vật mặc định Rex, giao diện tiếng Việt, nạp/lưu dự án qua `postMessage`.
+Trang thử: `/studio` (toàn màn hình, ngoài `AppLayout`, chưa gắn menu, mọi user đăng nhập).
+
+### Cách dựng (đọc `apps/studio/README.md`)
+
+- Package mới `apps/studio` (`@lms/studio`, **AGPL-3.0-only**, có `LICENSE`).
+- **Không** khai báo scratch-gui làm dependency pnpm (69 dep nặng: TensorFlow, MediaPipe…).
+  `scripts/build.mjs` tải tarball đúng phiên bản, kiểm sha512, chỉ lấy `dist/` đã build sẵn.
+  npm có sẵn `dist/scratch-gui-standalone.js` (gói kèm React, biến toàn cục `GUI`) → **không cần
+  build Scratch từ mã nguồn** ở giai đoạn này.
+- Web phục vụ `apps/studio/dist` tại `/studio/editor/` qua `vite-plugin-static-copy` (cùng cách
+  Monaco/Pyodide). `@lms/web` có devDependency `@lms/studio` để turbo build studio trước.
+- Dockerfile web, Caddyfile (cache immutable cho `static/` + `chunks/`), CI (cache tarball) đã cập nhật.
+
+### Số đo
+
+| Hạng mục | Giá trị |
+|---|---|
+| File tĩnh BlockSpace | 1.695 file, **102,5 MB** (dist web 47 → 149 MB) |
+| Tarball tải lúc build | 150 MB (cache `apps/studio/.cache/`, CI cache theo hash script) |
+| Lần mở đầu | 22 request, 17,3 MB giải nén; **~5,7 MB gzip** qua mạng (bundle chính 17 MB) |
+| Thời gian tới "sẵn sàng" | 1,0–2,1 s trên máy dev (đã cache) — chưa đo mạng thật |
+| Bộ nhớ trang | ~66 MB JS heap |
+| Gọi máy ngoài lúc khởi động | **không** (thư viện nhân vật/âm thanh mới gọi `assets.scratch.mit.edu` khi mở) |
+| RAM VPS | **0** — toàn bộ chạy ở trình duyệt |
+
+### Đã kiểm bằng mắt / bằng VM thật
+
+Rex hiện đúng, bấm cờ xanh Rex nói "Xin chào! Mình là Rex 👋"; đổi tên nhân vật → LMS báo "Có thay
+đổi chưa lưu"; lưu → nhận `.sb3` 52 KB, trạng thái về "Đã lưu"; mở dự án mới rồi nạp lại bản đã lưu
+→ tên đã đổi còn nguyên. Logo BlockSpace, tên dự án do LMS đặt, không còn thông báo lỗi.
+
+### Bẫy đã gặp (bundle npm làm sẵn cho scratch.mit.edu)
+
+1. **`publicPath="/"` hard-code ở HAI runtime webpack** (GUI + runtime lồng của scratch-storage nạp
+   `chunks/fetch-worker`). Sót cái thứ hai → worker nhận `index.html` của LMS → `Unexpected token '<'`,
+   dự án không nạp. Build vá cả hai và **dừng nếu số chỗ khác 2** (bundle đổi thì biết ngay).
+2. **Không truyền `projectId`** → trình soạn không nạp gì, không bao giờ gọi `onProjectLoaded`.
+   Truyền `'0'` (dự án mặc định dựng sẵn).
+3. **`canCreateNew: true`** = "được tạo dự án trên server Scratch" → tự lưu lên scratch.mit.edu, báo
+   "Không thể tạo dự án". Đặt `false`; LMS lo tạo/lưu.
+4. **Prop `logo` bị thanh menu bỏ qua** → bridge canh `#logo_img` bằng MutationObserver.
+5. **Tên dự án đi theo prop `projectTitle`** (TitledHOC ghi đè Redux) → render lại với prop mới.
+6. **Watermark góc khung code** bọc `ThrottledPropertyHOC(500ms)`: nạp dự án LMS ngay sau dự án
+   mặc định thì cập nhật bị nuốt vĩnh viễn → báo "sẵn sàng" trễ 600 ms. Còn sót: lần mở đầu góc đó
+   **trống** tới khi bấm chọn nhân vật (không còn Mèo).
+7. Windows: GNU tar của Git Bash hiểu `D:\` là máy chủ → tar chạy với đường dẫn tương đối + `cwd`;
+   Vite dev giữ file trong `dist` → `rmSync` có retry (hoặc tắt web dev khi build lại studio).
+
+### Còn lại — đưa vào T11.0 / các task sau
+
+- **Mèo vẫn nằm trong bundle** (dự án mặc định `'0'`, nháy 0,6 s lúc mở; menu "Tập tin" vẫn có thể
+  sinh ra). Bỏ hẳn cần **tự build scratch-gui từ mã nguồn** với dự án mặc định là Rex (fork T11.0)
+  — khi đó cũng sửa luôn bẫy 4, 5, 6 ở mã nguồn thay vì vá ngoài.
+- **Rex chưa có trong thư viện nhân vật** (`dynamicAssets` + tự host thumbnail) — T11.0.
+- **Link "Mã nguồn" (AGPL §13)** chưa có trong giao diện — bắt buộc trước khi phát hành.
+- Tích hợp lưu đúng nghĩa: cài `GUIConfig.storage.saveProject` chuyển lệnh "Lưu ngay" của menu qua
+  postMessage về LMS → API T11.3 (hiện "Lưu" chỉ tải file về máy).
+- **Màn hình hẹp**: dưới ~1024 px trình soạn không dùng được (đúng như Scratch gốc) → T11.4 cần thông
+  báo "mở trên máy tính/máy tính bảng ngang" cho điện thoại.
+- `scratch-gui-standalone.js` 17 MB không có hash → Caddy `no-cache` + ETag (304); nếu muốn cache
+  vĩnh viễn thì build thêm hash vào tên ở T11.0.
+- Ảnh Docker web to thêm ~100 MB; build tải 150 MB từ npm (registry sập = build lỗi).

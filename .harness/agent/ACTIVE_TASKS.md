@@ -25,7 +25,7 @@ Updated: 2026-08-26
 | **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ✅ Done (T8.0–T8.5) |
 | **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ✅ Done + **đã deploy thật** |
 | **P10** Gamification G2 + Admin redesign | xếp hạng theo lớp/tuần, mục tiêu lớp, giáo viên trao thưởng, streak nhân văn, áp design mới khu Quản trị | 🔄 **Đang chạy** — T10.1/T10.3/T10.5 ✅ **đã lên production** (`main` = `a10b41f`, 2026-08-26); còn T10.2, T10.4 |
-| **P11** BlockSpace (Scratch Studio) | trình soạn Scratch tự host, dự án cá nhân, chia sẻ trong trường, remix, làm chung, gắn vào bài học/bài tập | 📝 **Kế hoạch đã chốt** (ADR 003 Accepted) — chưa code; còn rà pháp lý AGPL |
+| **P11** BlockSpace (Scratch Studio) | trình soạn Scratch tự host, dự án cá nhân, chia sẻ trong trường, remix, làm chung, gắn vào bài học/bài tập | 🔄 T11.1 spike ✅ (`HANDOFF_P11.md`); còn rà pháp lý AGPL |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -104,7 +104,7 @@ Thiết kế: **`docs/adr/003-scratch-studio.md`** (chốt: scratch-gui AGPL, c�
 | Task | Nội dung | Surface | Rủi ro |
 |---|---|---|---|
 | T11.0 | Fork công khai `scratch-editor`, đổi tên **BlockSpace**, nhân vật **Rex** (mascot CodeSpace) thay Mèo (ADR D2); link "Mã nguồn" (AGPL §13) | ops | giấy phép |
-| T11.1 | **Spike**: build trình soạn đã đổi tên, nhúng iframe `/studio/editor/`, `postMessage` nạp/lưu `.sb3`; đo dung lượng bundle, thời gian tải, máy tính bảng | web + ops | bundle/ảnh Docker |
+| T11.1 | ✅ **Spike xong 07/10** — BlockSpace chạy trong LMS (`/studio`, `apps/studio`), nạp/lưu qua postMessage; 102 MB tĩnh, ~5,7 MB gzip lần mở đầu, 0 RAM VPS. Kết quả + bẫy: `HANDOFF_P11.md` | web + ops | — |
 | T11.2 | Contracts + schema: `ScratchProject` (owner, visibility, remixOf), `ScratchProjectVersion` (project.json, frozen), `ScratchAsset` (md5ext, size, mime, owner), `ScratchCollaborator`, `ScratchProjectLike` | contracts + schema | migration |
 | T11.3 | Backend dự án: CRUD, autosave phiên bản, asset upload theo md5 (magic bytes, giới hạn cỡ, hạn mức), phục vụ asset private có kiểm quyền | api | **IDOR, upload PII** |
 | T11.4 | FE "Dự án của tôi" + trang trình soạn + trang dự án (player) | web | — |

@@ -1,0 +1,12 @@
+{
+  "name": "@lms/studio",
+  "version": "0.0.0",
+  "private": true,
+  "description": "BlockSpace — trình soạn Scratch 3 tự host cho CodeSpace LMS (P11, ADR 003)",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "lint": "node --check src/bridge.js && node --check scripts/build.mjs"
+  }
+}
