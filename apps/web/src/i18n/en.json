@@ -651,5 +651,17 @@
     "awardNotePlaceholder": "You really helped your classmates today…",
     "awardSubmit": "Give award",
     "awardSaved": "Awarded! The student will get a notification."
+  },
+  "studio": {
+    "spikeTag": "Prototype",
+    "loading": "Opening editor…",
+    "unsaved": "Unsaved changes",
+    "saved": "Saved",
+    "readyIn": "ready in {{seconds}}s",
+    "newProject": "New project",
+    "openFile": "Open .sb3",
+    "saveFile": "Save to computer",
+    "defaultTitle": "Rex's project",
+    "back": "Back to LMS"
   }
 }

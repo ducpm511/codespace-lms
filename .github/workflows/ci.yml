@@ -27,6 +27,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # BlockSpace build tải tarball scratch-gui ~150 MB (đã ghim phiên bản + sha512) — cache theo script.
+      - uses: actions/cache@v4
+        with:
+          path: apps/studio/.cache
+          key: studio-${{ hashFiles('apps/studio/scripts/build.mjs') }}
+
       # lint + typecheck + test + build. Không cần database: test là unit test với Prisma mock,
       # còn `prisma generate` chỉ đọc schema.
       - run: pnpm validate

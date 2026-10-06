@@ -24,6 +24,9 @@ export default defineConfig({
         })),
         // Monaco AMD build phục vụ tại /monaco/vs (self-host, không CDN).
         { src: 'node_modules/monaco-editor/min/vs', dest: 'monaco' },
+        // BlockSpace (P11, AGPL-3.0 — apps/studio) phục vụ tại /studio/editor/. `pnpm --filter @lms/studio build`
+        // phải chạy trước (turbo lo qua devDependency `@lms/studio`).
+        { src: '../studio/dist/*', dest: 'studio/editor' },
       ],
     }),
   ],

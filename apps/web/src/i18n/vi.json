@@ -651,5 +651,17 @@
     "awardNotePlaceholder": "Hôm nay con giúp bạn rất nhiều…",
     "awardSubmit": "Trao thưởng",
     "awardSaved": "Đã trao! Học viên sẽ nhận được thông báo."
+  },
+  "studio": {
+    "spikeTag": "Bản thử",
+    "loading": "Đang mở trình soạn…",
+    "unsaved": "Có thay đổi chưa lưu",
+    "saved": "Đã lưu",
+    "readyIn": "mở trong {{seconds}} giây",
+    "newProject": "Dự án mới",
+    "openFile": "Mở file .sb3",
+    "saveFile": "Lưu về máy",
+    "defaultTitle": "Dự án của Rex",
+    "back": "Về LMS"
   }
 }

@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { AdminHome } from './pages/AdminHome';
 import { TeachHome } from './pages/TeachHome';
 import { LearnHome } from './pages/LearnHome';
+import { StudioPage } from './pages/StudioPage';
 import { VerifyCertificate } from './pages/VerifyCertificate';
 import { AREA_ROLES } from './lib/roles';
 
@@ -17,6 +18,9 @@ export function App(): JSX.Element {
       <Route path="/verify/:code" element={<VerifyCertificate />} />
 
       <Route element={<RequireAuth />}>
+        {/* BlockSpace chiếm TOÀN màn hình — nằm ngoài AppLayout (khung max-w-6xl làm vùng lập trình quá hẹp).
+            SPIKE T11.1, chưa gắn vào menu. */}
+        <Route path="studio" element={<StudioPage />} />
         <Route element={<AppLayout />}>
           <Route index element={<HomeRedirect />} />
           <Route

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BlockSpace</title>
+    <style>
+      html,
+      body,
+      #app {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      /* Màn hình chờ tới khi bundle 17 MB chạy xong. */
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font: 600 16px system-ui, sans-serif;
+        color: #4c3a8f;
+        background: #f6f4ff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="boot">Đang mở BlockSpace…</div>
+    <div id="app"></div>
+    <script src="./scratch-gui-standalone.js"></script>
+    <script src="./bridge.js"></script>
+  </body>
+</html>
