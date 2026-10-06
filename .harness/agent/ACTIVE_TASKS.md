@@ -25,7 +25,7 @@ Updated: 2026-08-26
 | **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ✅ Done (T8.0–T8.5) |
 | **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ✅ Done + **đã deploy thật** |
 | **P10** Gamification G2 + Admin redesign | xếp hạng theo lớp/tuần, mục tiêu lớp, giáo viên trao thưởng, streak nhân văn, áp design mới khu Quản trị | 🔄 **Đang chạy** — T10.1/T10.3/T10.5 ✅ **đã lên production** (`main` = `a10b41f`, 2026-08-26); còn T10.2, T10.4 |
-| **P11** Scratch Studio | trình soạn Scratch tự host, dự án cá nhân, chia sẻ trong trường, remix, làm chung, gắn vào bài học/bài tập | 📝 **Kế hoạch đã chốt** (ADR 003 Accepted) — chưa code; còn Q2 tên + rà pháp lý AGPL |
+| **P11** BlockSpace (Scratch Studio) | trình soạn Scratch tự host, dự án cá nhân, chia sẻ trong trường, remix, làm chung, gắn vào bài học/bài tập | 📝 **Kế hoạch đã chốt** (ADR 003 Accepted) — chưa code; còn rà pháp lý AGPL |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -94,16 +94,16 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | H2 | Chốt email provider (gợi ý Resend) | Quên-mật-khẩu |
 | H3 | **Chốt đích sao lưu ngoài máy (R2/B2)** | **O4b — rủi ro cao nhất hiện nay** |
 | H5 | `Class` chưa có lịch học hằng tuần → "streak khớp lịch học" dựa vào đâu? | **T10.4** (xem HANDOFF §T10.4) |
-| H6 | Scratch Studio: **tên sản phẩm** (Q2) + **rà pháp lý AGPL** (ADR 003). Q1,Q3–Q6 đã chốt 07/10 | Phát hành P11 (không chặn spike) |
+| H6 | BlockSpace: **rà pháp lý AGPL** (ADR 003). Q1–Q6 đã chốt 07/10 | Phát hành P11 (không chặn spike) |
 | ~~H4~~ | ✅ **Đã chốt 2026-08-26** — audit không tra tên (câu mô tả chung, 0 PII); **bỏ hẳn** nhóm login; **thêm** dãy số liệu khu Quản trị. Chi tiết `HANDOFF_P10.md §T10.5`. | — |
 
-### Phase P11 — Scratch Studio 📝 KẾ HOẠCH (chưa code)
+### Phase P11 — BlockSpace (Scratch Studio) 📝 KẾ HOẠCH (chưa code)
 
 Thiết kế: **`docs/adr/003-scratch-studio.md`** (chốt: scratch-gui AGPL, có công khai, bình luận, ghi âm/ảnh, làm chung realtime). Thứ tự T11.0 → T11.1 → T11.2 → T11.3‖T11.4 → T11.5–T11.8.
 
 | Task | Nội dung | Surface | Rủi ro |
 |---|---|---|---|
-| T11.0 | Fork công khai `scratch-editor` + đổi tên/mascot; link "Mã nguồn" (AGPL §13) | ops | giấy phép |
+| T11.0 | Fork công khai `scratch-editor`, đổi tên **BlockSpace**, mascot CodeSpace thay Mèo (ADR D2); link "Mã nguồn" (AGPL §13) | ops | giấy phép |
 | T11.1 | **Spike**: build trình soạn đã đổi tên, nhúng iframe `/studio/editor/`, `postMessage` nạp/lưu `.sb3`; đo dung lượng bundle, thời gian tải, máy tính bảng | web + ops | bundle/ảnh Docker |
 | T11.2 | Contracts + schema: `ScratchProject` (owner, visibility, remixOf), `ScratchProjectVersion` (project.json, frozen), `ScratchAsset` (md5ext, size, mime, owner), `ScratchCollaborator`, `ScratchProjectLike` | contracts + schema | migration |
 | T11.3 | Backend dự án: CRUD, autosave phiên bản, asset upload theo md5 (magic bytes, giới hạn cỡ, hạn mức), phục vụ asset private có kiểm quyền | api | **IDOR, upload PII** |
