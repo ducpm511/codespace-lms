@@ -103,7 +103,7 @@ Thiết kế: **`docs/adr/003-scratch-studio.md`** (chốt: scratch-gui AGPL, c�
 
 | Task | Nội dung | Surface | Rủi ro |
 |---|---|---|---|
-| T11.0 | Fork công khai `scratch-editor`, đổi tên **BlockSpace**, mascot CodeSpace thay Mèo (ADR D2); link "Mã nguồn" (AGPL §13) | ops | giấy phép |
+| T11.0 | Fork công khai `scratch-editor`, đổi tên **BlockSpace**, nhân vật **Rex** (mascot CodeSpace) thay Mèo (ADR D2); link "Mã nguồn" (AGPL §13) | ops | giấy phép |
 | T11.1 | **Spike**: build trình soạn đã đổi tên, nhúng iframe `/studio/editor/`, `postMessage` nạp/lưu `.sb3`; đo dung lượng bundle, thời gian tải, máy tính bảng | web + ops | bundle/ảnh Docker |
 | T11.2 | Contracts + schema: `ScratchProject` (owner, visibility, remixOf), `ScratchProjectVersion` (project.json, frozen), `ScratchAsset` (md5ext, size, mime, owner), `ScratchCollaborator`, `ScratchProjectLike` | contracts + schema | migration |
 | T11.3 | Backend dự án: CRUD, autosave phiên bản, asset upload theo md5 (magic bytes, giới hạn cỡ, hạn mức), phục vụ asset private có kiểm quyền | api | **IDOR, upload PII** |
