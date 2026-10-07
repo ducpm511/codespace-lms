@@ -2,6 +2,27 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.5 Chia sẻ, gallery, remix, thích ✅ (2026-10-07)
+
+- **API** (`scratch-sharing.service.ts`): `GET /scratch/classes` — lớp mình thuộc **hoặc tạo** (`/classes/mine`
+  chỉ có membership nên GV tạo lớp không thấy lớp mình; luật này khớp `belongsToClass` của T11.3).
+  `GET /scratch/gallery?scope=class&classId=` (không thuộc lớp ⇒ 403) | `scope=school` (school + public). Chỉ
+  dự án ĐÃ có phiên bản, chưa xóa, tối đa 60, mới cập nhật trước. `POST …/:id/remix`: ai xem được đều remix
+  được → bản sao **private** của mình, `remixOfId` = gốc, phiên bản 1 = bản mới nhất của gốc, chép tham chiếu
+  asset mà phiên bản đó dùng (không chép file). `PUT|DELETE …/:id/like` idempotent.
+- **Web:** `/studio` có tab **Của tôi · từng lớp · Cả trường** (ghi `?tab=` vào URL). Trang dự án: ♡ thích
+  (cập nhật lạc quan, lỗi thì hoàn tác), **Remix** → mở trình soạn bản sao; chủ dự án có khung "Ai được xem dự
+  án này?" (Chỉ mình tôi / Cả lớp + chọn lớp / Cả trường — đổi là lưu, server ghi audit; "Công khai" không có ở
+  đây). Sửa lỗi tiềm ẩn: đi từ dự án này sang dự án khác (nhãn "Remix từ…") giờ dựng lại player (`key` theo id).
+- **Đã kiểm** — API thật (`scratchpad/live-t115.mjs`, 25 ca): lớp của tôi đúng cho HV / GV tạo lớp / HV ngoài
+  lớp; gallery lớp 403 với người ngoài, dự án "lớp" không lọt ra gallery trường; thích idempotent; remix: người
+  ngoài 404, bản remix private (HV gốc 404), đúng nội dung, asset đọc được qua bản remix; chuyển "cả trường" ⇒
+  người ngoài thấy + remix được. Bằng mắt: GV thấy dự án HV ở tab lớp → thích (tim đặc, 1) → Remix mở trình soạn
+  "… (remix)" đủ nhân vật + khối; HV chủ đổi Chỉ mình tôi ↔ Cả lớp. Toàn API 380/380 test, web 20/20.
+
+**Còn lại:** gallery chưa phân trang (60 dự án mới nhất), chưa tìm kiếm; chưa có ảnh thu nhỏ dự án (thẻ chỉ
+có icon) — cần lưu thumbnail lúc lưu phiên bản. HV có thể thích dự án của chính mình.
+
 ## T11.4 FE dự án ✅ (2026-10-07)
 
 - **Trang:** `/studio` "Dự án của tôi" (trong AppLayout; mục **BlockSpace** trên menu cho MỌI user — không

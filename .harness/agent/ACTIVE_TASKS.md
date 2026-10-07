@@ -108,7 +108,7 @@ Thiết kế: **`docs/adr/003-scratch-studio.md`** (chốt: scratch-gui AGPL, c�
 | T11.2 | ✅ **Xong 07/10** — migration `p11_scratch_projects` (5 bảng + `scratch_project_assets` để kiểm quyền asset), contracts `scratch.ts` (DTO, giới hạn, allowlist md5ext). `HANDOFF_P11.md §T11.2` | contracts + schema | migration |
 | T11.3 | ✅ **Xong 07/10** — module `apps/api/src/scratch` (CRUD, phiên bản bất biến + dọn bản cũ, asset theo md5 có kiểm md5/magic bytes/hạn mức 200 MB, phục vụ asset private qua dự án). 35 unit test + 34 ca trên API thật. `HANDOFF_P11.md §T11.3` | api | **IDOR, upload PII** |
 | T11.4 | ✅ **Xong 07/10** — `/studio` (Dự án của tôi, menu BlockSpace cho mọi user), `/studio/:id/edit` (toàn màn hình, tự lưu 20 s + khi ẩn tab/rời trang, mở lại còn nguyên), `/studio/:id` (player). Đã xem bằng mắt cả HV lẫn GV. `HANDOFF_P11.md §T11.4` | web | — |
-| T11.5 | Chia sẻ `private/class/school`, gallery, remix (dòng dõi), thích | api + web | IDOR |
+| T11.5 | ✅ **Xong 07/10** — chia sẻ `private/class/school` (khung cho chủ dự án), gallery tab Của tôi / từng lớp / Cả trường, remix (bản private, giữ dòng dõi), thích idempotent. 46 unit test scratch + 25 ca trên API thật; xem bằng mắt GV + HV. `HANDOFF_P11.md §T11.5` | api + web | IDOR |
 | T11.5b | **Công khai**: xin → GV duyệt, phiên bản đóng băng, biệt danh, ẩn danh tính, Báo cáo + gỡ | api + web | **trẻ em, PII** |
 | T11.6a | **Spike realtime**: WS gateway, phòng, op có thứ tự, đo RAM ≤ 6 người/phòng | api + web | RAM VPS |
 | T11.6b | Realtime đầy đủ: mời đồng tác giả, đồng bộ khối/sprite/costume, snapshot, nối lại | api + web | race, mất dữ liệu |
