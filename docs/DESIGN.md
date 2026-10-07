@@ -293,6 +293,11 @@ CRUD   /quizzes · /quizzes/:id/questions
 POST   /quizzes/:id/attempts · /attempts/:id/submit
 GET    /classes/:id/gradebook
 POST   /certificates/issue · POST /certificates/:id/revoke   GET /verify/:code  (public)
+# BlockSpace (P11) — quyền từng dự án: ScratchAccessService (không xem được ⇒ 404, xem mà không sửa ⇒ 403)
+GET    /scratch/projects/mine · POST /scratch/projects · GET|PATCH|DELETE /scratch/projects/:id
+GET    /scratch/projects/:id/versions (người sửa) · POST …/versions (multipart `project`, ≤5MB)
+GET    /scratch/projects/:id/versions/:seq|latest (project.json) · GET …/assets/:md5ext (private, CSP sandbox)
+POST   /scratch/assets/:md5ext (multipart `file`, ≤10MB, kiểm md5 + magic bytes, hạn mức 200MB/người)
 ```
 
 ## 9. Frontend (apps/web)

@@ -11,10 +11,17 @@ export const SCRATCH_VISIBILITIES: readonly ScratchVisibilityValue[] = ['private
  */
 export const SCRATCH_SELF_VISIBILITIES: readonly ScratchVisibilityValue[] = ['private', 'class', 'school'];
 
-/** Giới hạn (ADR D3). Hạn mức tổng mỗi học viên chốt ở T11.3. */
+/** Giới hạn (ADR D3). */
 export const SCRATCH_PROJECT_JSON_MAX_BYTES = 5 * 1024 * 1024;
 export const SCRATCH_ASSET_MAX_BYTES = 10 * 1024 * 1024;
 export const SCRATCH_TITLE_MAX_LENGTH = 100;
+/**
+ * Hạn mức asset tự tải lên của MỘT người (tổng byte, chốt T11.3). Một dự án Scratch của học viên thường
+ * vài MB; 200 MB đủ hàng chục dự án có ghi âm/ảnh mà vẫn chặn được việc dùng làm kho chứa file.
+ */
+export const SCRATCH_USER_QUOTA_BYTES = 200 * 1024 * 1024;
+/** Số phiên bản CHƯA đóng băng giữ lại mỗi dự án (autosave). Bản đóng băng không tính, không bao giờ dọn. */
+export const SCRATCH_KEEP_UNFROZEN_VERSIONS = 20;
 
 /** Định dạng asset được nhận (đuôi `md5ext` → mime). Kiểm thêm magic bytes ở API (T11.3). */
 export const SCRATCH_ASSET_FORMATS: Readonly<Record<string, string>> = {
@@ -87,4 +94,13 @@ export interface UpdateScratchProjectRequest {
 
 export interface RemixScratchProjectRequest {
   title?: string;
+}
+
+// --- Asset ---
+
+export interface ScratchAssetUploadResponse {
+  md5ext: string;
+  sizeBytes: number;
+  /** false = nội dung này đã có sẵn (cùng md5) — không lưu lại, không tính thêm hạn mức. */
+  created: boolean;
 }
