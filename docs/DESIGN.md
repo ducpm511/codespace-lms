@@ -311,6 +311,9 @@ GET|PUT /scratch/me/nickname · POST|DELETE /scratch/projects/:id/publication ·
 GET    /scratch/public/:slug[/project.json|/assets/:md5ext] (KHÔNG cần đăng nhập) · POST …/remix|report (cần)
 GET    /scratch/moderation/queue · …/publications/:projectId/{project.json,assets/:md5ext} · POST …/{approve,reject,remove}
 POST   /scratch/moderation/nicknames/:userId/{approve,reject} · POST /scratch/moderation/reports/:id/resolve
+GET    /scratch/projects/:id/collaborators/candidates?q= (chủ; ≥2 ký tự, ≤8 người, email che) · POST …/collaborators {userId} (chủ, ≤5)
+DELETE /scratch/projects/:id/collaborators/:userId (chủ gỡ / đồng tác giả tự rời → đá khỏi phòng làm chung ngay)
+WS     /api/scratch/ws — làm chung: auth trong message đầu, join (chủ/đồng tác giả), op, resync, snapshot (collab.gateway.ts)
 ```
 
 ## 9. Frontend (apps/web)

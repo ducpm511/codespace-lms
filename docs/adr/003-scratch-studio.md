@@ -124,6 +124,18 @@ trường quản lý). Không bình luận trên trang `public`.
 - **Báo cáo:** chỉ tài khoản đăng nhập; dự án VẪN hiện tới khi GV/admin xử lý (bỏ qua / gỡ = thôi công khai +
   thu chia sẻ về private).
 
+## Quyết định làm chung (người dùng chốt 2026-10-07, T11.6b)
+
+- **Mời ai:** chủ dự án mời BẤT KỲ tài khoản đang hoạt động nào trong trường (tìm theo họ tên / đầu email, kết
+  quả chỉ hiện họ tên + email đã che), tối đa 5 đồng tác giả (phòng 6 người). Người được mời nhận thông báo.
+- **Gỡ / rời:** chủ gỡ được mọi người, đồng tác giả tự rời được; kết nối làm chung của người đó đóng NGAY. Những
+  gì đã đồng bộ vẫn giữ trong dự án.
+- **Cách đồng bộ (kỹ thuật, thay cho "server ghi snapshot" ở D5′):** server không chạy được Scratch VM nên
+  snapshot do MỘT máy đúng trong phòng lưu (như autosave) rồi báo `{versionSeq, atSeq}`; máy cần đồng bộ nạp
+  phiên bản đó + áp lại các op sau atSeq. Dùng cho: người vào sau, nối lại, xung đột (máy thấy op của mình và
+  op người khác đụng cùng khối thì tự xin đồng bộ lại), và thay đổi không phải khối (nhân vật, costume, âm thanh,
+  ghi chú — lưu + phát `reload`, người sau ghi đè). Chỉ "người lưu chính" (vào sớm nhất) tự lưu.
+
 ## Open Questions (còn mở)
 
 - **Pháp lý:** nhờ người có chuyên môn xác nhận ranh giới AGPL giữa trình soạn (iframe) và LMS.

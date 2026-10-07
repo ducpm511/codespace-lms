@@ -24,6 +24,11 @@ chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary)
   Khóa "Lập trình Scratch cơ bản" (published, 3 bài, mỗi bài 1 activity markdown), lớp `SCR-DEV-01`
   (bài 1–2 mở gate, bài 3 khóa). Dữ liệu P7–P10 cũ (bài nộp, XP, huy hiệu trao tay…) KHÔNG còn.
 - Trình soạn build sẵn ở GitHub Releases `blockspace-editor-15.2.0-bs1`, sha512 đã ghim (`HANDOFF_P11.md §T11.0`).
+  `apps/studio/src/bridge.js` (T11.6b) không nằm trong tarball — đổi bridge KHÔNG cần release editor mới.
+- **Làm chung (T11.6b) cần WebSocket `/api/scratch/ws`** qua Caddy (reverse_proxy tự chuyển Upgrade) — kiểm khi
+  deploy. Không đổi schema (bảng `scratch_collaborators` có từ T11.2). DB dev có dự án mẫu "Mê cung làm chung"
+  của `p7member` với đồng tác giả `p7outsider`.
+- Xong: T11.0–T11.6b. Còn: T11.7 (gắn bài học/nộp bài), T11.8 (bình luận), H6 pháp lý AGPL trước khi phát hành.
 
 ### P10 · ĐÃ PHÁT HÀNH LÊN PRODUCTION (2026-08-26, ~16:27 giờ VN)
 

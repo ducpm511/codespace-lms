@@ -2,6 +2,44 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.6b Làm chung đầy đủ ✅ (2026-10-07)
+
+Quyết định người dùng chốt: `docs/adr/003-scratch-studio.md §Quyết định làm chung`. API: `docs/DESIGN.md §8`.
+
+- **Đồng tác giả** (`scratch-collaborators.*`): tìm theo họ tên / đầu email, chỉ chủ, ≥ 2 ký tự, ≤ 8 kết quả, email
+  che (`bi***@…`), bỏ chính mình + người đã mời; mời idempotent, ≤ 5 (409), tạo thông báo `scratch.collab.invited`
+  + audit `scratch.collab.add` cùng transaction; chủ gỡ (`.remove`) / đồng tác giả tự rời (`.leave`) → **sau commit**
+  `CollabGateway.kick` đóng 4003. Gateway kiểm lại mọi kết nối mỗi 60 s (tài khoản còn active + còn quyền sửa).
+- **Đồng bộ** (`collab-rooms.ts` server, `collabClient.ts` client — đọc chú thích đầu 2 file trước khi sửa): server
+  chỉ xếp thứ tự. Snapshot = một máy đúng ("nguồn", vào sớm nhất không đang chờ) lưu phiên bản qua HTTP rồi báo
+  `{versionSeq, atSeq}`; máy chờ nạp bản đó (giữ nhân vật đang sửa) và áp lại op seq > atSeq trong log của nó (cả op
+  của mình). Không còn máy đúng ⇒ `reload-latest`. Xung đột: op người khác đụng khối/biến mà op của mình còn chờ xác
+  nhận ⇒ máy MÌNH là máy sai (máy kia áp đúng thứ tự server) ⇒ `resync`. Bridge không áp được op ⇒ cũng resync.
+- **Ngoài khối:** bridge so "dấu vân tay cấu trúc" (nhân vật, costume, âm thanh, ghi chú; KHÔNG vị trí/hướng/lớp vì
+  đổi khi chạy) sau `targetsUpdate` ⇒ `blockspace:structure` ⇒ trang cha gộp 1,5 s, lưu, phát op `reload` (+ `renames`
+  để op cũ nhắm tên cũ vẫn áp đúng). Trình vẽ: mỗi nét đổi asset ⇒ chỉ phát khi yên 1,5 s.
+- **Lưu:** chỉ người lưu chính (`lead` trong presence) tự lưu + phát op `saved`; máy khác thấy "máy bạn cùng nhóm tự
+  lưu". Đang nối / đồng bộ / mất mạng ⇒ che trình soạn, không ai lưu (bản đó có thể cũ). Nối lại một mình mà server
+  đã có bản mới hơn bản đã biết ⇒ nạp bản mới. "Mở file .sb3" tắt khi làm chung.
+- **Vẽ lại vùng code** khi nhận op được hoãn tới lúc nhả chuột (không làm rơi khối đang kéo).
+- Bật tự động khi dự án có ≥ 1 đồng tác giả (bỏ `?collab=1`). Trang dự án có khung "Đồng tác giả" cho chủ + đồng tác giả.
+
+**Đã kiểm:** unit: 9 `CollabRooms`, 12 đồng tác giả, 11 `CollabClient` (xung đột, người vào sau, hết giờ, đổi tên…);
+API 417/417, web 31/31. API thật (`scratchpad/live-t116b.mjs`, 32 ca): quyền tìm/mời/gỡ, body thừa 400, thông báo,
+4003 khi chưa mời / bị gỡ / tự rời, snapshot chỉ nhận từ đúng nguồn, resync, người lưu chính đổi khi rời, nguồn rời
+giữa chừng ⇒ reload-latest. Trình soạn thật: tab chủ lưu snapshot cho client Node vào sau trong 1,9 s, khối Node gửi
+hiện ngay; tab thứ hai vào sau nạp đúng (có khối, không che); đổi tên nhân vật ở tab 1 ⇒ tab 2 thấy tên mới, op cũ nhắm
+"Rex" áp đúng vào "Rex xanh"; đóng tab người lưu chính ⇒ tab còn lại lên thay và tự lưu; tắt API ⇒ che "Mất kết nối",
+bật lại ⇒ tự nối, giữ nguyên; bản lưu cuối trên server có đủ tên mới + 2 khối. Khung đồng tác giả xem bằng mắt HV + GV.
+
+**Chưa kiểm bằng tay / giới hạn còn lại:**
+- Hoãn vẽ lại khi kéo khối: chưa thử kéo thật (khung chụp màn hình không kéo thả được) — chỉ đọc code.
+- Xung đột thật giữa 2 người: chỉ có unit test (khó canh thời điểm bằng tay).
+- Vị trí / hướng / kích thước nhân vật trên sân khấu không đồng bộ (đổi liên tục khi chạy) — bản người lưu chính thắng.
+- Hai người đổi cấu trúc cùng lúc: bản `reload` sau ghi đè bản trước (ADR: "người sau ghi đè"), chưa báo cho người kia.
+- Mỗi snapshot / reload là một phiên bản (autosave giữ 20 bản chưa đóng băng) — nhóm đổi cấu trúc nhiều sẽ đẩy bản cũ ra.
+- Thẻ dự án ở "Dự án của tôi" chưa ghi "đồng tác giả" / tên chủ.
+
 ## T11.6a Spike làm chung thời gian thực ✅ (2026-10-07)
 
 **Kết luận: làm được, RAM không phải rào cản.** Đi tiếp T11.6b với các việc ở "Phải làm ở T11.6b".
@@ -36,7 +74,7 @@ người thứ 7 → 4009, op > 64 KB → 4008, nối lại nhận đúng op b�
 nhân vật KHÔNG đang mở (gửi từ client Node vào phòng): tab đang mở nhân vật đó thấy khối ngay; tab đang ở nhân vật khác
 không bị đụng, chuyển sang thì có khối.
 
-**Phải làm ở T11.6b (spike chưa có):**
+**Phải làm ở T11.6b (spike chưa có — đã làm, xem §T11.6b; đệm nối lại `sinceSeq` đã bỏ, thay bằng snapshot):**
 - **Xung đột:** client áp op của mình ngay (lạc quan) rồi mới nhận thứ tự từ server — hai người sửa CÙNG khối cùng lúc
   có thể lệch nhau. Cần: áp theo thứ tự server (chờ echo) hoặc phát hiện lệch + nạp lại; khối bị người khác xóa ⇒ bỏ op.
 - **Người vào sau:** `join` không kèm trạng thái phòng — người mới nạp phiên bản ĐÃ LƯU gần nhất nên lỡ thay đổi chưa
