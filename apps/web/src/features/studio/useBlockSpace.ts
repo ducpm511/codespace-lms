@@ -6,7 +6,9 @@ export const BLOCKSPACE_EDITOR_URL = '/studio/editor/index.html';
 type EditorMessage =
   | { type: 'blockspace:ready' }
   | { type: 'blockspace:loaded' }
-  | { type: 'blockspace:changed' }
+  | { type: 'blockspace:changed'; remote?: boolean }
+  | { type: 'blockspace:structure'; renames: Record<string, string> }
+  | { type: 'blockspace:collab-error'; message: string }
   | { type: 'blockspace:saved'; requestId: string; sb3: ArrayBuffer; title: string }
   | { type: 'blockspace:exported'; requestId: string; projectJson: string; assets: EditorAsset[]; title: string }
   | { type: 'blockspace:op'; op: unknown }
@@ -45,8 +47,12 @@ export function useBlockSpace() {
   const pendingSaves = useRef(new Map<string, (r: { sb3: ArrayBuffer; title: string }) => void>());
   // Đếm số lần trình soạn báo "đã đổi" (ref: sự kiện dày khi kéo khối, không cần render lại).
   const changeSeq = useRef(0);
-  /** Op làm chung do người dùng máy này tạo (T11.6a) — trang soạn gắn hàm nhận. */
+  /** Làm chung (T11.6b) — trang soạn gắn hàm nhận: op khối máy này tạo, đổi cấu trúc, áp op hỏng. */
   const onLocalOp = useRef<((op: unknown) => void) | null>(null);
+  const onStructure = useRef<((renames: Record<string, string>) => void) | null>(null);
+  const onCollabError = useRef<((message: string) => void) | null>(null);
+  /** Chờ lần nạp kế tiếp xong (nạp lại khi làm chung). */
+  const loadWaiters = useRef<{ resolve: () => void; reject: (e: Error) => void }[]>([]);
   const pendingExports = useRef(new Map<string, { resolve: (r: EditorExport) => void; reject: (e: Error) => void }>());
   const [state, setState] = useState<BlockSpaceState>({
     ready: false,
@@ -89,6 +95,19 @@ export function useBlockSpace() {
     [send],
   );
 
+  /** Nạp lại giữa lúc làm chung: giữ nhân vật đang sửa, resolve khi trình soạn nạp xong. */
+  const reopen = useCallback(
+    (projectJson: string, assets: EditorAsset[], title?: string) =>
+      new Promise<void>((resolve, reject) => {
+        loadWaiters.current.push({ resolve, reject });
+        send(
+          { type: 'blockspace:open', projectJson, assets, title, keepTarget: true },
+          assets.map((a) => a.data),
+        );
+      }),
+    [send],
+  );
+
   /** Lấy project.json + mọi asset đang dùng để lưu lên server. */
   const exportProject = useCallback(
     () =>
@@ -128,6 +147,13 @@ export function useBlockSpace() {
           break;
         case 'blockspace:loaded':
           setState((s) => ({ ...s, dirty: false, loadCount: s.loadCount + 1 }));
+          for (const w of loadWaiters.current.splice(0)) w.resolve();
+          break;
+        case 'blockspace:structure':
+          onStructure.current?.(msg.renames ?? {});
+          break;
+        case 'blockspace:collab-error':
+          onCollabError.current?.(msg.message);
           break;
         case 'blockspace:changed':
           changeSeq.current += 1;
@@ -154,6 +180,8 @@ export function useBlockSpace() {
           if (pending) {
             pendingExports.current.delete(msg.requestId!);
             pending.reject(new Error(msg.message));
+          } else if (loadWaiters.current.length > 0) {
+            for (const w of loadWaiters.current.splice(0)) w.reject(new Error(msg.message));
           } else {
             setState((s) => ({ ...s, error: msg.message }));
           }
@@ -176,10 +204,13 @@ export function useBlockSpace() {
     loadDefault,
     save,
     open,
+    reopen,
     exportProject,
     markSaved,
     changeSeq,
     onLocalOp,
+    onStructure,
+    onCollabError,
     collabStart,
     collabApply,
   };

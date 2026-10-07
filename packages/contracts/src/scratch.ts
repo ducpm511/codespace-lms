@@ -61,6 +61,25 @@ export interface ScratchCollaboratorDto {
   createdAt: string;
 }
 
+// --- Đồng tác giả + làm chung thời gian thực (T11.6b — ADR D5′) ---
+
+/** Phòng làm chung tối đa 6 kết nối (T11.6a) → chủ + 5 đồng tác giả. */
+export const SCRATCH_MAX_COLLABORATORS = 5;
+/** Tìm người để mời: ít nhất ngần này ký tự, trả tối đa SCRATCH_COLLAB_SEARCH_LIMIT người. */
+export const SCRATCH_COLLAB_SEARCH_MIN = 2;
+export const SCRATCH_COLLAB_SEARCH_LIMIT = 8;
+
+/** Người có thể mời — email đã che (vd `mi***@codespace.vn`) chỉ để phân biệt người trùng tên. */
+export interface ScratchCollaboratorCandidateDto {
+  userId: string;
+  fullName: string;
+  emailHint: string;
+}
+
+export interface AddScratchCollaboratorRequest {
+  userId: string;
+}
+
 export interface ScratchProjectDetailDto extends ScratchProjectSummaryDto {
   /** Bản gốc nếu là remix (null nếu bản gốc đã bị xóa hoặc người xem không được thấy). */
   remixOf: { id: string; title: string } | null;

@@ -6,7 +6,7 @@ import type { RawData, WebSocket } from 'ws';
 import type { JwtPayload } from '../../auth/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ScratchAccessService } from '../scratch-access.service';
-import { COLLAB_MAX_OP_BYTES, CollabRooms } from './collab-rooms';
+import { COLLAB_MAX_OP_BYTES, CollabRooms, type CollabMember } from './collab-rooms';
 
 /** Đóng kết nối với mã riêng (4xxx) để client biết lý do, không phải đoán. */
 export const CLOSE = {
@@ -20,6 +20,8 @@ export const CLOSE = {
 
 const AUTH_TIMEOUT_MS = 5_000;
 const HEARTBEAT_MS = 30_000;
+/** Kiểm lại quyền của mọi kết nối đang trong phòng (tài khoản bị khóa, mất quyền sửa giữa chừng). */
+const RECHECK_MS = 60_000;
 /** Tối đa ngần này message mỗi cửa sổ — thao tác tay thật hiếm khi quá vài sự kiện/giây. */
 const RATE_WINDOW_MS = 10_000;
 const RATE_MAX = 100;
@@ -33,19 +35,26 @@ interface ConnState {
   count: number;
 }
 
+const isSeq = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0;
+
 /**
- * Làm chung thời gian thực (T11.6a — SPIKE, ADR 003 D5′). WebSocket thuần ở `/api/scratch/ws`.
+ * Làm chung thời gian thực (ADR 003 D5′; T11.6a spike → T11.6b). WebSocket thuần ở `/api/scratch/ws`.
  *
  * Giao thức (JSON):
- *   → {type:'auth', token}                  bắt buộc là message ĐẦU TIÊN, trong 5 s (token KHÔNG nằm trên URL —
- *                                           INVARIANT #5: URL hay bị ghi log)
+ *   → {type:'auth', token}            bắt buộc là message ĐẦU TIÊN, trong 5 s (token KHÔNG nằm trên URL —
+ *                                     INVARIANT #5: URL hay bị ghi log)
  *   ← {type:'ready'}
- *   → {type:'join', projectId, sinceSeq?}   chỉ chủ / đồng tác giả (ScratchAccessService.editable)
- *   ← {type:'joined', seq, catchUp|null, members}   catchUp null = nạp lại dự án
- *   → {type:'op', op}                       ≤ 64 KB
- *   ← {type:'op', seq, from, op}            cho CẢ phòng, kể cả người gửi
- *   ← {type:'presence', members}
- * Server KHÔNG hiểu nội dung op (chỉ xếp thứ tự + phát) — lưu snapshot là việc của T11.6b.
+ *   → {type:'join', projectId}        chỉ chủ / đồng tác giả (ScratchAccessService.editable)
+ *   ← {type:'joined', seq, needsSync, members, lead}
+ *   → {type:'op', op}                 ≤ 64 KB
+ *   ← {type:'op', seq, from, op}      cho CẢ phòng, kể cả người gửi
+ *   → {type:'resync'}                 client thấy mình lệch
+ *   ← {type:'sync-request'}           (gửi cho nguồn) hãy lưu phiên bản rồi báo snapshot
+ *   → {type:'snapshot', versionSeq, atSeq}
+ *   ← {type:'snapshot', versionSeq, atSeq}   (gửi cho máy đang chờ) nạp phiên bản, áp lại op seq > atSeq
+ *   ← {type:'reload-latest'}          không còn máy đúng: nạp lại bản đã lưu mới nhất
+ *   ← {type:'presence', members, lead}       lead = máy này là người lưu chính
+ * Server không hiểu nội dung op — xem collab-rooms.ts.
  */
 @WebSocketGateway({ path: '/api/scratch/ws' })
 export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -60,8 +69,8 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly access: ScratchAccessService,
     private readonly prisma: PrismaService,
   ) {
-    const heartbeat = setInterval(() => this.heartbeat(), HEARTBEAT_MS);
-    heartbeat.unref();
+    setInterval(() => this.heartbeat(), HEARTBEAT_MS).unref();
+    setInterval(() => void this.recheck(), RECHECK_MS).unref();
   }
 
   handleConnection(client: WebSocket): void {
@@ -84,7 +93,15 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: WebSocket): void {
     this.sockets.delete(client);
     const st = this.state.get(client);
-    if (st?.projectId) this.broadcastPresence(this.rooms.leave(st.projectId, client));
+    if (!st?.projectId) return;
+    this.rooms.leave(st.projectId, client);
+    this.runSync(st.projectId);
+    this.broadcastPresence(st.projectId);
+  }
+
+  /** Đá một người khỏi phòng ngay (bị gỡ khỏi đồng tác giả / tự rời). */
+  kick(projectId: string, userId: string): void {
+    for (const conn of this.rooms.connsOf(projectId, userId)) conn.close(CLOSE.forbidden, 'removed');
   }
 
   private async onMessage(client: WebSocket, st: ConnState, raw: RawData, isBinary: boolean): Promise<void> {
@@ -125,20 +142,50 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
       } catch {
         return client.close(CLOSE.forbidden, 'forbidden');
       }
-      const sinceSeq = typeof msg.sinceSeq === 'number' && msg.sinceSeq >= 0 ? msg.sinceSeq : undefined;
-      const res = this.rooms.join(projectId, { conn: client, userId: st.userId, name: st.name ?? '' }, sinceSeq);
+      if (client.readyState !== client.OPEN) return undefined; // đóng trong lúc kiểm quyền
+      const res = this.rooms.join(projectId, { conn: client, userId: st.userId, name: st.name ?? '' });
       if (!res.ok) return client.close(CLOSE.roomFull, 'room full');
       st.projectId = projectId;
-      this.send(client, { type: 'joined', seq: res.seq, catchUp: res.catchUp, members: presence(res.members) });
-      return this.broadcastPresence(this.rooms.members(projectId));
+      this.send(client, {
+        type: 'joined',
+        seq: res.seq,
+        needsSync: res.needsSync,
+        members: presence(res.members),
+        lead: this.rooms.leader(projectId) === client,
+      });
+      this.runSync(projectId);
+      return this.broadcastPresence(projectId, client);
     }
 
-    if (msg.type === 'op' && st.projectId && msg.op !== undefined) {
-      const out = this.rooms.sequence(st.projectId, client, msg.op, bytes);
-      if (!out) return;
+    const projectId = st.projectId;
+    if (!projectId) return undefined;
+
+    if (msg.type === 'op' && msg.op !== undefined) {
+      const out = this.rooms.sequence(projectId, client, msg.op);
+      if (!out) return undefined;
       const frame = JSON.stringify({ type: 'op', ...out.entry });
       for (const peer of out.to) peer.send(frame);
+    } else if (msg.type === 'resync') {
+      if (this.rooms.requestResync(projectId, client)) {
+        this.runSync(projectId);
+        this.broadcastPresence(projectId);
+      }
+    } else if (msg.type === 'snapshot' && isSeq(msg.versionSeq) && isSeq(msg.atSeq)) {
+      const to = this.rooms.snapshot(projectId, client, msg.atSeq);
+      if (!to) return undefined;
+      const frame = JSON.stringify({ type: 'snapshot', versionSeq: msg.versionSeq, atSeq: msg.atSeq });
+      for (const peer of to) peer.send(frame);
+      this.runSync(projectId);
+      this.broadcastPresence(projectId);
     }
+    return undefined;
+  }
+
+  /** Thực hiện kế hoạch đồng bộ của phòng (nhờ nguồn / bảo mọi người nạp lại). */
+  private runSync(projectId: string): void {
+    const plan = this.rooms.planSync(projectId);
+    if (plan.source) this.send(plan.source, { type: 'sync-request' });
+    for (const conn of plan.reloadLatest) this.send(conn, { type: 'reload-latest' });
   }
 
   private allow(st: ConnState): boolean {
@@ -164,18 +211,38 @@ export class CollabGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  private broadcastPresence(members: { conn: WebSocket; userId: string; name: string }[]): void {
-    const frame = JSON.stringify({ type: 'presence', members: presence(members) });
-    for (const m of members) m.conn.send(frame);
+  /** Token chỉ kiểm lúc kết nối — định kỳ kiểm lại tài khoản còn hoạt động và còn quyền sửa dự án. */
+  private async recheck(): Promise<void> {
+    for (const client of this.sockets) {
+      const st = this.state.get(client);
+      if (!st?.userId || !st.projectId) continue;
+      try {
+        const user = await this.prisma.user.findUnique({ where: { id: st.userId }, select: { status: true } });
+        if (user?.status !== 'active') throw new Error('inactive');
+        await this.access.editable(st.projectId, st.userId);
+      } catch {
+        client.close(CLOSE.forbidden, 'forbidden');
+      }
+    }
+  }
+
+  /** Danh sách người trong phòng + cờ "người lưu chính" riêng cho từng máy. */
+  private broadcastPresence(projectId: string, skip?: WebSocket): void {
+    const members = this.rooms.members(projectId);
+    const leader = this.rooms.leader(projectId);
+    const list = presence(members);
+    for (const m of members) {
+      if (m.conn !== skip) this.send(m.conn, { type: 'presence', members: list, lead: m.conn === leader });
+    }
   }
 
   private send(client: WebSocket, msg: object): void {
-    client.send(JSON.stringify(msg));
+    if (client.readyState === client.OPEN) client.send(JSON.stringify(msg));
   }
 }
 
 /** Danh sách người trong phòng — trùng người (2 tab) gộp lại. */
-function presence(members: { userId: string; name: string }[]): { userId: string; name: string }[] {
+function presence(members: CollabMember<unknown>[]): { userId: string; name: string }[] {
   const seen = new Map<string, string>();
   for (const m of members) seen.set(m.userId, m.name);
   return [...seen].map(([userId, name]) => ({ userId, name }));

@@ -1,4 +1,7 @@
 import type {
+  AddScratchCollaboratorRequest,
+  ScratchCollaboratorCandidateDto,
+  ScratchCollaboratorDto,
   CreateScratchReportRequest,
   CreateScratchProjectRequest,
   RequestScratchPublicationRequest,
@@ -41,6 +44,10 @@ export async function getLatestProjectJson(id: string): Promise<string | null> {
   }
 }
 
+/** project.json của MỘT phiên bản (làm chung: nạp bản máy khác vừa lưu). */
+export const getProjectVersionJson = async (id: string, seq: number): Promise<string> =>
+  JSON.stringify(await apiFetch<unknown>(`${base}/${id}/versions/${seq}`));
+
 export const getProjectAsset = (id: string, md5ext: string): Promise<ArrayBuffer | null> =>
   apiFetchArrayBuffer(`${base}/${id}/assets/${md5ext}`);
 
@@ -68,6 +75,19 @@ export const remixProject = (id: string, title?: string): Promise<ScratchProject
 
 export const setProjectLike = (id: string, liked: boolean): Promise<ScratchLikeResponse> =>
   apiFetch(`${base}/${id}/like`, { method: liked ? 'PUT' : 'DELETE' });
+
+// --- Đồng tác giả (T11.6b) ---
+
+const collaborators = (id: string) => `${base}/${id}/collaborators`;
+export const searchCollaboratorCandidates = (id: string, q: string): Promise<ScratchCollaboratorCandidateDto[]> =>
+  apiFetch(`${collaborators(id)}/candidates?q=${encodeURIComponent(q)}`);
+export const addCollaborator = (id: string, userId: string): Promise<ScratchCollaboratorDto[]> =>
+  apiFetch(collaborators(id), {
+    method: 'POST',
+    body: JSON.stringify({ userId } satisfies AddScratchCollaboratorRequest),
+  });
+export const removeCollaborator = (id: string, userId: string): Promise<ScratchCollaboratorDto[]> =>
+  apiFetch(`${collaborators(id)}/${encodeURIComponent(userId)}`, { method: 'DELETE' });
 
 // --- Công khai, biệt danh, báo cáo, kiểm duyệt (T11.5b) ---
 

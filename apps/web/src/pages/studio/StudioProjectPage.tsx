@@ -6,6 +6,8 @@ import { getLatestProjectJson, getProjectAsset } from '../../features/studio/api
 import { useLikeProject, useProject, useRemixProject } from '../../features/studio/hooks';
 import { ShareControl } from '../../features/studio/ShareControl';
 import { PublishControl } from '../../features/studio/PublishControl';
+import { CoauthorsControl } from '../../features/studio/CoauthorsControl';
+import { useMe } from '../../features/auth/hooks';
 import { ReportControl } from '../../features/studio/ReportControl';
 import { ScratchPlayer } from '../../features/studio/ScratchPlayer';
 
@@ -22,6 +24,7 @@ function ProjectView({ id }: { id: string }): JSX.Element {
   const like = useLikeProject(id);
   const remix = useRemixProject();
   const project = useProject(id);
+  const { data: me } = useMe();
   const [playable, setPlayable] = useState(false);
   const onReady = useCallback(() => setPlayable(true), []);
   const source = useMemo(
@@ -119,6 +122,15 @@ function ProjectView({ id }: { id: string }): JSX.Element {
             {t('studio.share.title')}
           </h2>
           <ShareControl project={detail} />
+        </section>
+      )}
+      {detail.canEdit && me && (
+        <section className="card mx-auto flex w-full flex-col gap-3 p-5" style={{ maxWidth: 482, borderRadius: 18 }}>
+          <h2 className="cx-display m-0 flex items-center gap-2 text-lg">
+            <i className="ph ph-users-three" style={{ color: 'var(--cx-amber)' }} aria-hidden />
+            {t('studio.coauthors.title')}
+          </h2>
+          <CoauthorsControl project={detail} meId={me.id} />
         </section>
       )}
       {detail.isOwner && (

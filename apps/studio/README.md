@@ -50,10 +50,15 @@ nói chuyện với trang cha:
 |---|---|---|
 | editor → cha | `blockspace:ready` | — |
 | cha → editor | `blockspace:new` | `title?` — dự án mới (Rex) dựng sẵn trong bundle |
-| cha → editor | `blockspace:open` | `projectJson: string`, `assets: {md5ext, data}[]`, `title?` — dự án từ server; asset nạp sẵn vào bộ nhớ scratch-storage, asset thư viện vẫn lấy từ CDN |
+| cha → editor | `blockspace:open` | `projectJson: string`, `assets: {md5ext, data}[]`, `title?`, `keepTarget?` — dự án từ server; asset nạp sẵn vào bộ nhớ scratch-storage, asset thư viện vẫn lấy từ CDN. `keepTarget` (làm chung nạp lại): quay về nhân vật đang sửa |
 | cha → editor | `blockspace:load` | `sb3: ArrayBuffer`, `title?` — file .sb3 từ máy |
 | editor → cha | `blockspace:loaded` / `blockspace:error` | `message?` |
-| editor → cha | `blockspace:changed` | — (dự án vừa đổi, chưa lưu) |
+| editor → cha | `blockspace:changed` | `remote` — dự án vừa đổi, chưa lưu (`remote: true` = do op làm chung từ máy khác) |
+| cha → editor | `blockspace:collab-start` | — bật bắt sự kiện khối + theo dõi cấu trúc (làm chung) |
+| editor → cha | `blockspace:op` | `op: {target, e}` — sự kiện khối của nhân vật đang sửa (target = tên, `#stage` = sân khấu) |
+| cha → editor | `blockspace:collab-apply` | `op` — áp op của máy khác vào đúng nhân vật |
+| editor → cha | `blockspace:structure` | `renames: {cũ: mới}` — nhân vật / costume / âm thanh / ghi chú đã đổi: trang cha lưu + phát `reload` |
+| editor → cha | `blockspace:collab-error` | `message` — không áp được op (trạng thái lệch → trang cha xin đồng bộ lại) |
 | cha → editor | `blockspace:save` | `requestId` |
 | editor → cha | `blockspace:saved` | `requestId`, `sb3: ArrayBuffer`, `title` |
 | cha → editor | `blockspace:export` | `requestId` |

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SCRATCH_TITLE_MAX_LENGTH } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import { BLOCKSPACE_EDITOR_URL, useBlockSpace } from '../../features/studio/useBlockSpace';
-import { fetchProjectForEditor, pushProject } from '../../features/studio/projectSync';
+import { fetchProjectForEditor, fetchProjectFrom, pushProject } from '../../features/studio/projectSync';
+import { getLatestProjectJson, getProject, getProjectAsset, getProjectVersionJson } from '../../features/studio/api';
 import { useProject, useUpdateProject } from '../../features/studio/hooks';
-import { useCollab } from '../../features/studio/useCollab';
+import type { CollabClient } from '../../features/studio/collabClient';
+import { useCollab, type CollabView } from '../../features/studio/useCollab';
 import { PillButton } from '../teach/teachUi';
 
 /** Tự lưu sau ngần này kể từ thay đổi đầu tiên chưa lưu (ADR D3: mở lại mất tối đa ~30 giây công việc). */
@@ -25,8 +27,7 @@ export function StudioEditorPage(): JSX.Element {
   const project = useProject(id);
   const updateProject = useUpdateProject(id);
   const blockspace = useBlockSpace();
-  const { iframeRef, state, load, loadDefault, save, open, exportProject, markSaved, changeSeq } = blockspace;
-  const [params] = useSearchParams();
+  const { iframeRef, state, load, loadDefault, save, open, reopen, exportProject, markSaved, changeSeq } = blockspace;
 
   const [opening, setOpening] = useState(true);
   const [openError, setOpenError] = useState<string | null>(null);
@@ -34,17 +35,20 @@ export function StudioEditorPage(): JSX.Element {
   const [narrowDismissed, setNarrowDismissed] = useState(false);
   const known = useRef(new Set<string>());
   const started = useRef(false);
-  const saving = useRef<Promise<void> | null>(null);
+  const saving = useRef<Promise<number | null> | null>(null);
   const saveAfterLoad = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const detail = project.data;
-  // SPIKE T11.6a: làm chung chỉ bật khi có ?collab=1, và chỉ SAU khi dự án thật đã mở xong.
-  const collab = useCollab(id, params.get('collab') === '1' && state.ready && !opening, blockspace);
+  /** Phiên bản đã nạp lúc mở — làm chung dùng để biết bản trên server có mới hơn không khi nối lại. */
+  const [openedSeq, setOpenedSeq] = useState<number | null>(null);
+  const titleRef = useRef<string | undefined>(undefined);
+  titleRef.current = detail?.title;
 
   // Mở dự án một lần khi cả trình soạn lẫn thông tin dự án đã sẵn sàng.
   useEffect(() => {
     if (!state.ready || !detail?.canEdit || started.current) return;
     started.current = true;
+    setOpenedSeq(detail.latestSeq);
     fetchProjectForEditor(id)
       .then((loaded) => {
         known.current = loaded.known;
@@ -57,27 +61,72 @@ export function StudioEditorPage(): JSX.Element {
       });
   }, [state.ready, detail, id, loadDefault, open]);
 
-  const saveNow = useCallback((): Promise<void> => {
-    if (saving.current) return saving.current;
-    const run = (async () => {
-      setStatus({ kind: 'saving' });
-      try {
-        const seq = changeSeq.current;
-        const exported = await exportProject();
-        await pushProject(id, exported, known.current);
-        const title = exported.title.trim().slice(0, SCRATCH_TITLE_MAX_LENGTH);
-        if (title && detail && title !== detail.title) await updateProject.mutateAsync({ title });
-        markSaved(seq);
-        setStatus({ kind: 'saved', at: new Date() });
-      } catch (e) {
-        setStatus({ kind: 'error', message: e instanceof ApiError || e instanceof Error ? e.message : String(e) });
-      } finally {
-        saving.current = null;
-      }
-    })();
-    saving.current = run;
-    return run;
-  }, [changeSeq, detail, exportProject, id, markSaved, updateProject]);
+  const collabClient = useRef<CollabClient | null>(null);
+
+  /** Lưu thành phiên bản mới; trả seq phiên bản (null = lỗi, đã báo trên thanh trạng thái). */
+  const saveNow = useCallback(
+    (onExport?: () => void): Promise<number | null> => {
+      if (saving.current) return saving.current;
+      const run = (async () => {
+        setStatus({ kind: 'saving' });
+        try {
+          const seq = changeSeq.current;
+          onExport?.();
+          const exported = await exportProject();
+          const version = await pushProject(id, exported, known.current);
+          const title = exported.title.trim().slice(0, SCRATCH_TITLE_MAX_LENGTH);
+          if (title && detail && title !== detail.title) await updateProject.mutateAsync({ title });
+          markSaved(seq);
+          setStatus({ kind: 'saved', at: new Date() });
+          collabClient.current?.saved(version.seq);
+          return version.seq;
+        } catch (e) {
+          setStatus({ kind: 'error', message: e instanceof ApiError || e instanceof Error ? e.message : String(e) });
+          return null;
+        } finally {
+          saving.current = null;
+        }
+      })();
+      saving.current = run;
+      return run;
+    },
+    [changeSeq, detail, exportProject, id, markSaved, updateProject],
+  );
+
+  // Làm chung (T11.6b): bật khi dự án có đồng tác giả, SAU khi dự án thật đã mở xong.
+  const collabWanted = !!detail && detail.collaborators.length > 0 && state.ready && !opening && !openError;
+  const { view: collab, client } = useCollab(
+    id,
+    collabWanted,
+    blockspace,
+    {
+      reload: async (versionSeq) => {
+        const loaded = await fetchProjectFrom({
+          json: () => (versionSeq === null ? getLatestProjectJson(id) : getProjectVersionJson(id, versionSeq)),
+          asset: (md5ext) => getProjectAsset(id, md5ext),
+        });
+        if (loaded.projectJson === null) return;
+        for (const name of loaded.known) known.current.add(name);
+        await reopen(loaded.projectJson, loaded.assets, titleRef.current);
+      },
+      snapshot: async (onExport) => {
+        // Bản đang lưu dở được xuất TRƯỚC lời nhờ — chưa có các op mới nhất; đợi xong rồi lưu bản mới.
+        if (saving.current) await saving.current;
+        const seq = await saveNow(onExport);
+        if (seq === null) throw new Error('save failed');
+        return seq;
+      },
+      latestVersionSeq: async () => (await getProject(id)).latestSeq,
+      remoteSaved: () => markSaved(changeSeq.current),
+    },
+    openedSeq,
+  );
+  collabClient.current = client.current;
+  // Đang làm chung: chỉ người lưu chính tự lưu; khi chưa đồng bộ xong / mất mạng thì không ai lưu (bản đó có
+  // thể cũ hơn của nhóm và ghi đè lên).
+  const collabLive = collab?.phase === 'live';
+  const canSave = !collab || collabLive;
+  const autosaves = !collab || (collabLive && collab.lead);
 
   useEffect(() => {
     if (state.loadCount === 0) return;
@@ -91,7 +140,7 @@ export function StudioEditorPage(): JSX.Element {
 
   // Tự lưu: có thay đổi chưa lưu ⇒ lưu sau AUTOSAVE_MS; ẩn tab (chuyển ứng dụng, khóa máy) ⇒ lưu ngay.
   useEffect(() => {
-    if (!state.dirty) return undefined;
+    if (!state.dirty || !autosaves) return undefined;
     const timer = window.setTimeout(() => void saveNow(), AUTOSAVE_MS);
     const onHide = () => {
       if (document.visibilityState === 'hidden') void saveNow();
@@ -104,10 +153,10 @@ export function StudioEditorPage(): JSX.Element {
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('beforeunload', onBeforeUnload);
     };
-  }, [state.dirty, saveNow]);
+  }, [state.dirty, saveNow, autosaves]);
 
   const leave = async (to: string) => {
-    if (state.dirty) await saveNow();
+    if (state.dirty && autosaves) await saveNow();
     navigate(to);
   };
 
@@ -135,13 +184,15 @@ export function StudioEditorPage(): JSX.Element {
         ? t('studio.saving')
         : status.kind === 'error'
           ? t('studio.saveFailed', { message: status.message })
-          : state.dirty
-            ? t('studio.unsaved')
-            : status.kind === 'saved'
-              ? t('studio.savedAt', {
-                  time: status.at.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }),
-                })
-              : t('studio.saved');
+          : collabLive && !autosaves
+            ? t('studio.collab.leaderSaves')
+            : state.dirty
+              ? t('studio.unsaved')
+              : status.kind === 'saved'
+                ? t('studio.savedAt', {
+                    time: status.at.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }),
+                  })
+                : t('studio.saved');
   const narrow = !narrowDismissed && window.innerWidth < MIN_EDITOR_WIDTH;
 
   return (
@@ -158,14 +209,9 @@ export function StudioEditorPage(): JSX.Element {
         <h1 className="cx-display m-0 min-w-0 truncate" style={{ fontSize: 17 }}>
           {detail?.title ?? 'BlockSpace'}
         </h1>
-        {collab.status !== 'off' && (
+        {collab && collabLive && (
           <span className="tag tag-outline hidden md:inline-flex" title={collab.members.map((m) => m.name).join(', ')}>
-            <i className="ph ph-users-three" aria-hidden />{' '}
-            {collab.status === 'live'
-              ? t('studio.collab.live', { count: collab.members.length })
-              : collab.status === 'closed'
-                ? t('studio.collab.closed', { code: collab.closeCode ?? '' })
-                : t('studio.collab.connecting')}
+            <i className="ph ph-users-three" aria-hidden /> {t('studio.collab.live', { count: collab.members.length })}
           </span>
         )}
         <span
@@ -182,7 +228,8 @@ export function StudioEditorPage(): JSX.Element {
           <PillButton
             variant="secondary"
             icon="ph-folder-open"
-            disabled={!state.ready || opening}
+            // Mở file .sb3 thay cả dự án — khi làm chung sẽ đè lên việc của cả nhóm.
+            disabled={!state.ready || opening || !!collab}
             onClick={() => fileRef.current?.click()}
           >
             <span className="hidden lg:inline">{t('studio.openFile')}</span>
@@ -197,7 +244,7 @@ export function StudioEditorPage(): JSX.Element {
           </PillButton>
           <PillButton
             icon="ph-floppy-disk"
-            disabled={!state.ready || opening || status.kind === 'saving'}
+            disabled={!state.ready || opening || status.kind === 'saving' || !canSave}
             onClick={() => void saveNow()}
           >
             {t('studio.save')}
@@ -243,6 +290,7 @@ export function StudioEditorPage(): JSX.Element {
             <p className="text-muted m-0 animate-pulse">{state.ready ? t('studio.opening') : t('studio.loading')}</p>
           </div>
         )}
+        {collab && !collabLive && <CollabCover view={collab} projectId={id} />}
         {narrow && (
           <div
             className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center"
@@ -262,6 +310,46 @@ export function StudioEditorPage(): JSX.Element {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Che trình soạn khi làm chung chưa sẵn sàng: đang nối / đang nạp trạng thái nhóm / mất mạng (ADR D5′: chỉ đọc
+ * + tự nối lại, không sửa offline rồi gộp) / bị gỡ. Nửa trong suốt để vẫn thấy dự án phía sau.
+ */
+function CollabCover({ view, projectId }: { view: CollabView; projectId: string }): JSX.Element {
+  const { t } = useTranslation();
+  const ended = view.phase === 'ended';
+  const text = ended
+    ? view.endCode === 4009
+      ? t('studio.collab.roomFull')
+      : view.endCode === 4003
+        ? t('studio.collab.removed')
+        : t('studio.collab.ended')
+    : view.phase === 'offline'
+      ? t('studio.collab.offline')
+      : view.phase === 'syncing'
+        ? t('studio.collab.syncing')
+        : t('studio.collab.connecting');
+  return (
+    <div
+      className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"
+      style={{ background: 'color-mix(in srgb, var(--color-bg) 82%, transparent)' }}
+      aria-busy={!ended}
+      role="status"
+    >
+      <img
+        src={ended ? '/brand/mascot-huh.png' : '/brand/mascot-laptop.png'}
+        alt=""
+        className={`h-24 w-auto ${ended ? '' : 'cx-float'}`}
+      />
+      <p className={`cx-display m-0 max-w-sm text-lg ${ended ? '' : 'animate-pulse'}`}>{text}</p>
+      {ended && (
+        <Link to={`/studio/${projectId}`} className="btn btn-secondary cx-press" style={{ borderRadius: 999 }}>
+          <i className="ph ph-play" aria-hidden /> {t('studio.viewProject')}
+        </Link>
+      )}
     </div>
   );
 }

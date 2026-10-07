@@ -771,7 +771,30 @@
     "collab": {
       "live": "{{count}} người đang sửa",
       "connecting": "Đang kết nối làm chung…",
-      "closed": "Mất kết nối làm chung ({{code}})"
+      "syncing": "Đang lấy bản mới nhất của nhóm…",
+      "offline": "Mất kết nối — đang nối lại. Tạm thời chưa sửa được.",
+      "removed": "Bạn không còn là đồng tác giả của dự án này.",
+      "roomFull": "Dự án đang có đủ 6 người mở — thử lại sau nhé.",
+      "ended": "Không nối lại được phần làm chung. Tải lại trang để thử lại.",
+      "leaderSaves": "Đang làm chung — máy bạn cùng nhóm tự lưu"
+    },
+    "coauthors": {
+      "title": "Đồng tác giả",
+      "hint": "Cùng mở trình soạn là làm chung được — thấy thay đổi của nhau ngay.",
+      "empty": "Chưa có ai. Mời bạn bè cùng làm nhé!",
+      "searchLabel": "Tìm người để mời",
+      "searchPlaceholder": "Họ tên hoặc email (ít nhất 2 ký tự)",
+      "noResults": "Không tìm thấy ai.",
+      "invite": "Mời",
+      "invited": "Đã mời {{name}}",
+      "remove": "Gỡ",
+      "leave": "Rời dự án",
+      "full": "Đã đủ {{max}} đồng tác giả.",
+      "confirmRemoveTitle": "Gỡ {{name}}?",
+      "confirmRemoveBody": "{{name}} sẽ không sửa được dự án này nữa. Những gì đã làm vẫn giữ nguyên.",
+      "confirmLeaveTitle": "Rời dự án này?",
+      "confirmLeaveBody": "Bạn sẽ không mở được trình soạn của dự án nữa, trừ khi chủ dự án mời lại.",
+      "owner": "Chủ dự án"
     }
   }
 }

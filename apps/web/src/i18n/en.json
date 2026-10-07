@@ -771,7 +771,30 @@
     "collab": {
       "live": "{{count}} editing",
       "connecting": "Connecting…",
-      "closed": "Collaboration disconnected ({{code}})"
+      "syncing": "Getting the team's latest version…",
+      "offline": "Connection lost — reconnecting. Editing is paused.",
+      "removed": "You are no longer a co-author of this project.",
+      "roomFull": "6 people already have this project open — try again later.",
+      "ended": "Could not reconnect. Reload the page to try again.",
+      "leaderSaves": "Collaborating — a teammate's device saves automatically"
+    },
+    "coauthors": {
+      "title": "Co-authors",
+      "hint": "Open the editor at the same time to work together and see each other's changes live.",
+      "empty": "No one yet. Invite a friend to build with you!",
+      "searchLabel": "Find someone to invite",
+      "searchPlaceholder": "Name or email (at least 2 characters)",
+      "noResults": "No one found.",
+      "invite": "Invite",
+      "invited": "Invited {{name}}",
+      "remove": "Remove",
+      "leave": "Leave project",
+      "full": "Already {{max}} co-authors.",
+      "confirmRemoveTitle": "Remove {{name}}?",
+      "confirmRemoveBody": "{{name}} will no longer be able to edit this project. Their work so far stays.",
+      "confirmLeaveTitle": "Leave this project?",
+      "confirmLeaveBody": "You won't be able to open its editor anymore unless the owner invites you again.",
+      "owner": "Owner"
     }
   }
 }

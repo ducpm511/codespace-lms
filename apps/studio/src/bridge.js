@@ -76,7 +76,7 @@
    * scratch-storage rồi mới loadProject, nên trình soạn KHÔNG phải gọi API. Asset không có trong danh
    * sách (asset thư viện Scratch) vẫn tải từ CDN như bình thường.
    */
-  function open(projectJson, assets, title) {
+  function open(projectJson, assets, title, keepTarget) {
     var storage = vm.runtime.storage;
     (assets || []).forEach(function (a) {
       var parts = String(a.md5ext).split('.');
@@ -84,10 +84,17 @@
       if (!type || !(a.data instanceof ArrayBuffer)) return;
       storage.builtinHelper._store(storage.AssetType[type], parts[1], new Uint8Array(a.data), parts[0]);
     });
+    // Làm chung nạp lại giữa chừng: quay về đúng nhân vật đang sửa (loadProject chọn nhân vật đầu tiên).
+    var editing = keepTarget && vm.editingTarget ? targetKey(vm.editingTarget) : null;
     suppressChange = true;
     return vm
       .loadProject(projectJson)
       .then(function () {
+        if (editing) {
+          var t = findTarget(editing);
+          if (t && t !== vm.editingTarget) vm.setEditingTarget(t.id);
+        }
+        structureBaseline();
         setTitle(title);
         post({ type: 'blockspace:loaded' });
       })
@@ -123,12 +130,14 @@
     );
   }
 
-  // --- Làm chung (T11.6a — SPIKE, ADR 003 D5′) ---------------------------------------------------------
+  // --- Làm chung (ADR 003 D5′; T11.6a spike → T11.6b) ----------------------------------------------------
   // Bắt sự kiện khối của target ĐANG SỬA bằng cách bọc Blocks.prototype.blocklyListen (GUI gắn
   // vm.blockListener vào workspace TRƯỚC khi onVmInit chạy nên không bọc được hàm đó), tuần tự hóa thành
   // JSON (xml → chuỗi, toạ độ → {x,y}) gửi cho trang cha; trang cha chuyển qua WebSocket. Op nhận về được
   // dựng lại (DOMParser) và áp thẳng vào VM của đúng target, rồi làm mới vùng code nếu là target đang sửa.
   // Target nhận diện bằng TÊN (id target mỗi máy sinh khác nhau khi nạp; tên nhân vật là duy nhất).
+  // Thay đổi KHÔNG phải sự kiện khối (nhân vật, costume, âm thanh, ghi chú) không gửi từng cái: bridge chỉ
+  // báo "cấu trúc đã đổi" (`blockspace:structure`), trang cha lưu phiên bản và các máy khác nạp lại.
   var COLLAB_TYPES = {
     create: 1,
     delete: 1,
@@ -154,13 +163,116 @@
     'isLocal',
     'isCloud',
     'newName',
+    'ids',
   ];
   var collabOn = false;
   var applyingRemote = false;
   var refreshTimer = null;
+  var refreshDeferred = false;
+  var pointerDown = false;
 
   function targetKey(target) {
     return target.isStage ? '#stage' : target.getName();
+  }
+
+  function findTarget(key) {
+    return key === '#stage' ? vm.runtime.getTargetForStage() : vm.runtime.getSpriteTargetByName(key);
+  }
+
+  // Vẽ lại vùng code (emitWorkspaceUpdate) giữa lúc người dùng đang kéo khối sẽ làm rơi khối đang kéo —
+  // hoãn tới khi nhả chuột. VM đã có thay đổi ngay; chỉ phần hiển thị chờ.
+  function refreshWorkspace() {
+    if (pointerDown) {
+      refreshDeferred = true;
+      return;
+    }
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(function () {
+      if (pointerDown) {
+        refreshDeferred = true;
+        return;
+      }
+      vm.emitWorkspaceUpdate();
+    }, 60);
+  }
+  document.addEventListener(
+    'pointerdown',
+    function () {
+      pointerDown = true;
+    },
+    true,
+  );
+  ['pointerup', 'pointercancel'].forEach(function (type) {
+    document.addEventListener(
+      type,
+      function () {
+        pointerDown = false;
+        if (refreshDeferred) {
+          refreshDeferred = false;
+          // Đợi Blockly xử lý xong cú thả (sự kiện move của chính người dùng) rồi mới vẽ lại.
+          setTimeout(refreshWorkspace, 0);
+        }
+      },
+      true,
+    );
+  });
+
+  // Dấu vân tay "cấu trúc": nhân vật, costume, âm thanh, ghi chú. KHÔNG gồm vị trí/hướng/costume đang hiện
+  // (đổi liên tục khi chạy dự án) và thứ tự lớp (khối "lên lớp trên cùng" đổi nó lúc chạy).
+  var structureKey = null;
+  var structureNames = {};
+  var structureTimer = null;
+
+  function structureOf() {
+    var names = {};
+    var parts = vm.runtime.targets
+      .filter(function (t) {
+        return t.isOriginal;
+      })
+      .map(function (t) {
+        var key = targetKey(t);
+        names[t.id] = key;
+        var asset = function (a) {
+          return a.assetId + '.' + a.dataFormat + ':' + a.name;
+        };
+        var comments = Object.keys(t.comments || {}).map(function (id) {
+          var c = t.comments[id];
+          return id + ':' + (c.blockId || '') + ':' + c.text;
+        });
+        return [key, t.getCostumes().map(asset), t.getSounds().map(asset), comments.sort()];
+      })
+      .sort(function (a, b) {
+        return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
+      });
+    return { key: JSON.stringify(parts), names: names };
+  }
+
+  function structureBaseline() {
+    clearTimeout(structureTimer);
+    structureTimer = null;
+    var s = structureOf();
+    structureKey = s.key;
+    structureNames = s.names;
+  }
+
+  function checkStructure() {
+    structureTimer = null;
+    if (!collabOn || suppressChange) return;
+    var s = structureOf();
+    if (s.key === structureKey) return;
+    var renames = {};
+    Object.keys(s.names).forEach(function (id) {
+      var before = structureNames[id];
+      if (before && before !== s.names[id]) renames[before] = s.names[id];
+    });
+    structureKey = s.key;
+    structureNames = s.names;
+    post({ type: 'blockspace:structure', renames: renames });
+  }
+
+  function scheduleStructureCheck() {
+    // targetsUpdate bắn mỗi khung hình khi dự án đang chạy — gộp, tối đa ~2 lần/giây.
+    if (collabOn && !structureTimer) structureTimer = setTimeout(checkStructure, 400);
   }
 
   function serializeEvent(e) {
@@ -191,29 +303,31 @@
       }
       return original.call(this, e);
     };
+    vm.on('targetsUpdate', scheduleStructureCheck);
+    structureBaseline();
   }
 
   function applyRemote(op) {
     if (!op || !op.e || typeof op.target !== 'string') return;
-    var target = op.target === '#stage' ? vm.runtime.getTargetForStage() : vm.runtime.getSpriteTargetByName(op.target);
-    if (!target) return;
+    var target = findTarget(op.target);
+    // Nhân vật không có ở máy này = trạng thái đã lệch (vd bị xóa mà chưa nạp lại) → trang cha xin đồng bộ.
+    if (!target) return post({ type: 'blockspace:collab-error', message: 'target ' + op.target });
     var e = Object.assign({}, op.e);
-    // Biến cục bộ: scratch-vm gắn vào target ĐANG SỬA của máy này — target khác thì bỏ (T11.6b xử lý).
+    // Biến cục bộ: scratch-vm gắn vào target ĐANG SỬA của máy này — nhân vật khác thì bỏ (hiếm: tạo biến
+    // "chỉ cho nhân vật này" khi đang sửa nhân vật đó; máy kia thấy biến sau lần nạp lại kế tiếp).
     if (/^var_/.test(e.type) && e.isLocal && target !== vm.editingTarget) return;
     if (typeof e.xml === 'string') e.xml = new DOMParser().parseFromString(e.xml, 'text/xml').documentElement;
     applyingRemote = true;
     try {
       target.blocks.blocklyListen(e);
+    } catch (err) {
+      post({ type: 'blockspace:collab-error', message: String((err && err.message) || err) });
+      return;
     } finally {
       applyingRemote = false;
     }
-    if (target === vm.editingTarget) {
-      // Gộp nhiều op liên tiếp vào MỘT lần vẽ lại vùng code.
-      clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(function () {
-        vm.emitWorkspaceUpdate();
-      }, 60);
-    }
+    // Gộp nhiều op liên tiếp vào MỘT lần vẽ lại vùng code.
+    if (target === vm.editingTarget) refreshWorkspace();
   }
 
   /** Dự án mới = dự án mặc định có Rex dựng sẵn trong bundle (như menu Tập tin › Mới). */
@@ -243,7 +357,7 @@
     if (data.type === 'blockspace:load' && data.sb3 instanceof ArrayBuffer) load(data.sb3, data.title);
     else if (data.type === 'blockspace:new') createNew(data.title);
     else if (data.type === 'blockspace:open' && typeof data.projectJson === 'string') {
-      open(data.projectJson, data.assets, data.title);
+      open(data.projectJson, data.assets, data.title, data.keepTarget === true);
     } else if (data.type === 'blockspace:export') {
       try {
         exportProject(data.requestId);
@@ -304,8 +418,8 @@
     onVmInit: function (instance) {
       vm = instance;
       vm.on('PROJECT_CHANGED', function () {
-        // Thay đổi do op từ xa: máy của người làm ra thay đổi tự lưu, máy này không cần lưu trùng.
-        if (!suppressChange && !applyingRemote) post({ type: 'blockspace:changed' });
+        // Kể cả thay đổi do op từ xa: khi làm chung chỉ người lưu chính tự lưu, máy đó phải biết có thay đổi.
+        if (!suppressChange) post({ type: 'blockspace:changed', remote: applyingRemote });
       });
     },
     // Gọi mỗi khi trình soạn chuyển từ "đang nạp" sang "đang hiện dự án": lần mở đầu và sau mỗi
