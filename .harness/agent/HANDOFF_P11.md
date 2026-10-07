@@ -2,6 +2,38 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.4 FE dự án ✅ (2026-10-07)
+
+- **Trang:** `/studio` "Dự án của tôi" (trong AppLayout; mục **BlockSpace** trên menu cho MỌI user — không
+  phải khu vực theo vai trò), `/studio/:id/edit` trình soạn toàn màn hình (ngoài AppLayout), `/studio/:id`
+  trang xem có player. Trang spike `StudioPage` đã bỏ.
+- **Nạp/lưu không cần zip, trình soạn vẫn không có token:** bridge thêm `blockspace:open` (project.json +
+  asset LMS tải bằng token, nạp sẵn vào `storage.builtinHelper` rồi `vm.loadProject`) và
+  `blockspace:export` (`vm.toJSON()` + `vm.assets`). `features/studio/projectSync.ts`: khi mở tải
+  `versions/latest` + asset riêng (404 = asset thư viện, để CDN lo); khi lưu tải asset MỚI lên trước rồi
+  mới lưu phiên bản (upload lỗi ⇒ không lưu phiên bản trỏ asset thiếu).
+- **Tự lưu** 20 giây sau thay đổi + khi ẩn tab + trước khi rời trang bằng nút trong app; cờ "chưa lưu"
+  dùng bộ đếm thay đổi nên sửa tiếp TRONG lúc đang lưu vẫn còn "chưa lưu". Đổi tên dự án trong trình
+  soạn ⇒ PATCH tên khi lưu. Mở .sb3 từ máy ⇒ lưu ngay thành phiên bản mới.
+- **Lớp che "Đang mở dự án…"** tới khi dự án thật nạp xong — trước đó trình soạn đang hiện dự án mặc định,
+  sửa vào sẽ mất (phát hiện khi xem bằng mắt). Màn hình < 1024 px: báo dùng máy tính/máy tính bảng ngang,
+  có "Xem dự án" và "Vẫn mở trình soạn".
+- **Player** cỡ cố định 482×406 (đo trong iframe: sân khấu 482×362 + thanh cờ 44) — khung to hơn chỉ thêm
+  dải xám thừa.
+
+**Đã xem bằng mắt (dev):** HV tạo dự án → kéo khối + thêm "Rex laptop" → "Có thay đổi chưa lưu" → Lưu (5
+asset tải lên rồi mới lưu phiên bản) → tải lại trang: còn đủ 2 nhân vật + khối lệnh. Mở lại 6,2 s (gần hết
+là trình soạn khởi động trên Vite dev; API ~50 ms). Trang xem: cờ xanh chạy. GV (dự án HV chia sẻ lớp):
+vào link sửa ⇒ chuyển sang trang xem, không có "Mở trình soạn", player chạy với asset riêng của HV.
+Cảnh báo màn hình hẹp ở 800 px. 5 test vitest cho `projectSync`; web 20/20 test, i18n 641/641.
+
+**Còn lại:**
+- Chưa có giao diện chia sẻ / gallery lớp (T11.5) — GV chỉ vào được dự án HV qua link.
+- Lưu kèm cả asset mặc định (nền trắng, tiếng "pop", Rex) của mỗi dự án mới — dùng chung theo md5 nên chỉ
+  lưu một lần trên toàn hệ thống, nhưng tính hạn mức cho người tải đầu tiên.
+- Hai tab cùng sửa một dự án: phiên bản sau ghi đè (chưa có khóa) — làm chung thật sự ở T11.6.
+- Dự án chưa lưu lần nào: GET `versions/latest` trả 404 (console trình duyệt có dòng đỏ, vô hại).
+
 ## T11.3 Backend dự án ✅ (2026-10-07)
 
 Module `apps/api/src/scratch/`. Endpoint: `docs/DESIGN.md §8` (khối BlockSpace).
