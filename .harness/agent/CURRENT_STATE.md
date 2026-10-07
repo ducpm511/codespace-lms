@@ -2,12 +2,20 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-08-26
+Updated: 2026-10-07
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+
+### P11 · BlockSpace đang làm (2026-10-07) — nhánh `claude/blockspace-scratch-studio-p11-d86c69`
+
+- `main` = `e203005` (PR #5: ConfirmDialog thay `window.confirm`) — **CHƯA phát hành lên production**
+  (người dùng xác nhận 07/10). Production vẫn ở bản trước đó.
+- Nhánh P11 = `main` + 5 commit kế hoạch/spike T11.1 (đặt lại lên `e203005`, nội dung trùng `9365d0e`)
+  + T11.0. Chi tiết, số đo, việc còn lại: `HANDOFF_P11.md`.
+- **CI/Docker web lỗi cho tới khi ghim sha512 tarball trình soạn** (`HANDOFF_P11.md §T11.0`).
 
 ### P10 · ĐÃ PHÁT HÀNH LÊN PRODUCTION (2026-08-26, ~16:27 giờ VN)
 

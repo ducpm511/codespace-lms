@@ -103,7 +103,7 @@ Thiết kế: **`docs/adr/003-scratch-studio.md`** (chốt: scratch-gui AGPL, c�
 
 | Task | Nội dung | Surface | Rủi ro |
 |---|---|---|---|
-| T11.0 | Fork công khai `scratch-editor`, đổi tên **BlockSpace**, nhân vật **Rex** (mascot CodeSpace) thay Mèo (ADR D2); link "Mã nguồn" (AGPL §13) | ops | giấy phép |
+| T11.0 | ✅ **Code xong 07/10** — build từ mã nguồn `scratch-editor` v15.2.0 + 4 bản vá (`apps/studio/editor/patches`), Rex mặc định + 6 dáng trong thư viện, gỡ nhân vật thương hiệu Scratch, menu "Mã nguồn" (AGPL §13). **Chờ:** workflow phát hành tarball → ghim sha512 (`HANDOFF_P11.md §T11.0`) | ops | giấy phép |
 | T11.1 | ✅ **Spike xong 07/10** — BlockSpace chạy trong LMS (`/studio`, `apps/studio`), nạp/lưu qua postMessage; 102 MB tĩnh, ~5,7 MB gzip lần mở đầu, 0 RAM VPS. Kết quả + bẫy: `HANDOFF_P11.md` | web + ops | — |
 | T11.2 | Contracts + schema: `ScratchProject` (owner, visibility, remixOf), `ScratchProjectVersion` (project.json, frozen), `ScratchAsset` (md5ext, size, mime, owner), `ScratchCollaborator`, `ScratchProjectLike` | contracts + schema | migration |
 | T11.3 | Backend dự án: CRUD, autosave phiên bản, asset upload theo md5 (magic bytes, giới hạn cỡ, hạn mức), phục vụ asset private có kiểm quyền | api | **IDOR, upload PII** |

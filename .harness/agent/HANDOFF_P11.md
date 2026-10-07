@@ -2,6 +2,39 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.0 Build từ mã nguồn ✅ code (2026-10-07) — chờ phát hành tarball
+
+**Làm gì:** `apps/studio/scripts/build-editor.mjs` clone `scratch-editor` **v15.2.0** (kiểm commit
+`5fe8235`), áp 4 bản vá `apps/studio/editor/patches/`, sinh `rex-assets.js`, lọc thư viện, `npm ci
+--ignore-scripts`, webpack 7 package → `.cache/blockspace-editor-15.2.0-bs1.tgz`. `build.mjs` (chạy
+trong turbo/Docker) chỉ **lấy tarball** (cục bộ nếu có, không thì tải GitHub Releases + kiểm sha512).
+Không cần fork riêng: repo LMS công khai, link "Mã nguồn" trỏ `apps/studio` (AGPL §13).
+
+**Bản vá (sửa gốc thay vì vá ngoài như spike):** 0001 dự án mặc định Rex (Mèo + tiếng meo ra khỏi
+bundle — đã grep: 0 lần), 0002 menu dùng prop `logo` (bỏ MutationObserver — bẫy 4), 0003
+`ThrottledPropertyHOC` render bù (bỏ trễ 600 ms + watermark trống lần mở đầu — bẫy 6), 0004
+publicPath `/studio/editor/` cho cả scratch-storage (thay regex vá 2 runtime — bẫy 1) + bundle có hash
+`static/js/…` → Caddy cache vĩnh viễn, khỏi sửa Caddyfile. Bẫy 5 (tên dự án) không phải lỗi: là prop có
+kiểm soát, bridge dùng đúng cách. Thư viện: −10 nhân vật thương hiệu Scratch (Mèo, Gobo, Pico, Nano,
+Tera, Giga…) và 31 costume của chúng; +6 dáng Rex (nhân vật + costume), nạp sẵn trong bundle nên không
+gọi máy chủ Scratch. `default-project.sb3` bỏ — LMS gửi `blockspace:new`, trình soạn dựng dự án Rex có sẵn.
+
+**Số đo:** build từ đầu 12,8 phút trên máy dev (npm ci 3,5 phút, 2 944 package); 1 695 file, 101,6 MB
+(≈ bản npm). Node 20 build được (upstream dùng 24; workflow dùng 24).
+
+**Đã kiểm bằng mắt:** Rex mặc định, watermark hiện Rex ngay lần mở đầu, logo + alt BlockSpace, menu ⓘ
+"Mã nguồn BlockSpace" / "Giấy phép (AGPL-3.0)", thư viện 6 Rex đầu danh sách, thêm "Rex laptop" →
+0 request tới `scratch.mit.edu`, watermark đổi ngay. Trong `/studio`: new → tên "Dự án của Rex", lưu →
+`.sb3` 54 KB chỉ có Rex + nền + pop, new/nạp lại đều đặt đúng tên.
+
+**Còn lại:**
+- **Phát hành tarball:** push nhánh → workflow "BlockSpace editor" tự build + tạo release
+  `blockspace-editor-15.2.0-bs1` → ghim sha512 vào `RELEASE.integrity` (`editor-config.mjs`). **Trước
+  khi ghim, CI `pnpm validate` và ảnh Docker web sẽ lỗi** (build.mjs không có tarball).
+- Bản dịch vi của upstream: nút Debug hiện "Sửa lỗi .DANV" — sửa bằng bản vá chuỗi dịch hoặc ẩn nút.
+- Thư viện "Hướng dẫn" (tutorials) vẫn là video/ảnh của Scratch (có Mèo) — cân nhắc ẩn ở T11.4.
+- H6 rà pháp lý AGPL vẫn chặn phát hành.
+
 ## T11.1 Spike ✅ (2026-10-07)
 
 **Chứng minh được:** trình soạn Scratch 3 (`@scratch/scratch-gui@15.2.0`, AGPL) chạy trong LMS
