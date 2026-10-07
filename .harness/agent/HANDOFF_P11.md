@@ -2,6 +2,43 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.5b Công khai ✅ (2026-10-07)
+
+Quyết định người dùng chốt: `docs/adr/003-scratch-studio.md §Quyết định công khai`. Schema + API: `docs/DESIGN.md §4.7b, §8`.
+
+- **Mô hình:** công khai là LỚP PHỦ `ScratchPublication` (1 dòng / dự án), KHÔNG đổi `visibility`. Xin công khai =
+  đóng băng bản mới nhất (`frozenAt`, autosave không dọn) → `requestedVersionId`; duyệt = chuyển sang
+  `publishedVersionId` + chụp `publishedTitle`. Sửa tiếp không đổi bản công khai; xin cập nhật mà bị từ chối thì
+  bản cũ vẫn hiện. Slug ngẫu nhiên 12 ký tự (72 bit), tạo lần xin đầu, giữ nguyên khi gỡ/đăng lại.
+- **Ai duyệt** (`ScratchModeratorsService`): `scratch.moderate` (admin/super_admin — cấp trong migration) hoặc GV
+  của lớp mà chủ dự án là thành viên `student` đang học (tạo lớp hoặc instructor/ta). Không ai tự duyệt bài mình.
+  GV xem bản chờ duyệt qua endpoint riêng (có thể không xem được dự án private trong LMS).
+- **Trang `/p/<slug>`** (web: ngoài `RequireAuth`): API GET không guard; chỉ biệt danh đã duyệt — không họ tên,
+  lớp, trường, id. Asset chỉ phục vụ nếu **phiên bản đã duyệt** dùng nó (asset thêm sau không lọt ra). Remix
+  từ trang công khai chép ĐÚNG bản đã duyệt. Đăng nhập có `?next=` (chỉ nhận đường dẫn nội bộ, chống open
+  redirect) để quay lại trang.
+- **Báo cáo:** 1 dòng / người / dự án (báo lại = cập nhật, mở lại nếu đã xử lý); chủ không tự báo cáo. GV
+  "Không vi phạm" hoặc "Gỡ" (thôi công khai + thu chia sẻ về private + đóng mọi báo cáo mở của dự án).
+- **Audit** cùng transaction: `scratch.public.{request,approve,reject,remove,withdraw}`, `scratch.nickname.*`,
+  `scratch.report.{dismiss,remove}` — lời nhắn GV chỉ ghi `hasNote` (có thể nhắc tên học viên).
+- **Web:** khung "Công khai trên internet" (chủ dự án: biệt danh, xin / xin cập nhật / hủy / gỡ, chép link, lời nhắn
+  khi bị từ chối), nút "Báo cáo" (trang dự án + trang công khai), `/studio/moderation` (nút "Kiểm duyệt (N)" trên
+  BlockSpace khi có việc): xem trước bản xin duyệt, duyệt / từ chối kèm lời nhắn, biệt danh, báo cáo.
+
+**Đã kiểm:** 16 unit test mới (62 scratch, toàn API 396/396). API thật (`scratchpad/live-t115b.mjs`, 40 ca):
+xin/duyệt/từ chối/gỡ đúng quyền (HV ngoài lớp 403, GV chỉ xem được 403, admin thấy hàng chờ), ẩn danh xem được
+và KHÔNG lộ họ tên/id, ảnh thêm sau khi duyệt 404 qua link, remix công khai đúng bản đã duyệt, báo cáo không nhân
+bản. 2 ca lệch ở lần chạy đầu do dự án đang private (xem dưới) — chạy lại đúng. Bằng mắt: HV xin → GV thấy
+"Kiểm duyệt (1)", xem trước, duyệt → người lạ mở `/p/…` chỉ thấy "của Rex Nhỏ" → đăng nhập quay lại đúng trang →
+báo cáo gửi được (để lại 1 báo cáo trong hàng chờ GV trên DB dev).
+
+**Lưu ý khi thử:** audit ghi 9 lần đổi phạm vi chia sẻ liên tiếp lúc 15:50:18–15:50:36 (07/10, p7member, trong
+khung trình duyệt) mà agent không bấm — có thể người dùng thao tác cùng lúc; agent bấm lại chỉ ra 1 PATCH.
+
+**Còn lại:** chưa lọc từ ngữ biệt danh (GV duyệt tay); chưa thông báo (notification) cho HV khi được duyệt / từ
+chối và cho GV khi có yêu cầu mới; chưa giới hạn tần suất riêng cho báo cáo (dùng rate limit chung). Trang
+công khai có `noindex` (thẻ meta + header `X-Robots-Tag` ở API) để công cụ tìm kiếm không lập chỉ mục dự án trẻ em.
+
 ## T11.5 Chia sẻ, gallery, remix, thích ✅ (2026-10-07)
 
 - **API** (`scratch-sharing.service.ts`): `GET /scratch/classes` — lớp mình thuộc **hoặc tạo** (`/classes/mine`

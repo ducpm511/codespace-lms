@@ -16,6 +16,8 @@ chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary)
 - Nhánh P11 = `main` + 5 commit kế hoạch/spike T11.1 (đặt lại lên `e203005`, nội dung trùng `9365d0e`)
   + T11.0. Chi tiết, số đo, việc còn lại: `HANDOFF_P11.md`.
 - **Schema đổi (T11.2):** migration `p11_scratch_projects` — 6 bảng `scratch_*` mới, không đụng bảng cũ.
+- **Schema đổi (T11.5b):** migration `p11_public_sharing` — 3 bảng (`scratch_publications`, `scratch_nicknames`,
+  `scratch_reports`) + quyền `scratch.moderate` cho admin/super_admin (cấp trong migration, không chỉ seed).
 - **DB dev đã bị xóa sạch 07/10** (lỗi `migrate diff` dùng DB dev làm shadow) rồi dựng lại qua API:
   `p11teacher@codespace.vn` (instructor, tạo khóa + lớp), `p7member@codespace.vn` (HV trong lớp),
   `p7outsider@codespace.vn` (HV ngoài lớp) — mật khẩu `Learn123!`; admin seed `p9-admin@codespace.local`.
