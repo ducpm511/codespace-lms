@@ -1,0 +1,168 @@
+diff --git a/packages/scratch-gui/src/lib/default-project/index.ts b/packages/scratch-gui/src/lib/default-project/index.ts
+index b97c230..2d67723 100644
+--- a/packages/scratch-gui/src/lib/default-project/index.ts
++++ b/packages/scratch-gui/src/lib/default-project/index.ts
+@@ -3,10 +3,10 @@ import {TranslatorFunction} from '../../gui-config';
+ 
+ 
+ import popWav from '!arraybuffer-loader!./83a9787d4cb6f3b7632b4ddfebf74367.wav?';
+-import meowWav from '!arraybuffer-loader!./83c36d806dc92327b9e7049a565c6bff.wav?';
+ import backdrop from '!raw-loader!./cd21514d0531fdffb22204e0ec5ed84a.svg?';
+-import costume1 from '!raw-loader!./bcf454acf82e4504149f7ffe07081dbc.svg?';
+-import costume2 from '!raw-loader!./0fb9be3e8397c983338cb71dc84d0b25.svg?';
++// BlockSpace: the default sprite is Rex (CodeSpace mascot) instead of the Scratch Cat, whose
++// name and image are Scratch trademarks. The Cat costumes and meow sound are no longer bundled.
++import {DEFAULT_REX_COSTUMES} from '../blockspace/rex-assets.js';
+ 
+ 
+ declare function require (path: 'fastestsmallesttextencoderdecoder'): {TextEncoder: typeof TextEncoder};
+@@ -34,27 +34,17 @@ const defaultProject = (translator?: TranslatorFunction) => {
+         assetType: 'Sound',
+         dataFormat: 'WAV',
+         data: new Uint8Array(popWav)
+-    }, {
+-        id: '83c36d806dc92327b9e7049a565c6bff',
+-        assetType: 'Sound',
+-        dataFormat: 'WAV',
+-        data: new Uint8Array(meowWav)
+     }, {
+         id: 'cd21514d0531fdffb22204e0ec5ed84a',
+         assetType: 'ImageVector',
+         dataFormat: 'SVG',
+         data: encoder.encode(backdrop)
+-    }, {
+-        id: 'bcf454acf82e4504149f7ffe07081dbc',
+-        assetType: 'ImageVector',
+-        dataFormat: 'SVG',
+-        data: encoder.encode(costume1)
+-    }, {
+-        id: '0fb9be3e8397c983338cb71dc84d0b25',
+-        assetType: 'ImageVector',
+-        dataFormat: 'SVG',
+-        data: encoder.encode(costume2)
+-    }];
++    }, ...DEFAULT_REX_COSTUMES.map(costume => ({
++        id: costume.assetId,
++        assetType: 'ImageBitmap',
++        dataFormat: 'PNG',
++        data: new Uint8Array(costume.data)
++    }))];
+ };
+ 
+ export default defaultProject;
+diff --git a/packages/scratch-gui/src/lib/default-project/project-data.ts b/packages/scratch-gui/src/lib/default-project/project-data.ts
+index fd288c7..20e2597 100644
+--- a/packages/scratch-gui/src/lib/default-project/project-data.ts
++++ b/packages/scratch-gui/src/lib/default-project/project-data.ts
+@@ -1,6 +1,7 @@
+ import projectDataMessages from './messages';
+ import sharedMessages from '../shared-messages';
+ import {MessageObject, TranslatorFunction} from '../../gui-config';
++import {DEFAULT_REX_COSTUMES} from '../blockspace/rex-assets.js';
+ 
+ const messages = {...projectDataMessages, ...sharedMessages};
+ 
+@@ -54,43 +55,22 @@ const projectData = (translateFunction?: TranslatorFunction): object => {
+             },
+             {
+                 isStage: false,
+-                name: translator(messages.sprite, {index: 1}),
++                name: 'Rex',
+                 variables: {},
+                 lists: {},
+                 broadcasts: {},
+                 blocks: {},
+                 currentCostume: 0,
+-                costumes: [
+-                    {
+-                        assetId: 'bcf454acf82e4504149f7ffe07081dbc',
+-                        name: translator(messages.costume, {index: 1}),
+-                        bitmapResolution: 1,
+-                        md5ext: 'bcf454acf82e4504149f7ffe07081dbc.svg',
+-                        dataFormat: 'svg',
+-                        rotationCenterX: 48,
+-                        rotationCenterY: 50
+-                    },
+-                    {
+-                        assetId: '0fb9be3e8397c983338cb71dc84d0b25',
+-                        name: translator(messages.costume, {index: 2}),
+-                        bitmapResolution: 1,
+-                        md5ext: '0fb9be3e8397c983338cb71dc84d0b25.svg',
+-                        dataFormat: 'svg',
+-                        rotationCenterX: 46,
+-                        rotationCenterY: 53
+-                    }
+-                ],
+-                sounds: [
+-                    {
+-                        assetId: '83c36d806dc92327b9e7049a565c6bff',
+-                        name: translator(messages.meow),
+-                        dataFormat: 'wav',
+-                        format: '',
+-                        rate: 22050,
+-                        sampleCount: 18688,
+-                        md5ext: '83c36d806dc92327b9e7049a565c6bff.wav'
+-                    }
+-                ],
++                costumes: DEFAULT_REX_COSTUMES.map(costume => ({
++                    assetId: costume.assetId,
++                    name: costume.name,
++                    bitmapResolution: costume.bitmapResolution,
++                    md5ext: costume.md5ext,
++                    dataFormat: costume.dataFormat,
++                    rotationCenterX: costume.rotationCenterX,
++                    rotationCenterY: costume.rotationCenterY
++                })),
++                sounds: [],
+                 volume: 100,
+                 visible: true,
+                 x: 0,
+diff --git a/packages/scratch-gui/src/lib/legacy-library-asset-url.ts b/packages/scratch-gui/src/lib/legacy-library-asset-url.ts
+index a28112f..736b84a 100644
+--- a/packages/scratch-gui/src/lib/legacy-library-asset-url.ts
++++ b/packages/scratch-gui/src/lib/legacy-library-asset-url.ts
+@@ -1,3 +1,5 @@
++import {REX_LIBRARY_COSTUMES} from './blockspace/rex-assets.js';
++
+ /** Host serving library assets when no library asset host is configured. */
+ const LEGACY_LIBRARY_ASSET_HOST = 'https://cdn.assets.scratch.mit.edu';
+ 
+@@ -10,6 +12,11 @@ const LEGACY_LIBRARY_ASSET_HOST = 'https://cdn.assets.scratch.mit.edu';
+  * @returns {string} - the URL to fetch the asset from.
+  */
+ export const buildLibraryAssetUrl = (assetId: string, dataFormat: string, host?: string): string => {
++    // BlockSpace: Rex library assets are served with the editor itself, not by Scratch.
++    const rex = REX_LIBRARY_COSTUMES.find(costume => costume.assetId === assetId);
++    if (rex) {
++        return rex.url;
++    }
+     if (!host) {
+         return `${LEGACY_LIBRARY_ASSET_HOST}/internalapi/asset/${assetId}.${dataFormat}/get/`;
+     }
+diff --git a/packages/scratch-gui/src/lib/legacy-storage.ts b/packages/scratch-gui/src/lib/legacy-storage.ts
+index ae6b0c8..06b9339 100644
+--- a/packages/scratch-gui/src/lib/legacy-storage.ts
++++ b/packages/scratch-gui/src/lib/legacy-storage.ts
+@@ -7,6 +7,7 @@ import CloudProvider from './cloud-provider';
+ 
+ import saveProjectToServer from '../lib/save-project-to-server';
+ import {buildLibraryAssetUrl} from './legacy-library-asset-url';
++import {REX_LIBRARY_COSTUMES} from './blockspace/rex-assets.js';
+ 
+ export class LegacyStorage implements GUIStorage {
+     private projectHost?: string;
+@@ -107,6 +108,14 @@ export class LegacyStorage implements GUIStorage {
+             asset.data,
+             asset.id
+         ));
++        // BlockSpace: Rex library costumes ship inside the bundle, so adding one from the sprite or
++        // costume library never asks the Scratch asset server for them.
++        REX_LIBRARY_COSTUMES.forEach(costume => storage.builtinHelper._store(
++            storage.AssetType.ImageBitmap,
++            storage.DataFormat.PNG,
++            new Uint8Array(costume.data),
++            costume.assetId
++        ));
+     }
+ 
+     private addOfficialScratchWebStores (storage: ScratchStorage) {

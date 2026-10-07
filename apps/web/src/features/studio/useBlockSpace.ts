@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** URL trình soạn BlockSpace (apps/studio, phục vụ bởi vite-plugin-static-copy). */
 export const BLOCKSPACE_EDITOR_URL = '/studio/editor/index.html';
-const DEFAULT_PROJECT_URL = '/studio/editor/default-project.sb3';
 
 type EditorMessage =
   | { type: 'blockspace:ready' }
@@ -42,13 +41,13 @@ export function useBlockSpace() {
     [send],
   );
 
+  /** Dự án mới = dự án mặc định (nhân vật Rex) dựng sẵn trong trình soạn. */
   const loadDefault = useCallback(
-    async (title?: string) => {
-      const res = await fetch(DEFAULT_PROJECT_URL);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      load(await res.arrayBuffer(), title);
+    (title?: string) => {
+      setState((s) => ({ ...s, error: null }));
+      send({ type: 'blockspace:new', title });
     },
-    [load],
+    [send],
   );
 
   const save = useCallback(

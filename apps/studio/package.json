@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "lint": "node --check src/bridge.js && node --check scripts/build.mjs"
+    "build:editor": "node scripts/build-editor.mjs",
+    "lint": "node --check src/bridge.js && node --check scripts/build.mjs && node --check scripts/build-editor.mjs && node --check scripts/editor-config.mjs"
   }
 }

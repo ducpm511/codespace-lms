@@ -1,0 +1,35 @@
+diff --git a/packages/scratch-gui/webpack.config.js b/packages/scratch-gui/webpack.config.js
+index b97bc1c..ccccdd8 100644
+--- a/packages/scratch-gui/webpack.config.js
++++ b/packages/scratch-gui/webpack.config.js
+@@ -156,7 +156,13 @@ const distStandaloneConfig = baseConfig.clone()
+             'scratch-gui-standalone': path.join(__dirname, 'src/index-standalone.tsx')
+         },
+         output: {
+-            path: path.resolve(__dirname, 'dist')
++            path: path.resolve(__dirname, 'dist'),
++            // BlockSpace: served from a sub-path with a content hash in the bundle name, so the
++            // host can cache it forever. Unset = upstream behaviour.
++            ...(process.env.BLOCKSPACE_PUBLIC_PATH ? {
++                publicPath: process.env.BLOCKSPACE_PUBLIC_PATH,
++                filename: 'static/js/[name].[contenthash:12].js'
++            } : {})
+         }
+     });
+ 
+diff --git a/packages/scratch-storage/webpack.config.js b/packages/scratch-storage/webpack.config.js
+index 52e2834..fe2debc 100644
+--- a/packages/scratch-storage/webpack.config.js
++++ b/packages/scratch-storage/webpack.config.js
+@@ -32,7 +32,10 @@ const webConfig = baseConfig.clone()
+                 type: 'umd2'
+             },
+             path: path.resolve(__dirname, 'dist', 'web'),
+-            clean: false
++            clean: false,
++            // BlockSpace: the fetch worker chunk is loaded relative to this public path; the editor
++            // is served from a sub-path, not the domain root. Unset = upstream behaviour.
++            ...(process.env.BLOCKSPACE_PUBLIC_PATH ? {publicPath: process.env.BLOCKSPACE_PUBLIC_PATH} : {})
+         }
+     });
+ 

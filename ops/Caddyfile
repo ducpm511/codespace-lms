@@ -24,8 +24,8 @@
 	#
 	# Vì sao quan trọng: lần đầu mở một bài lập trình, học viên phải kéo Monaco (~24 MB) +
 	# Pyodide (~13 MB). Một lớp 30 em không cache là ~1.1 GB băng thông cho MỘT buổi học.
-	# BlockSpace: static/ và chunks/ có hash trong tên. Riêng scratch-gui-standalone.js (17 MB) KHÔNG
-	# có hash -> rơi xuống khối SPA bên dưới (no-cache + ETag => 304, không tải lại khi chưa đổi).
+	# BlockSpace: static/ (gồm cả bundle 17 MB static/js/scratch-gui-standalone.<hash>.js) và chunks/
+	# có hash trong tên. index.html + bridge.js nhỏ, không hash -> khối SPA bên dưới (no-cache + ETag).
 	@immutable path /assets/* /monaco/* /pyodide/* /studio/editor/static/* /studio/editor/chunks/*
 	handle @immutable {
 		header Cache-Control "public, max-age=31536000, immutable"

@@ -19,7 +19,7 @@ export function StudioPage(): JSX.Element {
   useEffect(() => {
     if (state.ready && !loadedDefault.current) {
       loadedDefault.current = true;
-      void loadDefault(t('studio.defaultTitle'));
+      loadDefault(t('studio.defaultTitle'));
     }
   }, [state.ready, loadDefault, t]);
 
@@ -69,7 +69,7 @@ export function StudioPage(): JSX.Element {
             variant="secondary"
             icon="ph-sparkle"
             disabled={!state.ready}
-            onClick={() => void loadDefault(t('studio.defaultTitle'))}
+            onClick={() => loadDefault(t('studio.defaultTitle'))}
           >
             {t('studio.newProject')}
           </PillButton>

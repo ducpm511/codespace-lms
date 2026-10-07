@@ -1,0 +1,74 @@
+diff --git a/packages/scratch-gui/src/components/gui/gui.jsx b/packages/scratch-gui/src/components/gui/gui.jsx
+index c0c4173..5436658 100644
+--- a/packages/scratch-gui/src/components/gui/gui.jsx
++++ b/packages/scratch-gui/src/components/gui/gui.jsx
+@@ -159,6 +159,7 @@ const GUIComponent = props => {
+         isTotallyNormal,
+         loading,
+         logo,
++        logoAlt,
+         manuallySaveThumbnails,
+         onSetManualThumbnail,
+         onSetManualThumbnailButtonClick,
+@@ -356,6 +357,7 @@ const GUIComponent = props => {
+                             isShared={isShared}
+                             isTotallyNormal={isTotallyNormal}
+                             logo={logo}
++                            logoAlt={logoAlt}
+                             renderLogin={renderLogin}
+                             showComingSoon={showComingSoon}
+                             onClickAbout={onClickAbout}
+@@ -621,6 +623,7 @@ GUIComponent.propTypes = {
+     isTotallyNormal: PropTypes.bool,
+     loading: PropTypes.bool,
+     logo: PropTypes.string,
++    logoAlt: PropTypes.string,
+     manuallySaveThumbnails: PropTypes.bool,
+     onSetManualThumbnail: PropTypes.func,
+     onSetManualThumbnailButtonClick: PropTypes.func,
+diff --git a/packages/scratch-gui/src/components/menu-bar/menu-bar.jsx b/packages/scratch-gui/src/components/menu-bar/menu-bar.jsx
+index 630fd49..3c7da93 100644
+--- a/packages/scratch-gui/src/components/menu-bar/menu-bar.jsx
++++ b/packages/scratch-gui/src/components/menu-bar/menu-bar.jsx
+@@ -235,7 +235,7 @@ class MenuBar extends React.Component {
+             } else if (mode === '220022BC') {
+                 document.getElementById('logo_img').src = prehistoricLogo;
+             } else {
+-                document.getElementById('logo_img').src = getScratchLogo(this.props.platform);
++                document.getElementById('logo_img').src = this.props.logo || getScratchLogo(this.props.platform);
+             }
+ 
+             this.props.onSetTimeTravelMode(mode);
+@@ -334,12 +334,12 @@ class MenuBar extends React.Component {
+                         >
+                             <img
+                                 id="logo_img"
+-                                alt="Scratch"
++                                alt={this.props.logoAlt}
+                                 className={classNames(styles.scratchLogo, {
+                                     [styles.clickable]: typeof this.props.onClickLogo !== 'undefined'
+                                 })}
+                                 draggable={false}
+-                                src={getScratchLogo(this.props.platform)}
++                                src={this.props.logo || getScratchLogo(this.props.platform)}
+                             />
+                         </button>
+                         {(this.props.canChangeColorMode || this.props.canChangeLanguage || this.props.canChangeTheme) &&
+@@ -671,6 +671,7 @@ MenuBar.propTypes = {
+     locale: PropTypes.string.isRequired,
+     loginMenuOpen: PropTypes.bool,
+     logo: PropTypes.string,
++    logoAlt: PropTypes.string,
+     mode1920: PropTypes.bool,
+     mode1990: PropTypes.bool,
+     mode2020: PropTypes.bool,
+@@ -718,7 +719,8 @@ MenuBar.propTypes = {
+ };
+ 
+ MenuBar.defaultProps = {
+-    logo: scratchLogo,
++    logo: null,
++    logoAlt: 'Scratch',
+     onShare: () => {}
+ };
+ 

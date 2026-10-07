@@ -1,0 +1,79 @@
+name: BlockSpace editor
+
+# Build trình soạn BlockSpace TỪ MÃ NGUỒN (scratch-editor + apps/studio/editor/patches + ảnh Rex) và
+# đăng tarball lên GitHub Releases của repo này. Tự chạy khi push (nhánh bất kỳ) đổi đầu vào của
+# trình soạn; phiên bản đã phát hành thì bỏ qua. Đổi bản vá / ảnh Rex / nâng scratch-editor ⇒ tăng
+# EDITOR.version trong apps/studio/scripts/editor-config.mjs — bản đã ghim không bao giờ bị thay ruột.
+#
+# Vì sao không build trong Docker mỗi lần phát hành LMS: cài monorepo scratch-editor (~3 000 package)
+# + webpack 7 package mất 10–20 phút. Ảnh web chỉ tải tarball này và kiểm sha512 đã ghim.
+#
+# Sau khi chạy xong: chép dòng sha512 ở phần Summary vào RELEASE.integrity rồi commit (hoặc tự tính:
+# tải file từ trang Releases, `openssl dgst -sha512 -binary <file> | base64`).
+
+on:
+  push:
+    paths:
+      - apps/studio/editor/**
+      - apps/studio/assets/rex/**
+      - apps/studio/scripts/build-editor.mjs
+      - apps/studio/scripts/editor-config.mjs
+  workflow_dispatch:
+
+# Hai lần push liền nhau không được cùng đăng một phiên bản.
+concurrency:
+  group: blockspace-editor
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Đã phát hành phiên bản này chưa?
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node --input-type=module -e "import { EDITOR } from './apps/studio/scripts/editor-config.mjs'; console.log(EDITOR.version)")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if gh release view "blockspace-editor-$V" >/dev/null 2>&1; then
+            echo "::notice::blockspace-editor-$V đã phát hành — bỏ qua. Đổi trình soạn thì tăng EDITOR.version."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # scratch-editor build bằng Node 24 (file .nvmrc của họ).
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.skip != 'true'
+        with:
+          node-version: 24
+
+      - name: Build từ mã nguồn
+        if: steps.check.outputs.skip != 'true'
+        run: node apps/studio/scripts/build-editor.mjs
+
+      - name: Đăng bản phát hành
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${{ steps.check.outputs.version }}"
+          TAG="blockspace-editor-$V"
+          FILE="apps/studio/.cache/blockspace-editor-$V.tgz"
+          gh release create "$TAG" "$FILE" --target "$GITHUB_SHA" --title "BlockSpace editor $V" \
+            --notes "Trình soạn BlockSpace (AGPL-3.0) build từ scratch-editor + bản vá ở apps/studio/editor/patches tại commit $GITHUB_SHA."
+          SUM="sha512-$(openssl dgst -sha512 -binary "$FILE" | base64 -w0)"
+          {
+            echo "### $TAG"
+            echo
+            echo "Ghim vào \`apps/studio/scripts/editor-config.mjs\`:"
+            echo
+            echo '```js'
+            echo "integrity: '$SUM',"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
