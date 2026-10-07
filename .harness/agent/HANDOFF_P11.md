@@ -2,6 +2,53 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.6a Spike làm chung thời gian thực ✅ (2026-10-07)
+
+**Kết luận: làm được, RAM không phải rào cản.** Đi tiếp T11.6b với các việc ở "Phải làm ở T11.6b".
+
+**Server** (`apps/api/src/scratch/collab/`): WebSocket thuần (`@nestjs/platform-ws` + `ws`, không socket.io) ở
+`/api/scratch/ws`; Caddy `reverse_proxy` tự chuyển Upgrade, Vite dev proxy thêm `ws: true`. Giao thức trong
+`collab.gateway.ts`: token gửi ở **message đầu** (không trên URL — INVARIANT #5) trong 5 s, `join` chỉ chủ /
+đồng tác giả (`ScratchAccessService.editable`), ≤ 6 kết nối/phòng, op ≤ 64 KB, 100 message/10 s/kết nối,
+ping 30 s. `CollabRooms` (thuần, 6 test): seq tăng dần trong phòng, phát cho CẢ phòng kể cả người gửi, đệm
+500 op / 1 MB để nối lại (`sinceSeq`; quá cũ ⇒ `catchUp: null` = nạp lại), phòng trống xóa ngay. Server không
+hiểu nội dung op.
+
+**Client:** bridge bọc `Blocks.prototype.blocklyListen` (GUI gắn `vm.blockListener` vào workspace TRƯỚC
+`onVmInit` nên không bọc hàm đó được), chỉ lấy sự kiện của target đang sửa (create / delete / move / change /
+var_*), tuần tự hóa (xml → `outerHTML`, toạ độ → `{x,y}`); op nhận về dựng lại bằng `DOMParser`, áp thẳng vào
+`target.blocks.blocklyListen` của ĐÚNG target (nhận diện bằng tên — id target mỗi máy khác nhau), rồi
+`vm.emitWorkspaceUpdate()` (gộp 60 ms) nếu là target đang mở. Trang LMS giữ WebSocket (`useCollab`), trình soạn
+vẫn không cầm token; `cid` ngẫu nhiên mỗi kết nối để bỏ op của chính mình (2 tab cùng người vẫn đồng bộ).
+Op từ xa không bật "chưa lưu" (máy tạo ra thay đổi tự lưu). Bật bằng `?collab=1`, chỉ sau khi dự án đã mở xong.
+
+**Số đo** (`scratchpad/collab-load.mjs`, máy dev, op ~0,9 KB giống sự kiện tạo khối thật):
+| Tải | RAM API (nền → đỉnh) | Độ trễ gửi→nhận lại p50 / p95 / p99 | Mất op |
+|---|---|---|---|
+| 10 phòng × 6 = 60 kết nối, 2 op/s/người, 30 s (118 op/s vào, 590 khung/s ra) | 98 → 109 MB (+11) | 5,7 / 14,9 / 20,2 ms | 0 / 3 540 |
+| 30 phòng × 6 = 180 kết nối, 2 op/s/người, 60 s (357 op/s vào, 1 785 khung/s ra) | 102 → 143 MB (+41) | 16 / 34 / 54 ms | 0 / 21 420 |
+Thao tác tay thật hiếm khi quá 0,5 op/s/người → mức 2 op/s là tải nặng gấp ~4 lần. Phần lớn +41 MB là heap V8 chưa
+gom (RAM không trả lại ngay sau khi mọi người rời) — đệm op tối đa lý thuyết là 1 MB/phòng. Mọi thành viên cùng phòng
+nhận CÙNG dãy seq. Giao thức: chưa auth/ token bịa → 4001, quá 5 s không auth → 4000, người không có quyền → 4003,
+người thứ 7 → 4009, op > 64 KB → 4008, nối lại nhận đúng op bị lỡ.
+
+**Đồng bộ thật (2 tab cùng dự án):** tạo khối, di chuyển, đổi giá trị (15 → 90), xóa ở tab 1 → tab 2 thấy ngay. Op cho
+nhân vật KHÔNG đang mở (gửi từ client Node vào phòng): tab đang mở nhân vật đó thấy khối ngay; tab đang ở nhân vật khác
+không bị đụng, chuyển sang thì có khối.
+
+**Phải làm ở T11.6b (spike chưa có):**
+- **Xung đột:** client áp op của mình ngay (lạc quan) rồi mới nhận thứ tự từ server — hai người sửa CÙNG khối cùng lúc
+  có thể lệch nhau. Cần: áp theo thứ tự server (chờ echo) hoặc phát hiện lệch + nạp lại; khối bị người khác xóa ⇒ bỏ op.
+- **Người vào sau:** `join` không kèm trạng thái phòng — người mới nạp phiên bản ĐÃ LƯU gần nhất nên lỡ thay đổi chưa
+  lưu. Cần snapshot phía server (ADR D5′: 30 s / 200 op / khi phòng trống) hoặc xin trạng thái từ một máy trong phòng.
+- **Phạm vi op:** mới có khối + biến. Chưa: thêm/xóa/đổi tên nhân vật (đổi tên làm hỏng nhận diện theo tên), costume,
+  âm thanh, sân khấu, bình luận khối, biến cục bộ của nhân vật không đang mở.
+- `emitWorkspaceUpdate` vẽ lại cả vùng code — có thể cắt ngang khi người kia đang kéo khối; cần đo và tối ưu (áp vào
+  Blockly workspace thay vì vẽ lại).
+- Token chỉ kiểm lúc kết nối — tài khoản bị khóa / mất quyền giữa chừng vẫn ở trong phòng tới khi rớt; cần kiểm lại định kỳ.
+- Giao diện mời đồng tác giả + bỏ cờ `?collab=1`.
+- Cài gói trên Windows: `pnpm add` hỏng ở postinstall `opencollective` của `@nestjs/core` (ENOENT) → dùng `--ignore-scripts`.
+
 ## T11.5b Công khai ✅ (2026-10-07)
 
 Quyết định người dùng chốt: `docs/adr/003-scratch-studio.md §Quyết định công khai`. Schema + API: `docs/DESIGN.md §4.7b, §8`.
