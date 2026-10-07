@@ -298,6 +298,8 @@ GET    /scratch/projects/mine · POST /scratch/projects · GET|PATCH|DELETE /scr
 GET    /scratch/projects/:id/versions (người sửa) · POST …/versions (multipart `project`, ≤5MB)
 GET    /scratch/projects/:id/versions/:seq|latest (project.json) · GET …/assets/:md5ext (private, CSP sandbox)
 POST   /scratch/assets/:md5ext (multipart `file`, ≤10MB, kiểm md5 + magic bytes, hạn mức 200MB/người)
+GET    /scratch/classes (lớp mình thuộc HOẶC tạo) · GET /scratch/gallery?scope=class&classId=|school (≤60, có nội dung)
+POST   /scratch/projects/:id/remix (bản sao private, giữ remixOfId) · PUT|DELETE /scratch/projects/:id/like (idempotent)
 ```
 
 ## 9. Frontend (apps/web)

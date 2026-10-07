@@ -104,3 +104,22 @@ export interface ScratchAssetUploadResponse {
   /** false = nội dung này đã có sẵn (cùng md5) — không lưu lại, không tính thêm hạn mức. */
   created: boolean;
 }
+
+// --- Chia sẻ, gallery, remix, thích (T11.5) ---
+
+/** Lớp mình được chia sẻ dự án vào / xem gallery: thành viên đang học HOẶC người tạo lớp. */
+export interface ScratchClassDto {
+  id: string;
+  name: string;
+}
+
+/** Gallery: dự án chia sẻ trong MỘT lớp, hoặc chia sẻ cả trường. */
+export type ScratchGalleryScope = 'class' | 'school';
+
+/** Số dự án tối đa mỗi lần tải gallery (mới cập nhật trước). */
+export const SCRATCH_GALLERY_LIMIT = 60;
+
+export interface ScratchLikeResponse {
+  likeCount: number;
+  likedByMe: boolean;
+}

@@ -32,7 +32,7 @@ export interface ScratchAssetDownload {
 }
 
 /** Lấy đủ cho DTO tóm tắt; `likes` lọc theo người xem để biết `likedByMe`. */
-const summarySelect = (viewerId: string) =>
+export const summarySelect = (viewerId: string) =>
   ({
     id: true,
     title: true,
@@ -48,9 +48,9 @@ const summarySelect = (viewerId: string) =>
     _count: { select: { likes: true } },
   }) satisfies Prisma.ScratchProjectSelect;
 
-type SummaryRow = Prisma.ScratchProjectGetPayload<{ select: ReturnType<typeof summarySelect> }>;
+export type SummaryRow = Prisma.ScratchProjectGetPayload<{ select: ReturnType<typeof summarySelect> }>;
 
-function toSummary(row: SummaryRow): ScratchProjectSummaryDto {
+export function toSummary(row: SummaryRow): ScratchProjectSummaryDto {
   return {
     id: row.id,
     title: row.title,
@@ -68,7 +68,7 @@ function toSummary(row: SummaryRow): ScratchProjectSummaryDto {
   };
 }
 
-const effectiveVisibility = (v: ScratchVisibilityValue, classId: string | null): ScratchVisibilityValue =>
+export const effectiveVisibility = (v: ScratchVisibilityValue, classId: string | null): ScratchVisibilityValue =>
   v === 'class' && classId === null ? 'private' : v;
 
 /** Lưu đồng thời hai lần cùng lúc có thể tranh cùng `seq` — thử lại vài lần. */

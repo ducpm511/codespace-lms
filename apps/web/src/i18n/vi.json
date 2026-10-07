@@ -690,6 +690,25 @@
     "openAnyway": "Vẫn mở trình soạn",
     "notFound": "Không tìm thấy dự án — có thể đã bị xóa hoặc em chưa được xem.",
     "noContent": "Dự án chưa có nội dung.",
-    "playFailed": "Không mở được dự án, thử tải lại trang."
+    "playFailed": "Không mở được dự án, thử tải lại trang.",
+    "projects": "Dự án",
+    "tabMine": "Của tôi",
+    "tabSchool": "Cả trường",
+    "galleryEmpty": "Chưa có dự án nào được chia sẻ ở đây.",
+    "by": "của {{name}}",
+    "likes": "Lượt thích",
+    "isRemix": "Remix",
+    "like": "Thích",
+    "unlike": "Bỏ thích",
+    "remix": "Remix",
+    "share": {
+      "title": "Ai được xem dự án này?",
+      "classLabel": "Lớp",
+      "noClass": "Em chưa ở lớp nào nên chưa chia sẻ trong lớp được.",
+      "publicLocked": "Dự án đang công khai — muốn đổi, hãy nhờ giáo viên.",
+      "hint_private": "Chỉ em (và đồng tác giả) thấy dự án này.",
+      "hint_class": "Bạn cùng lớp và giáo viên xem, chạy và remix được — không ai sửa được bản của em.",
+      "hint_school": "Mọi tài khoản CodeSpace xem, chạy và remix được — không ai sửa được bản của em."
+    }
   }
 }

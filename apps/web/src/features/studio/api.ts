@@ -1,5 +1,8 @@
 import type {
   CreateScratchProjectRequest,
+  ScratchClassDto,
+  ScratchGalleryScope,
+  ScratchLikeResponse,
   ScratchAssetUploadResponse,
   ScratchProjectDetailDto,
   ScratchProjectSummaryDto,
@@ -46,3 +49,16 @@ export function uploadAsset(md5ext: string, data: ArrayBuffer): Promise<ScratchA
   form.append('file', new Blob([data]), md5ext);
   return apiUpload(`/scratch/assets/${md5ext}`, form);
 }
+
+// --- Chia sẻ (T11.5) ---
+
+export const listScratchClasses = (): Promise<ScratchClassDto[]> => apiFetch('/scratch/classes');
+
+export const listGallery = (scope: ScratchGalleryScope, classId?: string): Promise<ScratchProjectSummaryDto[]> =>
+  apiFetch(`/scratch/gallery?scope=${scope}${classId ? `&classId=${encodeURIComponent(classId)}` : ''}`);
+
+export const remixProject = (id: string, title?: string): Promise<ScratchProjectDetailDto> =>
+  apiFetch(`${base}/${id}/remix`, { method: 'POST', body: JSON.stringify(title ? { title } : {}) });
+
+export const setProjectLike = (id: string, liked: boolean): Promise<ScratchLikeResponse> =>
+  apiFetch(`${base}/${id}/like`, { method: liked ? 'PUT' : 'DELETE' });

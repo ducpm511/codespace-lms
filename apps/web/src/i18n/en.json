@@ -690,6 +690,25 @@
     "openAnyway": "Open the editor anyway",
     "notFound": "Project not found — it may have been deleted, or you don't have access.",
     "noContent": "This project has no content yet.",
-    "playFailed": "Couldn't open the project — try reloading the page."
+    "playFailed": "Couldn't open the project — try reloading the page.",
+    "projects": "Projects",
+    "tabMine": "Mine",
+    "tabSchool": "Whole school",
+    "galleryEmpty": "Nothing has been shared here yet.",
+    "by": "by {{name}}",
+    "likes": "Likes",
+    "isRemix": "Remix",
+    "like": "Like",
+    "unlike": "Unlike",
+    "remix": "Remix",
+    "share": {
+      "title": "Who can see this project?",
+      "classLabel": "Class",
+      "noClass": "You're not in a class yet, so you can't share with one.",
+      "publicLocked": "This project is public — ask your teacher to change that.",
+      "hint_private": "Only you (and co-authors) can see this project.",
+      "hint_class": "Classmates and teachers can view, run and remix it — nobody can change your copy.",
+      "hint_school": "Every CodeSpace account can view, run and remix it — nobody can change your copy."
+    }
   }
 }

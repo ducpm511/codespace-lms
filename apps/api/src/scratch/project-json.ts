@@ -47,6 +47,23 @@ export function parseProjectJson(buffer: Buffer | undefined): ParsedProjectJson 
   return { json, sizeBytes: buffer.length, md5exts: [...md5exts] };
 }
 
+/** md5ext mà một project.json ĐÃ LƯU tham chiếu (đã kiểm lúc lưu — ở đây chỉ lấy ra, bỏ qua giá trị lạ). */
+export function referencedMd5exts(json: unknown): string[] {
+  const out = new Set<string>();
+  const targets = isRecord(json) && Array.isArray(json.targets) ? json.targets : [];
+  for (const target of targets) {
+    if (!isRecord(target)) continue;
+    for (const list of [target.costumes, target.sounds]) {
+      if (!Array.isArray(list)) continue;
+      for (const item of list) {
+        const md5ext = isRecord(item) ? item.md5ext : undefined;
+        if (typeof md5ext === 'string' && SCRATCH_MD5EXT_PATTERN.test(md5ext)) out.add(md5ext);
+      }
+    }
+  }
+  return [...out];
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
