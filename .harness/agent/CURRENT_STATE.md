@@ -15,7 +15,7 @@ chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary)
   (người dùng xác nhận 07/10). Production vẫn ở bản trước đó.
 - Nhánh P11 = `main` + 5 commit kế hoạch/spike T11.1 (đặt lại lên `e203005`, nội dung trùng `9365d0e`)
   + T11.0. Chi tiết, số đo, việc còn lại: `HANDOFF_P11.md`.
-- **CI/Docker web lỗi cho tới khi ghim sha512 tarball trình soạn** (`HANDOFF_P11.md §T11.0`).
+- Trình soạn build sẵn ở GitHub Releases `blockspace-editor-15.2.0-bs1`, sha512 đã ghim (`HANDOFF_P11.md §T11.0`).
 
 ### P10 · ĐÃ PHÁT HÀNH LÊN PRODUCTION (2026-08-26, ~16:27 giờ VN)
 

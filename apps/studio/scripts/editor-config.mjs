@@ -16,7 +16,7 @@ export const EDITOR = {
  */
 export const RELEASE = {
   url: `https://github.com/ducpm511/codespace-lms/releases/download/blockspace-editor-${EDITOR.version}/blockspace-editor-${EDITOR.version}.tgz`,
-  integrity: null,
+  integrity: 'sha512-DS4tSI3XN8C89PETKsLdotiRTmVCCkWFYJ75BXDnXseUuPOlcqiJLxOkpXK5BUdbz6zdxANSv6TPciOhvOvJXg==',
 };
 
 /** Mã nguồn tương ứng (AGPL §13) — link "Mã nguồn" trong trình soạn trỏ về đây. */

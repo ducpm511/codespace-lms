@@ -2,7 +2,7 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
-## T11.0 Build từ mã nguồn ✅ code (2026-10-07) — chờ phát hành tarball
+## T11.0 Build từ mã nguồn ✅ (2026-10-07) — release `blockspace-editor-15.2.0-bs1` đã ghim
 
 **Làm gì:** `apps/studio/scripts/build-editor.mjs` clone `scratch-editor` **v15.2.0** (kiểm commit
 `5fe8235`), áp 4 bản vá `apps/studio/editor/patches/`, sinh `rex-assets.js`, lọc thư viện, `npm ci
@@ -28,9 +28,9 @@ gọi máy chủ Scratch. `default-project.sb3` bỏ — LMS gửi `blockspace:n
 `.sb3` 54 KB chỉ có Rex + nền + pop, new/nạp lại đều đặt đúng tên.
 
 **Còn lại:**
-- **Phát hành tarball:** push nhánh → workflow "BlockSpace editor" tự build + tạo release
-  `blockspace-editor-15.2.0-bs1` → ghim sha512 vào `RELEASE.integrity` (`editor-config.mjs`). **Trước
-  khi ghim, CI `pnpm validate` và ảnh Docker web sẽ lỗi** (build.mjs không có tarball).
+- ✅ Release `blockspace-editor-15.2.0-bs1` (76,7 MB, workflow tự build khi push) đã ghim sha512;
+  kiểm bản CI: 0 asset Mèo, publicPath đúng, 1 695 file. Hash bundle khác bản build máy dev (Node 24
+  vs 20) — bình thường, chỉ bản đã ghim mới lên production.
 - Bản dịch vi của upstream: nút Debug hiện "Sửa lỗi .DANV" — sửa bằng bản vá chuỗi dịch hoặc ẩn nút.
 - Thư viện "Hướng dẫn" (tutorials) vẫn là video/ảnh của Scratch (có Mèo) — cân nhắc ẩn ở T11.4.
 - H6 rà pháp lý AGPL vẫn chặn phát hành.
