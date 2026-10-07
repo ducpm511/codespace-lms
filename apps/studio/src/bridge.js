@@ -17,6 +17,8 @@
   // Tên dự án chờ gắn khi dự án mới (blockspace:new) nạp xong; undefined = không có dự án mới đang chờ.
   var pendingNewTitle;
   var SOURCE_URL = '%SOURCE_URL%';
+  // ?mode=player: chỉ sân khấu + cờ xanh (trang xem dự án), không có khu lập trình.
+  var PLAYER = new URLSearchParams(window.location.search).get('mode') === 'player';
 
   function post(msg, transfer) {
     if (parentWin) parentWin.postMessage(msg, ORIGIN, transfer || []);
@@ -59,6 +61,68 @@
       .finally(releaseChanges);
   }
 
+  // Đuôi md5ext → loại asset của scratch-storage.
+  var ASSET_TYPES = {
+    png: 'ImageBitmap',
+    jpg: 'ImageBitmap',
+    gif: 'ImageBitmap',
+    svg: 'ImageVector',
+    wav: 'Sound',
+    mp3: 'Sound',
+  };
+
+  /**
+   * Mở dự án từ LMS: project.json + các asset LMS đã tải (có token) — nạp sẵn vào bộ nhớ của
+   * scratch-storage rồi mới loadProject, nên trình soạn KHÔNG phải gọi API. Asset không có trong danh
+   * sách (asset thư viện Scratch) vẫn tải từ CDN như bình thường.
+   */
+  function open(projectJson, assets, title) {
+    var storage = vm.runtime.storage;
+    (assets || []).forEach(function (a) {
+      var parts = String(a.md5ext).split('.');
+      var type = ASSET_TYPES[parts[1]];
+      if (!type || !(a.data instanceof ArrayBuffer)) return;
+      storage.builtinHelper._store(storage.AssetType[type], parts[1], new Uint8Array(a.data), parts[0]);
+    });
+    suppressChange = true;
+    return vm
+      .loadProject(projectJson)
+      .then(function () {
+        setTitle(title);
+        post({ type: 'blockspace:loaded' });
+      })
+      .catch(function (err) {
+        post({ type: 'blockspace:error', message: String((err && err.message) || err) });
+      })
+      .finally(releaseChanges);
+  }
+
+  /** Xuất project.json + MỌI asset đang dùng (LMS tự bỏ qua asset server đã có). */
+  function exportProject(requestId) {
+    var seen = {};
+    var assets = [];
+    var transfer = [];
+    vm.assets.forEach(function (asset) {
+      if (!asset || !asset.data) return;
+      var md5ext = asset.assetId + '.' + asset.dataFormat;
+      if (seen[md5ext]) return;
+      seen[md5ext] = true;
+      var data = asset.data.slice().buffer; // bản sao — không chuyển quyền bộ nhớ VM đang dùng
+      assets.push({ md5ext: md5ext, data: data });
+      transfer.push(data);
+    });
+    post(
+      {
+        type: 'blockspace:exported',
+        requestId: requestId,
+        projectJson: vm.toJSON(),
+        assets: assets,
+        title: projectTitle(),
+      },
+      transfer,
+    );
+  }
+
   /** Dự án mới = dự án mặc định có Rex dựng sẵn trong bundle (như menu Tập tin › Mới). */
   function createNew(title) {
     // Reducer chỉ nhận START_FETCHING_NEW khi đang hiện dự án; lúc khác nó bỏ qua im lặng.
@@ -85,7 +149,15 @@
     var data = ev.data || {};
     if (data.type === 'blockspace:load' && data.sb3 instanceof ArrayBuffer) load(data.sb3, data.title);
     else if (data.type === 'blockspace:new') createNew(data.title);
-    else if (data.type === 'blockspace:save') {
+    else if (data.type === 'blockspace:open' && typeof data.projectJson === 'string') {
+      open(data.projectJson, data.assets, data.title);
+    } else if (data.type === 'blockspace:export') {
+      try {
+        exportProject(data.requestId);
+      } catch (err) {
+        post({ type: 'blockspace:error', requestId: data.requestId, message: String((err && err.message) || err) });
+      }
+    } else if (data.type === 'blockspace:save') {
       save(data.requestId).catch(function (err) {
         post({ type: 'blockspace:error', requestId: data.requestId, message: String((err && err.message) || err) });
       });
@@ -98,7 +170,8 @@
 
   var appEl = document.getElementById('app');
   GUI.setAppElement(appEl);
-  var state = new GUI.EditorState({ locale: 'vi' });
+  // isPlayerOnly là state Redux của trình soạn (không phải prop) → đặt lúc tạo EditorState.
+  var state = new GUI.EditorState({ locale: 'vi', isPlayerOnly: PLAYER });
   var root = GUI.createStandaloneRoot(state, appEl);
 
   var baseProps = {

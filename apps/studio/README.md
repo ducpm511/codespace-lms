@@ -50,11 +50,16 @@ nói chuyện với trang cha:
 |---|---|---|
 | editor → cha | `blockspace:ready` | — |
 | cha → editor | `blockspace:new` | `title?` — dự án mới (Rex) dựng sẵn trong bundle |
-| cha → editor | `blockspace:load` | `sb3: ArrayBuffer`, `title?` |
+| cha → editor | `blockspace:open` | `projectJson: string`, `assets: {md5ext, data}[]`, `title?` — dự án từ server; asset nạp sẵn vào bộ nhớ scratch-storage, asset thư viện vẫn lấy từ CDN |
+| cha → editor | `blockspace:load` | `sb3: ArrayBuffer`, `title?` — file .sb3 từ máy |
 | editor → cha | `blockspace:loaded` / `blockspace:error` | `message?` |
 | editor → cha | `blockspace:changed` | — (dự án vừa đổi, chưa lưu) |
 | cha → editor | `blockspace:save` | `requestId` |
 | editor → cha | `blockspace:saved` | `requestId`, `sb3: ArrayBuffer`, `title` |
+| cha → editor | `blockspace:export` | `requestId` |
+| editor → cha | `blockspace:exported` | `requestId`, `projectJson`, `assets: {md5ext, data}[]` (mọi asset đang dùng), `title` |
+
+`index.html?mode=player` = chỉ sân khấu + cờ xanh (trang xem dự án), cỡ cố định 482×406.
 
 Hai phía đều bỏ qua message khác origin. Trình soạn **không** gọi API LMS, không cần token — nên sau
 này tách sang origin riêng (an toàn hơn) chỉ là đổi URL iframe.

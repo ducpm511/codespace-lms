@@ -18,6 +18,7 @@ const AREA_ICON: Record<string, string> = {
   learn: 'ph-graduation-cap',
   teach: 'ph-chalkboard-teacher',
   admin: 'ph-shield-check',
+  studio: 'ph-puzzle-piece',
 };
 
 export function AppLayout(): JSX.Element {
@@ -62,7 +63,8 @@ export function AppLayout(): JSX.Element {
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
           <img src="/brand/logo-horizontal-white.png" alt={t('app.name')} className="h-[26px] w-auto" />
           <nav className="mr-auto flex items-center gap-1">
-            {areas.map((area) => (
+            {/* BlockSpace không phải "khu vực theo vai trò" — ai đăng nhập cũng có dự án của mình. */}
+            {[...areas, 'studio'].map((area) => (
               <NavLink
                 key={area}
                 to={`/${area}`}
