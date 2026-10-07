@@ -1,6 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ScratchGalleryScope, ScratchProjectDetailDto, UpdateScratchProjectRequest } from '@lms/contracts';
+import type { CreateScratchReportRequest } from '@lms/contracts';
 import {
+  decideNickname,
+  decidePublication,
+  getModerationQueue,
+  getMyNickname,
+  reportProject,
+  reportPublic,
+  requestPublication,
+  resolveReport,
+  withdrawPublication,
   createProject,
   deleteProject,
   getProject,
@@ -17,6 +27,8 @@ export const studioKeys = {
   project: (id: string) => ['scratch-projects', id] as const,
   classes: ['scratch-classes'] as const,
   gallery: (scope: ScratchGalleryScope, classId?: string) => ['scratch-gallery', scope, classId ?? ''] as const,
+  nickname: ['scratch-nickname'] as const,
+  queue: ['scratch-moderation'] as const,
 };
 
 export function useMyProjects() {
@@ -102,4 +114,57 @@ export function useLikeProject(id: string) {
       void qc.invalidateQueries({ queryKey: ['scratch-gallery'] });
     },
   });
+}
+
+// --- Công khai, biệt danh, báo cáo, kiểm duyệt (T11.5b) ---
+
+export function useMyNickname() {
+  return useQuery({ queryKey: studioKeys.nickname, queryFn: getMyNickname });
+}
+
+/** Xin công khai / gỡ — cập nhật trạng thái công khai trong chi tiết dự án. */
+export function usePublication(id: string) {
+  const qc = useQueryClient();
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: studioKeys.project(id) });
+    void qc.invalidateQueries({ queryKey: studioKeys.nickname });
+  };
+  const request = useMutation({
+    mutationFn: (nickname?: string) => requestPublication(id, nickname ? { nickname } : {}),
+    onSuccess: refresh,
+  });
+  const withdraw = useMutation({ mutationFn: () => withdrawPublication(id), onSuccess: refresh });
+  return { request, withdraw };
+}
+
+/** Báo cáo — dự án trong LMS (`projectId`) hoặc từ trang công khai (`slug`). */
+export function useReport(target: { projectId: string } | { slug: string }) {
+  return useMutation({
+    mutationFn: (dto: CreateScratchReportRequest) =>
+      'slug' in target ? reportPublic(target.slug, dto) : reportProject(target.projectId, dto),
+  });
+}
+
+export function useModerationQueue() {
+  return useQuery({ queryKey: studioKeys.queue, queryFn: getModerationQueue });
+}
+
+export function useModerationActions() {
+  const qc = useQueryClient();
+  const done = () => qc.invalidateQueries({ queryKey: studioKeys.queue });
+  return {
+    publication: useMutation({
+      mutationFn: (v: { projectId: string; decision: 'approve' | 'reject' | 'remove'; note?: string }) =>
+        decidePublication(v.projectId, v.decision, v.note),
+      onSuccess: done,
+    }),
+    nickname: useMutation({
+      mutationFn: (v: { userId: string; decision: 'approve' | 'reject' }) => decideNickname(v.userId, v.decision),
+      onSuccess: done,
+    }),
+    report: useMutation({
+      mutationFn: (v: { id: string; action: 'dismiss' | 'remove' }) => resolveReport(v.id, v.action),
+      onSuccess: done,
+    }),
+  };
 }

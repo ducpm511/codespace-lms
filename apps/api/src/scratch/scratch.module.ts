@@ -6,11 +6,34 @@ import { ScratchProjectsController } from './scratch-projects.controller';
 import { ScratchProjectsService } from './scratch-projects.service';
 import { ScratchSharingController } from './scratch-sharing.controller';
 import { ScratchSharingService } from './scratch-sharing.service';
+import { ScratchModeratorsService } from './scratch-moderators.service';
+import { ScratchModerationService } from './scratch-moderation.service';
+import { ScratchPublishingService } from './scratch-publishing.service';
+import {
+  ScratchModerationController,
+  ScratchPublicController,
+  ScratchPublishingController,
+} from './scratch-publishing.controller';
 
-/** BlockSpace (P11) — dự án Scratch, phiên bản, asset. docs/adr/003-scratch-studio.md. */
+/** BlockSpace (P11) — dự án Scratch, phiên bản, asset, chia sẻ, công khai. docs/adr/003-scratch-studio.md. */
 @Module({
-  controllers: [ScratchProjectsController, ScratchAssetsController, ScratchSharingController],
-  providers: [ScratchAccessService, ScratchProjectsService, ScratchAssetsService, ScratchSharingService],
+  controllers: [
+    ScratchProjectsController,
+    ScratchAssetsController,
+    ScratchSharingController,
+    ScratchPublishingController,
+    ScratchPublicController,
+    ScratchModerationController,
+  ],
+  providers: [
+    ScratchAccessService,
+    ScratchProjectsService,
+    ScratchAssetsService,
+    ScratchSharingService,
+    ScratchModeratorsService,
+    ScratchPublishingService,
+    ScratchModerationService,
+  ],
   exports: [ScratchAccessService],
 })
 export class ScratchModule {}

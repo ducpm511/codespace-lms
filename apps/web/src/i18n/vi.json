@@ -709,6 +709,64 @@
       "hint_private": "Chỉ em (và đồng tác giả) thấy dự án này.",
       "hint_class": "Bạn cùng lớp và giáo viên xem, chạy và remix được — không ai sửa được bản của em.",
       "hint_school": "Mọi tài khoản CodeSpace xem, chạy và remix được — không ai sửa được bản của em."
+    },
+    "publish": {
+      "title": "Công khai trên internet",
+      "explain": "Ai có link đều xem và chạy được — kể cả người ngoài CodeSpace. Trang công khai chỉ hiện biệt danh của em, không hiện họ tên, lớp hay trường. Giáo viên duyệt trước khi lên.",
+      "live": "Đang công khai",
+      "copy": "Chép link",
+      "copied": "Đã chép",
+      "pending": "Đang chờ giáo viên duyệt…",
+      "rejected": "Giáo viên chưa duyệt lần xin gần nhất",
+      "removed": "Bản công khai đã bị gỡ",
+      "nickname": "Biệt danh",
+      "nicknamePlaceholder": "Vd: Rex Nhỏ",
+      "nicknameHint": "2–24 ký tự. Đừng dùng tên thật — giáo viên sẽ duyệt.",
+      "nicknamePending": "Biệt danh \"{{name}}\" đang chờ duyệt.",
+      "request": "Xin công khai",
+      "requestUpdate": "Xin cập nhật bản công khai",
+      "withdraw": "Gỡ công khai",
+      "cancel": "Hủy yêu cầu",
+      "confirmWithdraw": "Gỡ dự án khỏi internet? Link công khai sẽ ngừng hoạt động."
+    },
+    "report": {
+      "button": "Báo cáo",
+      "title": "Dự án này có gì không ổn?",
+      "reason_inappropriate": "Nội dung không phù hợp",
+      "reason_personal_info": "Lộ thông tin cá nhân (ảnh, giọng nói, tên thật…)",
+      "reason_copied": "Chép bài người khác",
+      "reason_other": "Lý do khác",
+      "notePlaceholder": "Ghi thêm cho giáo viên (không bắt buộc)",
+      "send": "Gửi báo cáo",
+      "thanks": "Đã gửi báo cáo cho giáo viên. Cảm ơn em!"
+    },
+    "public": {
+      "login": "Đăng nhập",
+      "byline": "của {{name}} · công khai {{date}}",
+      "remix": "Remix về dự án của tôi",
+      "loginToRemix": "Đăng nhập để remix",
+      "notFound": "Dự án này không còn công khai hoặc link không đúng."
+    },
+    "mod": {
+      "title": "Kiểm duyệt BlockSpace",
+      "entry": "Kiểm duyệt ({{count}})",
+      "publications": "Xin công khai",
+      "reports": "Báo cáo",
+      "nicknames": "Biệt danh",
+      "empty": "Không có gì cần xử lý.",
+      "requestedBy": "{{name}} xin lúc {{date}}",
+      "nicknameShown": "Biệt danh sẽ hiện",
+      "newNickname": "Biệt danh mới",
+      "update": "Cập nhật bản cũ",
+      "preview": "Xem",
+      "hide": "Ẩn",
+      "notePlaceholder": "Lời nhắn cho học viên khi từ chối (không bắt buộc)",
+      "approve": "Duyệt",
+      "reject": "Từ chối",
+      "reportedBy": "Của {{owner}} · {{reporter}} báo cáo lúc {{date}}",
+      "dismiss": "Không vi phạm",
+      "remove": "Gỡ",
+      "confirmRemove": "Gỡ \"{{title}}\"? Dự án thôi công khai và thu chia sẻ về \"Chỉ mình tôi\"."
     }
   }
 }

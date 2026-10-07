@@ -8,6 +8,7 @@ import {
   useCreateProject,
   useDeleteProject,
   useGallery,
+  useModerationQueue,
   useMyProjects,
   useScratchClasses,
 } from '../../features/studio/hooks';
@@ -25,6 +26,10 @@ export function StudioHome(): JSX.Element {
   const projects = useMyProjects();
   const create = useCreateProject();
   const classes = useScratchClasses();
+  const queue = useModerationQueue();
+  const pendingModeration = queue.data
+    ? queue.data.publications.length + queue.data.reports.length + queue.data.nicknames.length
+    : 0;
 
   const tabs = [
     { key: 'mine', label: t('studio.tabMine') },
@@ -55,10 +60,15 @@ export function StudioHome(): JSX.Element {
           <p className="m-0 max-w-lg" style={{ opacity: 0.85 }}>
             {t('studio.tagline')}
           </p>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             <PillButton icon="ph-plus" disabled={create.isPending} onClick={newProject}>
               {t('studio.newProject')}
             </PillButton>
+            {pendingModeration > 0 && (
+              <Link to="/studio/moderation" className="btn btn-secondary cx-press" style={{ borderRadius: 999 }}>
+                <i className="ph ph-shield-check" aria-hidden /> {t('studio.mod.entry', { count: pendingModeration })}
+              </Link>
+            )}
           </div>
         </div>
         <img src="/brand/mascot-laptop.png" alt="" className="cx-float h-32 w-auto" />

@@ -67,6 +67,9 @@ export const PERMISSIONS = {
   AUDIT_READ: 'audit.read',
   CERTIFICATE_TEMPLATE_MANAGE: 'certificate.template.manage',
   NOTIFICATION_READ: 'notification.read',
+  // P11 — BlockSpace: duyệt/gỡ công khai, xử lý báo cáo, duyệt biệt danh TOÀN TRƯỜNG (admin).
+  // GV KHÔNG cần quyền này — GV kiểm duyệt học viên của lớp mình theo quan hệ lớp (ADR 003 D4′).
+  SCRATCH_MODERATE: 'scratch.moderate',
 } as const;
 
 export type PermissionCatalogKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

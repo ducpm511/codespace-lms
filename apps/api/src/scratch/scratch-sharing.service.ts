@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@lms/database';
 import { SCRATCH_GALLERY_LIMIT, SCRATCH_TITLE_MAX_LENGTH } from '@lms/contracts';
 import type {
@@ -80,13 +80,41 @@ export class ScratchSharingService {
     });
     const latest = source.versions[0];
     if (!latest) throw new BadRequestException('Dự án chưa có nội dung để remix');
+    return this.copyVersion(sourceId, source.title, latest, title, userId);
+  }
 
-    const used = referencedMd5exts(latest.projectJson);
+  /**
+   * Remix từ trang công khai: chép ĐÚNG bản đã duyệt (không phải bản mới nhất của chủ — có thể chưa ai
+   * duyệt). Mọi tài khoản đăng nhập remix được, kể cả không xem được dự án trong LMS.
+   */
+  async remixPublished(slug: string, userId: string): Promise<ScratchProjectDetailDto> {
+    const pub = await this.prisma.scratchPublication.findUnique({
+      where: { slug },
+      select: {
+        projectId: true,
+        publishedTitle: true,
+        project: { select: { deletedAt: true } },
+        publishedVersion: { select: { projectJson: true, sizeBytes: true } },
+      },
+    });
+    if (!pub?.publishedVersion || pub.project.deletedAt) throw new NotFoundException('Dự án không tồn tại');
+    return this.copyVersion(pub.projectId, pub.publishedTitle ?? 'BlockSpace', pub.publishedVersion, undefined, userId);
+  }
+
+  /** Bản sao RIÊNG (private) của mình từ một phiên bản, giữ `remixOfId`; chỉ chép tham chiếu asset nó dùng. */
+  private async copyVersion(
+    sourceId: string,
+    sourceTitle: string,
+    version: { projectJson: Prisma.JsonValue; sizeBytes: number },
+    title: string | undefined,
+    userId: string,
+  ): Promise<ScratchProjectDetailDto> {
+    const used = referencedMd5exts(version.projectJson);
     const links = await this.prisma.scratchProjectAsset.findMany({
       where: { projectId: sourceId, md5ext: { in: used } },
       select: { md5ext: true },
     });
-    const newTitle = (title?.trim() || `${source.title} (remix)`).slice(0, SCRATCH_TITLE_MAX_LENGTH);
+    const newTitle = (title?.trim() || `${sourceTitle} (remix)`).slice(0, SCRATCH_TITLE_MAX_LENGTH);
 
     const created = await this.prisma.$transaction(async (tx) => {
       const project = await tx.scratchProject.create({
@@ -97,8 +125,8 @@ export class ScratchSharingService {
         data: {
           projectId: project.id,
           seq: 1,
-          projectJson: latest.projectJson as Prisma.InputJsonValue,
-          sizeBytes: latest.sizeBytes,
+          projectJson: version.projectJson as Prisma.InputJsonValue,
+          sizeBytes: version.sizeBytes,
           savedById: userId,
         },
       });

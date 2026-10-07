@@ -40,12 +40,25 @@ export interface LoadedProject {
   known: Set<string>;
 }
 
+/** Nguồn nạp dự án: dự án của tôi / bản công khai / bản chờ duyệt — cùng cách nạp, khác đường API. */
+export interface ProjectSource {
+  json: () => Promise<string | null>;
+  asset: (md5ext: string) => Promise<ArrayBuffer | null>;
+}
+
 /** Tải phiên bản mới nhất + asset riêng của dự án (có token) để đưa vào trình soạn. */
-export async function fetchProjectForEditor(projectId: string): Promise<LoadedProject> {
-  const projectJson = await getLatestProjectJson(projectId);
+export function fetchProjectForEditor(projectId: string): Promise<LoadedProject> {
+  return fetchProjectFrom({
+    json: () => getLatestProjectJson(projectId),
+    asset: (md5ext) => getProjectAsset(projectId, md5ext),
+  });
+}
+
+export async function fetchProjectFrom(source: ProjectSource): Promise<LoadedProject> {
+  const projectJson = await source.json();
   if (projectJson === null) return { projectJson, assets: [], known: new Set() };
   const names = referencedAssets(projectJson);
-  const datas = await mapLimit(names, PARALLEL, (md5ext) => getProjectAsset(projectId, md5ext));
+  const datas = await mapLimit(names, PARALLEL, source.asset);
   const assets: EditorAsset[] = [];
   names.forEach((md5ext, i) => {
     // 404 = asset thư viện Scratch: trình soạn tự tải từ CDN, không cần sao lên server.

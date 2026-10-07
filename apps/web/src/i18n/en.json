@@ -709,6 +709,64 @@
       "hint_private": "Only you (and co-authors) can see this project.",
       "hint_class": "Classmates and teachers can view, run and remix it — nobody can change your copy.",
       "hint_school": "Every CodeSpace account can view, run and remix it — nobody can change your copy."
+    },
+    "publish": {
+      "title": "Publish on the internet",
+      "explain": "Anyone with the link can view and run it — even people outside CodeSpace. The public page shows only your nickname, never your name, class or school. A teacher approves it first.",
+      "live": "Public",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "pending": "Waiting for a teacher to approve…",
+      "rejected": "Your last request wasn't approved",
+      "removed": "The public version was taken down",
+      "nickname": "Nickname",
+      "nicknamePlaceholder": "e.g. Little Rex",
+      "nicknameHint": "2–24 characters. Don't use your real name — a teacher will check it.",
+      "nicknamePending": "Nickname \"{{name}}\" is waiting for approval.",
+      "request": "Ask to publish",
+      "requestUpdate": "Ask to update the public version",
+      "withdraw": "Unpublish",
+      "cancel": "Cancel request",
+      "confirmWithdraw": "Take this project off the internet? The public link will stop working."
+    },
+    "report": {
+      "button": "Report",
+      "title": "What's wrong with this project?",
+      "reason_inappropriate": "Inappropriate content",
+      "reason_personal_info": "Personal information (photo, voice, real name…)",
+      "reason_copied": "Copied from someone else",
+      "reason_other": "Something else",
+      "notePlaceholder": "Anything else for the teacher (optional)",
+      "send": "Send report",
+      "thanks": "Your report was sent to a teacher. Thank you!"
+    },
+    "public": {
+      "login": "Sign in",
+      "byline": "by {{name}} · published {{date}}",
+      "remix": "Remix into my projects",
+      "loginToRemix": "Sign in to remix",
+      "notFound": "This project is no longer public, or the link is wrong."
+    },
+    "mod": {
+      "title": "BlockSpace moderation",
+      "entry": "Moderation ({{count}})",
+      "publications": "Publish requests",
+      "reports": "Reports",
+      "nicknames": "Nicknames",
+      "empty": "Nothing to review.",
+      "requestedBy": "{{name}} asked at {{date}}",
+      "nicknameShown": "Nickname shown",
+      "newNickname": "New nickname",
+      "update": "Updates a public version",
+      "preview": "View",
+      "hide": "Hide",
+      "notePlaceholder": "Message to the student if rejecting (optional)",
+      "approve": "Approve",
+      "reject": "Reject",
+      "reportedBy": "By {{owner}} · reported by {{reporter}} at {{date}}",
+      "dismiss": "No problem",
+      "remove": "Take down",
+      "confirmRemove": "Take down \"{{title}}\"? It stops being public and its sharing goes back to \"Only me\"."
     }
   }
 }

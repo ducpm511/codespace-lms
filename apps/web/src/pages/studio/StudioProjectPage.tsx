@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../lib/api';
-import { BLOCKSPACE_EDITOR_URL, useBlockSpace } from '../../features/studio/useBlockSpace';
-import { fetchProjectForEditor } from '../../features/studio/projectSync';
+import { getLatestProjectJson, getProjectAsset } from '../../features/studio/api';
 import { useLikeProject, useProject, useRemixProject } from '../../features/studio/hooks';
 import { ShareControl } from '../../features/studio/ShareControl';
+import { PublishControl } from '../../features/studio/PublishControl';
+import { ReportControl } from '../../features/studio/ReportControl';
+import { ScratchPlayer } from '../../features/studio/ScratchPlayer';
 
 /** Trang dự án: sân khấu + cờ xanh (trình soạn ở chế độ player). Ai xem được dự án đều vào được. */
 export function StudioProjectPage(): JSX.Element {
@@ -20,25 +22,13 @@ function ProjectView({ id }: { id: string }): JSX.Element {
   const like = useLikeProject(id);
   const remix = useRemixProject();
   const project = useProject(id);
-  const { iframeRef, state, open } = useBlockSpace();
-  const [content, setContent] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
-  const started = useRef(false);
+  const [playable, setPlayable] = useState(false);
+  const onReady = useCallback(() => setPlayable(true), []);
+  const source = useMemo(
+    () => ({ json: () => getLatestProjectJson(id), asset: (md5ext: string) => getProjectAsset(id, md5ext) }),
+    [id],
+  );
   const detail = project.data;
-
-  useEffect(() => {
-    if (!state.ready || !detail || started.current) return;
-    started.current = true;
-    fetchProjectForEditor(id)
-      .then((loaded) => {
-        if (loaded.projectJson === null) setContent('empty');
-        else open(loaded.projectJson, loaded.assets, detail.title);
-      })
-      .catch(() => setContent('error'));
-  }, [state.ready, detail, id, open]);
-
-  useEffect(() => {
-    if (state.loadCount > 0) setContent('ready');
-  }, [state.loadCount]);
 
   if (project.isLoading) return <p className="text-muted m-0">{t('common.loading')}</p>;
   if (!detail) {
@@ -96,7 +86,7 @@ function ProjectView({ id }: { id: string }): JSX.Element {
             />
             {detail.likeCount}
           </button>
-          {content === 'ready' && (
+          {playable && (
             <button
               type="button"
               className="btn btn-secondary cx-press"
@@ -120,36 +110,7 @@ function ProjectView({ id }: { id: string }): JSX.Element {
         </p>
       )}
 
-      {/* Player Scratch có cỡ CỐ ĐỊNH: sân khấu 482×362 (480×360 + viền) + thanh cờ xanh 44px. Khung to hơn
-          chỉ thêm dải xám thừa; màn hình nhỏ hơn dùng nút toàn màn hình của player. */}
-      <div
-        className="relative mx-auto overflow-hidden"
-        style={{ width: 482, maxWidth: '100%', height: 406, borderRadius: 14, background: '#fff' }}
-      >
-        <iframe
-          ref={iframeRef}
-          src={`${BLOCKSPACE_EDITOR_URL}?mode=player`}
-          title={detail.title}
-          className="h-full w-full"
-          style={{ border: 0 }}
-          allow="fullscreen"
-        />
-        {content !== 'ready' && (
-          <div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"
-            style={{ background: 'var(--color-surface)' }}
-          >
-            {content === 'loading' ? (
-              <p className="text-muted m-0">{t('common.loading')}</p>
-            ) : (
-              <>
-                <img src="/brand/mascot-huh.png" alt="" className="h-24 w-auto" />
-                <p className="m-0">{content === 'empty' ? t('studio.noContent') : t('studio.playFailed')}</p>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+      <ScratchPlayer source={source} title={detail.title} onReady={onReady} />
 
       {detail.isOwner && (
         <section className="card mx-auto flex w-full flex-col gap-3 p-5" style={{ maxWidth: 482, borderRadius: 18 }}>
@@ -159,6 +120,20 @@ function ProjectView({ id }: { id: string }): JSX.Element {
           </h2>
           <ShareControl project={detail} />
         </section>
+      )}
+      {detail.isOwner && (
+        <section className="card mx-auto flex w-full flex-col gap-3 p-5" style={{ maxWidth: 482, borderRadius: 18 }}>
+          <h2 className="cx-display m-0 flex items-center gap-2 text-lg">
+            <i className="ph ph-globe-hemisphere-east" style={{ color: 'var(--cx-blue)' }} aria-hidden />
+            {t('studio.publish.title')}
+          </h2>
+          <PublishControl project={detail} />
+        </section>
+      )}
+      {!detail.isOwner && (
+        <div className="mx-auto flex w-full flex-col" style={{ maxWidth: 482 }}>
+          <ReportControl target={{ projectId: id }} />
+        </div>
       )}
     </div>
   );

@@ -10,6 +10,8 @@ import { LearnHome } from './pages/LearnHome';
 import { StudioEditorPage } from './pages/studio/StudioEditorPage';
 import { StudioHome } from './pages/studio/StudioHome';
 import { StudioProjectPage } from './pages/studio/StudioProjectPage';
+import { StudioModerationPage } from './pages/studio/StudioModerationPage';
+import { PublicProjectPage } from './pages/studio/PublicProjectPage';
 import { VerifyCertificate } from './pages/VerifyCertificate';
 import { AREA_ROLES } from './lib/roles';
 
@@ -18,6 +20,8 @@ export function App(): JSX.Element {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/verify/:code" element={<VerifyCertificate />} />
+      {/* Dự án BlockSpace công khai — KHÔNG cần đăng nhập (ADR 003 D4′). */}
+      <Route path="/p/:slug" element={<PublicProjectPage />} />
 
       <Route element={<RequireAuth />}>
         {/* Trình soạn BlockSpace chiếm TOÀN màn hình — nằm ngoài AppLayout (khung max-w-6xl làm vùng lập
@@ -45,6 +49,8 @@ export function App(): JSX.Element {
           <Route path="learn" element={<LearnHome />} />
           {/* BlockSpace mở cho mọi user — quyền từng dự án kiểm ở backend (ScratchAccessService). */}
           <Route path="studio" element={<StudioHome />} />
+          {/* Ai vào cũng được; hàng chờ chỉ có học viên mình dạy (backend lọc), HV thấy rỗng. */}
+          <Route path="studio/moderation" element={<StudioModerationPage />} />
           <Route path="studio/:id" element={<StudioProjectPage />} />
         </Route>
       </Route>

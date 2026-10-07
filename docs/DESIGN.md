@@ -195,6 +195,13 @@ ScratchCollaborator(projectId, userId, invitedById?) @@id
 ScratchProjectLike(projectId, userId) @@id      // idempotent
 ```
 Lớp bị xóa → `classId` NULL nhưng `visibility` vẫn `class` → service coi như `private`.
+```
+ScratchPublication(projectId @id, slug @unique, publishedVersionId?, publishedTitle?, publishedAt?,
+       requestedVersionId?, requestedAt?, decision[approved/rejected/removed/withdrawn]?, decisionNote?, decidedById?)
+ScratchNickname(userId @id, approved?, pending?, pendingAt?, reviewedById?)      // trang công khai chỉ hiện biệt danh
+ScratchReport(id, projectId, reporterId, reason, note?, resolvedAt?, resolution?) @@unique([projectId, reporterId])
+```
+Công khai là LỚP PHỦ, không đổi `visibility` (enum `public` chưa dùng). Quyền `scratch.moderate` (admin).
 
 ### 4.8 Cross-cutting
 
@@ -300,6 +307,10 @@ GET    /scratch/projects/:id/versions/:seq|latest (project.json) · GET …/asse
 POST   /scratch/assets/:md5ext (multipart `file`, ≤10MB, kiểm md5 + magic bytes, hạn mức 200MB/người)
 GET    /scratch/classes (lớp mình thuộc HOẶC tạo) · GET /scratch/gallery?scope=class&classId=|school (≤60, có nội dung)
 POST   /scratch/projects/:id/remix (bản sao private, giữ remixOfId) · PUT|DELETE /scratch/projects/:id/like (idempotent)
+GET|PUT /scratch/me/nickname · POST|DELETE /scratch/projects/:id/publication · POST /scratch/projects/:id/report
+GET    /scratch/public/:slug[/project.json|/assets/:md5ext] (KHÔNG cần đăng nhập) · POST …/remix|report (cần)
+GET    /scratch/moderation/queue · …/publications/:projectId/{project.json,assets/:md5ext} · POST …/{approve,reject,remove}
+POST   /scratch/moderation/nicknames/:userId/{approve,reject} · POST /scratch/moderation/reports/:id/resolve
 ```
 
 ## 9. Frontend (apps/web)

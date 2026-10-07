@@ -77,6 +77,11 @@ model User {
   scratchCollabs       ScratchCollaborator[]   @relation("ScratchCollaboratorUser")
   scratchInvitesSent   ScratchCollaborator[]   @relation("ScratchCollaboratorInvitedBy")
   scratchLikes         ScratchProjectLike[]
+  scratchNickname      ScratchNickname?
+  scratchNicknamesRevd ScratchNickname[]       @relation("ScratchNicknameReviewedBy")
+  scratchDecisions     ScratchPublication[]    @relation("ScratchPublicationDecidedBy")
+  scratchReports       ScratchReport[]         @relation("ScratchReportReporter")
+  scratchReportsSolved ScratchReport[]         @relation("ScratchReportResolvedBy")
 
   @@map("users")
 }
@@ -1033,6 +1038,8 @@ model ScratchProject {
   assets        ScratchProjectAsset[]
   collaborators ScratchCollaborator[]
   likes         ScratchProjectLike[]
+  publication   ScratchPublication?
+  reports       ScratchReport[]
 
   @@index([ownerId, deletedAt, updatedAt])
   @@index([classId, visibility])
@@ -1055,6 +1062,9 @@ model ScratchProjectVersion {
 
   project ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   savedBy User?          @relation("ScratchVersionSavedBy", fields: [savedById], references: [id], onDelete: SetNull)
+
+  publishedIn ScratchPublication? @relation("ScratchPublishedVersion")
+  requestedIn ScratchPublication? @relation("ScratchRequestedVersion")
 
   @@unique([projectId, seq])
   @@index([projectId, frozenAt])
@@ -1125,4 +1135,97 @@ model ScratchProjectLike {
   @@id([projectId, userId])
   @@index([userId])
   @@map("scratch_project_likes")
+}
+
+// --- T11.5b Công khai (ADR D4′; người dùng chốt 2026-10-07) ---
+// "Công khai" là một LỚP PHỦ lên dự án, không đổi `visibility`: ai có link `/p/<slug>` (không cần đăng
+// nhập) xem được ĐÚNG phiên bản đã được GV duyệt (đóng băng). Sửa dự án tiếp không đổi bản công khai —
+// muốn cập nhật phải xin duyệt lại; trong lúc chờ, bản cũ vẫn hiện. Người duyệt/gỡ: GV của BẤT KỲ lớp
+// nào học viên đang học (người tạo lớp hoặc instructor/TA) + người có quyền `scratch.moderate`.
+
+enum ScratchPublicationDecision {
+  approved
+  rejected
+  removed // GV/admin gỡ (vd sau báo cáo)
+  withdrawn // chủ dự án tự gỡ
+}
+
+model ScratchPublication {
+  projectId          String                      @id
+  // Mã trong link công khai — ngẫu nhiên, KHÔNG phải id dự án (không đoán được, không lộ id nội bộ).
+  slug               String                      @unique
+  // Bản đang công khai; NULL = không công khai (chưa duyệt lần nào hoặc đã gỡ).
+  publishedVersionId String?                     @unique
+  // Tên chụp lúc duyệt — đổi tên dự án sau đó không đổi trang công khai.
+  publishedTitle     String?
+  publishedAt        DateTime?
+  // Yêu cầu đang chờ duyệt (phiên bản đã đóng băng lúc xin); NULL = không có yêu cầu.
+  requestedVersionId String?                     @unique
+  requestedAt        DateTime?
+  decision           ScratchPublicationDecision?
+  decisionNote       String?
+  decidedById        String?
+  decidedAt          DateTime?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+
+  project          ScratchProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  publishedVersion ScratchProjectVersion? @relation("ScratchPublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  requestedVersion ScratchProjectVersion? @relation("ScratchRequestedVersion", fields: [requestedVersionId], references: [id], onDelete: SetNull)
+  decidedBy        User?                  @relation("ScratchPublicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([requestedAt])
+  @@map("scratch_publications")
+}
+
+// Biệt danh trên trang công khai (thay họ tên — INVARIANT #5). Một biệt danh / học viên, GV duyệt; đổi thì
+// bản đã duyệt vẫn dùng tới khi bản mới được duyệt.
+model ScratchNickname {
+  userId       String    @id
+  approved     String?
+  pending      String?
+  pendingAt    DateTime?
+  reviewedById String?
+  reviewedAt   DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("ScratchNicknameReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([pendingAt])
+  @@map("scratch_nicknames")
+}
+
+enum ScratchReportReason {
+  inappropriate // nội dung không phù hợp
+  personal_info // lộ thông tin cá nhân (ảnh, giọng nói, tên thật…)
+  copied // chép bài người khác không ghi nguồn
+  other
+}
+
+enum ScratchReportResolution {
+  dismissed
+  removed
+}
+
+// Báo cáo dự án — chỉ tài khoản đăng nhập. Dự án VẪN hiện tới khi GV/admin xử lý (người dùng chốt).
+model ScratchReport {
+  id           String                   @id @default(cuid())
+  projectId    String
+  reporterId   String
+  reason       ScratchReportReason
+  note         String? // ≤ 500 ký tự
+  createdAt    DateTime                 @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolution   ScratchReportResolution?
+
+  project    ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter   User           @relation("ScratchReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy User?          @relation("ScratchReportResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  // Mỗi người một báo cáo / dự án (báo lại = cập nhật lý do) — chặn spam dồn hàng chờ của GV.
+  @@unique([projectId, reporterId])
+  @@index([resolvedAt, createdAt])
+  @@map("scratch_reports")
 }

@@ -1,5 +1,11 @@
 import type {
+  CreateScratchReportRequest,
   CreateScratchProjectRequest,
+  RequestScratchPublicationRequest,
+  ScratchModerationQueueDto,
+  ScratchNicknameDto,
+  ScratchPublicationDto,
+  ScratchPublicProjectDto,
   ScratchClassDto,
   ScratchGalleryScope,
   ScratchLikeResponse,
@@ -62,3 +68,52 @@ export const remixProject = (id: string, title?: string): Promise<ScratchProject
 
 export const setProjectLike = (id: string, liked: boolean): Promise<ScratchLikeResponse> =>
   apiFetch(`${base}/${id}/like`, { method: liked ? 'PUT' : 'DELETE' });
+
+// --- Công khai, biệt danh, báo cáo, kiểm duyệt (T11.5b) ---
+
+/** project.json dạng chuỗi; 404 ⇒ null. */
+async function jsonOrNull(path: string): Promise<string | null> {
+  try {
+    return JSON.stringify(await apiFetch<unknown>(path));
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
+export const getMyNickname = (): Promise<ScratchNicknameDto> => apiFetch('/scratch/me/nickname');
+
+export const requestPublication = (id: string, dto: RequestScratchPublicationRequest): Promise<ScratchPublicationDto> =>
+  apiFetch(`${base}/${id}/publication`, { method: 'POST', body: JSON.stringify(dto) });
+
+export const withdrawPublication = (id: string): Promise<ScratchPublicationDto | null> =>
+  apiFetch(`${base}/${id}/publication`, { method: 'DELETE' });
+
+export const reportProject = (id: string, dto: CreateScratchReportRequest): Promise<void> =>
+  apiFetch(`${base}/${id}/report`, { method: 'POST', body: JSON.stringify(dto) });
+
+const pub = (slug: string) => `/scratch/public/${encodeURIComponent(slug)}`;
+export const getPublicProject = (slug: string): Promise<ScratchPublicProjectDto> => apiFetch(pub(slug));
+export const getPublicProjectJson = (slug: string): Promise<string | null> => jsonOrNull(`${pub(slug)}/project.json`);
+export const getPublicAsset = (slug: string, md5ext: string): Promise<ArrayBuffer | null> =>
+  apiFetchArrayBuffer(`${pub(slug)}/assets/${md5ext}`);
+export const remixPublic = (slug: string): Promise<ScratchProjectDetailDto> =>
+  apiFetch(`${pub(slug)}/remix`, { method: 'POST' });
+export const reportPublic = (slug: string, dto: CreateScratchReportRequest): Promise<void> =>
+  apiFetch(`${pub(slug)}/report`, { method: 'POST', body: JSON.stringify(dto) });
+
+const mod = '/scratch/moderation';
+export const getModerationQueue = (): Promise<ScratchModerationQueueDto> => apiFetch(`${mod}/queue`);
+export const getRequestedJson = (projectId: string): Promise<string | null> =>
+  jsonOrNull(`${mod}/publications/${projectId}/project.json`);
+export const getRequestedAsset = (projectId: string, md5ext: string): Promise<ArrayBuffer | null> =>
+  apiFetchArrayBuffer(`${mod}/publications/${projectId}/assets/${md5ext}`);
+export const decidePublication = (projectId: string, decision: 'approve' | 'reject' | 'remove', note?: string) =>
+  apiFetch<void>(`${mod}/publications/${projectId}/${decision}`, {
+    method: 'POST',
+    body: JSON.stringify(note ? { note } : {}),
+  });
+export const decideNickname = (userId: string, decision: 'approve' | 'reject') =>
+  apiFetch<void>(`${mod}/nicknames/${userId}/${decision}`, { method: 'POST' });
+export const resolveReport = (id: string, action: 'dismiss' | 'remove') =>
+  apiFetch<void>(`${mod}/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ action }) });

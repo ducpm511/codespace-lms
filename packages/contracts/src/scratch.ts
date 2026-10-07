@@ -68,6 +68,8 @@ export interface ScratchProjectDetailDto extends ScratchProjectSummaryDto {
   /** Chủ dự án hoặc đồng tác giả. */
   canEdit: boolean;
   collaborators: ScratchCollaboratorDto[];
+  /** Trạng thái công khai — CHỈ trả cho chủ dự án (người khác: null). */
+  publication: ScratchPublicationDto | null;
 }
 
 export interface ScratchProjectVersionDto {
@@ -122,4 +124,109 @@ export const SCRATCH_GALLERY_LIMIT = 60;
 export interface ScratchLikeResponse {
   likeCount: number;
   likedByMe: boolean;
+}
+
+// --- Công khai, biệt danh, báo cáo, kiểm duyệt (T11.5b — ADR D4′) ---
+
+export type ScratchPublicationDecisionValue = 'approved' | 'rejected' | 'removed' | 'withdrawn';
+
+export interface ScratchPublicationDto {
+  /** Mã link `/p/<slug>` — chỉ có khi đang công khai. */
+  slug: string | null;
+  published: boolean;
+  publishedAt: string | null;
+  /** Đang có yêu cầu chờ GV duyệt. */
+  pending: boolean;
+  requestedAt: string | null;
+  lastDecision: ScratchPublicationDecisionValue | null;
+  /** Lời nhắn của GV khi từ chối / gỡ. */
+  decisionNote: string | null;
+}
+
+/** Biệt danh: 2–24 ký tự chữ (có dấu), số, khoảng trắng, `_ . -`. Không được giống email/họ tên đầy đủ — GV duyệt. */
+export const SCRATCH_NICKNAME_PATTERN = /^[\p{L}\p{N} _.-]{2,24}$/u;
+
+export interface ScratchNicknameDto {
+  approved: string | null;
+  pending: string | null;
+}
+
+export interface SetScratchNicknameRequest {
+  nickname: string;
+}
+
+/** Xin công khai phiên bản mới nhất; kèm biệt danh nếu chưa có / muốn đổi (GV duyệt cùng lúc). */
+export interface RequestScratchPublicationRequest {
+  nickname?: string;
+}
+
+/** Trang công khai — KHÔNG có họ tên, lớp, trường (ADR D4′). */
+export interface ScratchPublicProjectDto {
+  slug: string;
+  title: string;
+  nickname: string;
+  publishedAt: string;
+}
+
+export type ScratchReportReasonValue = 'inappropriate' | 'personal_info' | 'copied' | 'other';
+export const SCRATCH_REPORT_REASONS: readonly ScratchReportReasonValue[] = [
+  'inappropriate',
+  'personal_info',
+  'copied',
+  'other',
+];
+export const SCRATCH_REPORT_NOTE_MAX = 500;
+export const SCRATCH_DECISION_NOTE_MAX = 300;
+
+export interface CreateScratchReportRequest {
+  reason: ScratchReportReasonValue;
+  note?: string;
+}
+
+export interface ScratchModerationNoteRequest {
+  note?: string;
+}
+
+export interface ResolveScratchReportRequest {
+  action: 'dismiss' | 'remove';
+}
+
+export interface ScratchModerationPublicationItem {
+  projectId: string;
+  title: string;
+  ownerName: string;
+  /** Biệt danh sẽ hiện nếu duyệt (bản chờ duyệt nếu có, không thì bản đã duyệt). */
+  nickname: string | null;
+  nicknameIsNew: boolean;
+  requestedAt: string;
+  /** Đang có bản công khai cũ (yêu cầu này là cập nhật). */
+  alreadyPublished: boolean;
+}
+
+export interface ScratchModerationReportItem {
+  id: string;
+  projectId: string;
+  projectTitle: string;
+  ownerName: string;
+  reporterName: string;
+  reason: ScratchReportReasonValue;
+  note: string | null;
+  createdAt: string;
+  /** Dự án đang có bản công khai. */
+  isPublic: boolean;
+  /** Link `/p/<slug>` để GV xem bản công khai (GV có thể không xem được dự án trong LMS). */
+  publicSlug: string | null;
+}
+
+export interface ScratchModerationNicknameItem {
+  userId: string;
+  fullName: string;
+  approved: string | null;
+  pending: string;
+}
+
+export interface ScratchModerationQueueDto {
+  publications: ScratchModerationPublicationItem[];
+  reports: ScratchModerationReportItem[];
+  nicknames: ScratchModerationNicknameItem[];
 }

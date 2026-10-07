@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { STORAGE_ADAPTER, type StorageAdapter } from '../common/storage/storage.interface';
 import { ScratchAccessService } from './scratch-access.service';
 import { parseProjectJson } from './project-json';
+import { toPublicationDto } from './scratch-publishing.service';
 import type { CreateScratchProjectDto } from './dto/create-scratch-project.dto';
 import type { UpdateScratchProjectDto } from './dto/update-scratch-project.dto';
 
@@ -110,6 +111,17 @@ export class ScratchProjectsService {
           select: { userId: true, createdAt: true, user: { select: { fullName: true } } },
           orderBy: { createdAt: 'asc' },
         },
+        publication: {
+          select: {
+            slug: true,
+            publishedVersionId: true,
+            publishedAt: true,
+            requestedVersionId: true,
+            requestedAt: true,
+            decision: true,
+            decisionNote: true,
+          },
+        },
       },
     });
     return {
@@ -122,6 +134,8 @@ export class ScratchProjectsService {
         fullName: c.user.fullName,
         createdAt: c.createdAt.toISOString(),
       })),
+      // Trạng thái + link công khai chỉ cho chủ dự án.
+      publication: access.isOwner ? toPublicationDto(row.publication) : null,
     };
   }
 

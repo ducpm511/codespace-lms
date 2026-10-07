@@ -113,10 +113,20 @@ trường quản lý). Không bình luận trên trang `public`.
 - Phụ thuộc CDN của MIT cho thư viện asset cho tới khi tự host.
 - Dung lượng lưu trữ tăng theo số dự án; cần hạn mức + dọn phiên bản cũ.
 
+## Quyết định công khai (người dùng chốt 2026-10-07, T11.5b)
+
+- **Người duyệt / gỡ:** GV của BẤT KỲ lớp nào em đang học (người tạo lớp hoặc instructor/TA) + người có quyền
+  `scratch.moderate` (admin, super_admin). Không ai tự duyệt bài mình.
+- **Biệt danh:** một biệt danh / học viên, GV duyệt cùng yêu cầu công khai đầu tiên; đổi thì bản đã duyệt vẫn
+  dùng tới khi bản mới được duyệt.
+- **Trang công khai `/p/<slug>`:** ai có link xem được, KHÔNG cần đăng nhập; slug ngẫu nhiên 72 bit, không phải
+  id. Chỉ phục vụ phiên bản đã duyệt + asset phiên bản đó dùng. Remix / báo cáo cần đăng nhập.
+- **Báo cáo:** chỉ tài khoản đăng nhập; dự án VẪN hiện tới khi GV/admin xử lý (bỏ qua / gỡ = thôi công khai +
+  thu chia sẻ về private).
+
 ## Open Questions (còn mở)
 
 - **Pháp lý:** nhờ người có chuyên môn xác nhận ranh giới AGPL giữa trình soạn (iframe) và LMS.
-- **Người duyệt công khai** mặc định là GV của lớp — cần xác nhận quy trình nếu em học nhiều lớp.
 
 ## Open Questions ban đầu (đã chốt, giữ để tra lại)
 
