@@ -70,6 +70,14 @@ model User {
   files         File[]          @relation("FileOwner")
   comments      LessonComment[]
 
+  // P11 (BlockSpace)
+  scratchProjects      ScratchProject[]        @relation("ScratchProjectOwner")
+  scratchVersionsSaved ScratchProjectVersion[] @relation("ScratchVersionSavedBy")
+  scratchAssets        ScratchAsset[]          @relation("ScratchAssetUploadedBy")
+  scratchCollabs       ScratchCollaborator[]   @relation("ScratchCollaboratorUser")
+  scratchInvitesSent   ScratchCollaborator[]   @relation("ScratchCollaboratorInvitedBy")
+  scratchLikes         ScratchProjectLike[]
+
   @@map("users")
 }
 
@@ -338,6 +346,9 @@ model Class {
   // P10 (Gamification G2)
   xpEvents      XpEvent[]
   badgesAwarded UserBadge[]
+
+  // P11 (BlockSpace) — dự án chia sẻ trong lớp
+  scratchProjects ScratchProject[]
 
   @@index([createdById])
   @@map("classes")
@@ -985,4 +996,133 @@ model LessonComment {
   @@index([lessonId, classId, createdAt])
   @@index([userId])
   @@map("lesson_comments")
+}
+
+// === P11 BlockSpace (Scratch Studio) — docs/adr/003-scratch-studio.md D3, D4′, D5′, D7 ===
+// Lưu theo kiểu Scratch: project.json theo PHIÊN BẢN trong Postgres, asset (ảnh/âm thanh) lưu THEO
+// NỘI DUNG (md5ext) ở storage private, dùng chung giữa các phiên bản / bản remix.
+
+// Phạm vi xem. `public` chỉ đạt được qua GV duyệt (T11.5b) — không cho học viên tự đặt.
+enum ScratchVisibility {
+  private
+  class
+  school
+  public
+}
+
+model ScratchProject {
+  id         String            @id @default(cuid())
+  ownerId    String
+  title      String
+  visibility ScratchVisibility @default(private)
+  // Lớp được chia sẻ khi visibility = class (bắt buộc ở tầng service, NULL với mọi visibility khác).
+  // Lớp bị xóa → classId thành NULL mà visibility vẫn `class`: service PHẢI coi như `private`.
+  classId    String?
+  // Dòng dõi remix: bản gốc bị xóa hẳn thì chỉ mất liên kết, bản remix vẫn còn.
+  remixOfId  String?
+  // Xóa mềm: bài đã nộp trỏ tới phiên bản đóng băng của dự án — không được mất theo.
+  deletedAt  DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  owner         User                    @relation("ScratchProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  class         Class?                  @relation(fields: [classId], references: [id], onDelete: SetNull)
+  remixOf       ScratchProject?         @relation("ScratchRemix", fields: [remixOfId], references: [id], onDelete: SetNull)
+  remixes       ScratchProject[]        @relation("ScratchRemix")
+  versions      ScratchProjectVersion[]
+  assets        ScratchProjectAsset[]
+  collaborators ScratchCollaborator[]
+  likes         ScratchProjectLike[]
+
+  @@index([ownerId, deletedAt, updatedAt])
+  @@index([classId, visibility])
+  @@index([remixOfId])
+  @@map("scratch_projects")
+}
+
+// Một lần lưu = một phiên bản BẤT BIẾN (không UPDATE nội dung). Autosave tạo phiên bản mới; dọn bản cũ
+// chỉ xóa bản chưa đóng băng. `frozenAt` khác NULL = đã nộp bài / đã chia sẻ công khai → giữ vĩnh viễn.
+model ScratchProjectVersion {
+  id          String    @id @default(cuid())
+  projectId   String
+  // Số thứ tự trong dự án (1, 2, 3…). Unique → hai lần lưu đồng thời không thể cùng một số.
+  seq         Int
+  projectJson Json // ≤ 5 MB (kiểm ở API, ADR D3)
+  sizeBytes   Int
+  savedById   String?
+  frozenAt    DateTime?
+  createdAt   DateTime  @default(now())
+
+  project ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  savedBy User?          @relation("ScratchVersionSavedBy", fields: [savedById], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, seq])
+  @@index([projectId, frozenAt])
+  @@map("scratch_project_versions")
+}
+
+// Asset theo nội dung: khóa là md5ext ("<md5>.<ext>", đúng tên Scratch dùng trong project.json).
+// Cùng nội dung tải lên hai lần = một bản ghi, một file. Người tải đầu tiên được tính vào hạn mức.
+model ScratchAsset {
+  md5ext       String   @id
+  dataFormat   String // png | svg | jpg | gif | wav | mp3 (allowlist ở @lms/contracts)
+  mime         String
+  sizeBytes    Int
+  provider     String   @default("local") // local | cloudinary — như File
+  storageKey   String
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  uploadedBy User?                 @relation("ScratchAssetUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  projects   ScratchProjectAsset[]
+
+  @@index([uploadedById])
+  @@map("scratch_assets")
+}
+
+// Asset nào thuộc dự án nào (hợp của mọi phiên bản). Dùng để KIỂM QUYỀN khi phục vụ asset private
+// (INVARIANT #3, #5 — ADR D7): được xem asset ⇔ được xem ít nhất một dự án tham chiếu nó.
+// Asset thư viện Scratch (CDN) không có dòng ở đây — trình soạn tải thẳng từ CDN.
+model ScratchProjectAsset {
+  projectId String
+  md5ext    String
+  createdAt DateTime @default(now())
+
+  project ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Restrict: dọn rác asset chỉ được xóa file KHÔNG còn dự án nào tham chiếu.
+  asset   ScratchAsset   @relation(fields: [md5ext], references: [md5ext], onDelete: Restrict)
+
+  @@id([projectId, md5ext])
+  @@index([md5ext])
+  @@map("scratch_project_assets")
+}
+
+// Đồng tác giả do chủ dự án mời (cùng trường) — làm chung thời gian thực ở T11.6.
+model ScratchCollaborator {
+  projectId   String
+  userId      String
+  invitedById String?
+  createdAt   DateTime @default(now())
+
+  project   ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User           @relation("ScratchCollaboratorUser", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User?          @relation("ScratchCollaboratorInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("scratch_collaborators")
+}
+
+// Mỗi người thích một dự án tối đa một lần (khóa chính = idempotent khi bấm lại / mạng lag).
+model ScratchProjectLike {
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  project ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("scratch_project_likes")
 }

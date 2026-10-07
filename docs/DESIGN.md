@@ -181,6 +181,21 @@ Certificate(id, userId, classId?, courseId, templateId, serialNo @unique,
        revokedAt?, revokedReason?)                       @@unique([userId, courseId, classId])
 ```
 
+### 4.7b BlockSpace — dự án Scratch (P11, ADR 003)
+
+```
+ScratchProject(id, ownerId, title, visibility[private/class/school/public], classId?, remixOfId?,
+       deletedAt?, createdAt, updatedAt)        // xóa mềm; public chỉ qua GV duyệt (T11.5b)
+ScratchProjectVersion(id, projectId, seq, projectJson jsonb ≤5MB, sizeBytes, savedById?, frozenAt?)
+       @@unique([projectId, seq])               // bất biến; frozenAt = đã nộp/công khai → không dọn
+ScratchAsset(md5ext @id, dataFormat, mime, sizeBytes ≤10MB, provider, storageKey, uploadedById?)
+       // theo nội dung, dùng chung giữa phiên bản/remix; private storage (D7)
+ScratchProjectAsset(projectId, md5ext) @@id    // kiểm quyền phục vụ asset; asset FK Restrict
+ScratchCollaborator(projectId, userId, invitedById?) @@id
+ScratchProjectLike(projectId, userId) @@id      // idempotent
+```
+Lớp bị xóa → `classId` NULL nhưng `visibility` vẫn `class` → service coi như `private`.
+
 ### 4.8 Cross-cutting
 
 ```
