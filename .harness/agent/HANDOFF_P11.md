@@ -2,6 +2,28 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.2 Contracts + schema ✅ (2026-10-07)
+
+Migration `20261007052430_p11_scratch_projects` (chỉ tạo bảng mới, không đụng bảng cũ). Mô hình: `docs/DESIGN.md §4.7b`.
+Contracts: `packages/contracts/src/scratch.ts`.
+
+**Quyết định thiết kế:** thêm bảng `scratch_project_assets` (không có trong kế hoạch) — API T11.3 cần
+biết asset thuộc dự án nào để kiểm quyền phục vụ asset private; quét jsonb của mọi phiên bản thì quá
+đắt. Asset FK **Restrict** (dọn rác chỉ xóa asset không còn ai dùng). `classId` thêm ngay (chia sẻ lớp
+cần) để T11.5 khỏi migration nữa. Xóa mềm dự án (bài nộp trỏ phiên bản đóng băng). Chưa có cột cho
+công khai/biệt danh — để T11.5b. Không CHECK `visibility=class ⇔ classId` ở DB vì xóa lớp (SET NULL)
+sẽ bị chặn → service coi `class` + `classId` NULL là `private`.
+
+**Đã kiểm trên DB dev (transaction ROLLBACK):** trùng `seq` / trùng thích bị chặn; xóa asset đang được
+tham chiếu bị chặn; xóa lớp → `classId` NULL; xóa bản gốc → `remixOfId` NULL; xóa dự án → phiên bản,
+tham chiếu asset, lượt thích đi theo, file asset ở lại. API typecheck sạch, 334/334 test pass.
+
+**⚠️ Sự cố DB dev (07/10):** chạy `prisma migrate diff --shadow-database-url "$DATABASE_URL"` → Prisma
+reset DB dev làm shadow. Mất toàn bộ dữ liệu dev (khóa học, lớp, `p7member`/`p7outsider`); không có
+bản sao lưu. Đã dựng lại schema (13 migration, baseline bằng `migrate resolve`) + `seed.cjs` (quyền,
+vai trò, 9 huy hiệu, admin `p9-admin@codespace.local`). Production không bị đụng. Kiểm drift: dùng
+`--from-url "$DATABASE_URL"`, KHÔNG dùng shadow.
+
 ## T11.0 Build từ mã nguồn ✅ (2026-10-07) — release `blockspace-editor-15.2.0-bs1` đã ghim
 
 **Làm gì:** `apps/studio/scripts/build-editor.mjs` clone `scratch-editor` **v15.2.0** (kiểm commit

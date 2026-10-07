@@ -15,6 +15,9 @@ chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary)
   (người dùng xác nhận 07/10). Production vẫn ở bản trước đó.
 - Nhánh P11 = `main` + 5 commit kế hoạch/spike T11.1 (đặt lại lên `e203005`, nội dung trùng `9365d0e`)
   + T11.0. Chi tiết, số đo, việc còn lại: `HANDOFF_P11.md`.
+- **Schema đổi (T11.2):** migration `p11_scratch_projects` — 6 bảng `scratch_*` mới, không đụng bảng cũ.
+- **DB dev đã bị xóa sạch 07/10** (lỗi `migrate diff` dùng DB dev làm shadow) → chỉ còn seed. Tài khoản
+  `p7member`/`p7outsider` và mật khẩu ghi bên dưới KHÔNG còn; admin seed `p9-admin@codespace.local`.
 - Trình soạn build sẵn ở GitHub Releases `blockspace-editor-15.2.0-bs1`, sha512 đã ghim (`HANDOFF_P11.md §T11.0`).
 
 ### P10 · ĐÃ PHÁT HÀNH LÊN PRODUCTION (2026-08-26, ~16:27 giờ VN)
