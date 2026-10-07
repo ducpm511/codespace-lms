@@ -2,6 +2,38 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.3 Backend dự án ✅ (2026-10-07)
+
+Module `apps/api/src/scratch/`. Endpoint: `docs/DESIGN.md §8` (khối BlockSpace).
+
+- **Quyền một chỗ** `ScratchAccessService`: chủ/đồng tác giả; `school`/`public` = mọi tài khoản;
+  `class` = thành viên đang học **hoặc người tạo lớp** (GV thường không tự vào lớp — bài học P10);
+  lớp đã xóa ⇒ như private. Không xem được ⇒ **404** (không lộ tồn tại); xem mà không sửa ⇒ 403.
+  Lịch sử phiên bản chỉ cho người sửa; người xem chỉ đọc bản mới nhất / theo số.
+- **Phiên bản:** `project.json` gửi **multipart** (multer giới hạn đúng 5 MB, khỏi nới giới hạn body
+  JSON 100 KB của toàn API); kiểm cấu trúc tối thiểu + mọi `md5ext` theo allowlist. Số `seq` trong
+  transaction, trùng (lưu đồng thời) ⇒ thử lại 3 lần rồi 409. Mỗi lần lưu gắn asset ĐÃ có trên server
+  vào `scratch_project_assets` và dọn bản chưa đóng băng cũ hơn 20 bản gần nhất.
+- **Asset:** tên = md5ext; server kiểm **md5 của nội dung khớp tên** (asset dùng chung — không kiểm thì
+  ai đó "chiếm" md5ext bằng nội dung khác để tráo ảnh trong dự án bạn khác), magic bytes theo đuôi, mime
+  lấy từ allowlist. Trùng nội dung ⇒ `created:false`, không tính hạn mức. Hạn mức **200 MB/người**.
+  Phục vụ: chỉ qua dự án tham chiếu asset, header `CSP: sandbox` + `attachment` + `nosniff` (SVG có thể
+  chứa script, cùng origin LMS).
+- **Audit** cùng transaction: `scratch.project.share` (đổi phạm vi; chỉ id, không tên), `scratch.project.delete`.
+- **Kiểm trên API thật** (3 tài khoản thử, `scratchpad/live-t113.mjs`): 34/34 ca — tạo/lưu/tải asset,
+  private 404 với người ngoài và GV, tự đặt public 400, chia sẻ vào lớp không thuộc 403, GV tạo lớp xem
+  được nhưng sửa/lưu/xem lịch sử 403, asset đúng byte + header, xóa mềm. DB: audit đủ, asset thư viện
+  không bị gắn. Toàn API 369/369 test.
+
+**Để lại cho task sau:**
+- Asset tải lên mà không phiên bản nào dùng (bỏ dở) vẫn chiếm hạn mức + storage ⇒ cần job dọn rác
+  (asset không có dòng `scratch_project_assets` sau N ngày). Dọn bản cũ cũng chưa xóa asset mồ côi.
+- Biết md5ext của asset = gắn được nó vào dự án mình (md5 không đoán được; chỉ người đã XEM được dự án
+  chứa nó mới biết — tương đương tự remix). Chấp nhận; xem lại khi làm remix T11.5.
+- Trình soạn chưa nói chuyện với API — T11.4 (LMS dựng sb3 từ project.json + asset rồi gửi vào iframe,
+  trình soạn vẫn không cần token).
+- Rate limit chung 600 request/phút/IP; cả lớp sau một NAT dùng chung một IP — theo dõi khi autosave chạy.
+
 ## T11.2 Contracts + schema ✅ (2026-10-07)
 
 Migration `20261007052430_p11_scratch_projects` (chỉ tạo bảng mới, không đụng bảng cũ). Mô hình: `docs/DESIGN.md §4.7b`.
