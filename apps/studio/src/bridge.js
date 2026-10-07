@@ -123,6 +123,99 @@
     );
   }
 
+  // --- Làm chung (T11.6a — SPIKE, ADR 003 D5′) ---------------------------------------------------------
+  // Bắt sự kiện khối của target ĐANG SỬA bằng cách bọc Blocks.prototype.blocklyListen (GUI gắn
+  // vm.blockListener vào workspace TRƯỚC khi onVmInit chạy nên không bọc được hàm đó), tuần tự hóa thành
+  // JSON (xml → chuỗi, toạ độ → {x,y}) gửi cho trang cha; trang cha chuyển qua WebSocket. Op nhận về được
+  // dựng lại (DOMParser) và áp thẳng vào VM của đúng target, rồi làm mới vùng code nếu là target đang sửa.
+  // Target nhận diện bằng TÊN (id target mỗi máy sinh khác nhau khi nạp; tên nhân vật là duy nhất).
+  var COLLAB_TYPES = {
+    create: 1,
+    delete: 1,
+    move: 1,
+    change: 1,
+    var_create: 1,
+    var_rename: 1,
+    var_delete: 1,
+  };
+  var COLLAB_FIELDS = [
+    'type',
+    'blockId',
+    'varId',
+    'element',
+    'name',
+    'newValue',
+    'oldParentId',
+    'oldInputName',
+    'newParentId',
+    'newInputName',
+    'varName',
+    'varType',
+    'isLocal',
+    'isCloud',
+    'newName',
+  ];
+  var collabOn = false;
+  var applyingRemote = false;
+  var refreshTimer = null;
+
+  function targetKey(target) {
+    return target.isStage ? '#stage' : target.getName();
+  }
+
+  function serializeEvent(e) {
+    var out = {};
+    COLLAB_FIELDS.forEach(function (f) {
+      if (e[f] !== undefined) out[f] = e[f];
+    });
+    if (e.xml && typeof e.xml.outerHTML === 'string') out.xml = e.xml.outerHTML;
+    if (e.newCoordinate) out.newCoordinate = { x: e.newCoordinate.x, y: e.newCoordinate.y };
+    return out;
+  }
+
+  function startCollab() {
+    if (collabOn) return;
+    var editing = vm.editingTarget;
+    if (!editing) return;
+    collabOn = true;
+    var proto = Object.getPrototypeOf(editing.blocks);
+    var original = proto.blocklyListen;
+    proto.blocklyListen = function (e) {
+      // Chỉ sự kiện từ vùng code (target đang sửa) — không phải flyout, không phải op đang áp từ xa.
+      if (!applyingRemote && vm.editingTarget && this === vm.editingTarget.blocks && e && COLLAB_TYPES[e.type]) {
+        try {
+          post({ type: 'blockspace:op', op: { target: targetKey(vm.editingTarget), e: serializeEvent(e) } });
+        } catch (err) {
+          /* không chặn thao tác của học viên vì lỗi gửi */
+        }
+      }
+      return original.call(this, e);
+    };
+  }
+
+  function applyRemote(op) {
+    if (!op || !op.e || typeof op.target !== 'string') return;
+    var target = op.target === '#stage' ? vm.runtime.getTargetForStage() : vm.runtime.getSpriteTargetByName(op.target);
+    if (!target) return;
+    var e = Object.assign({}, op.e);
+    // Biến cục bộ: scratch-vm gắn vào target ĐANG SỬA của máy này — target khác thì bỏ (T11.6b xử lý).
+    if (/^var_/.test(e.type) && e.isLocal && target !== vm.editingTarget) return;
+    if (typeof e.xml === 'string') e.xml = new DOMParser().parseFromString(e.xml, 'text/xml').documentElement;
+    applyingRemote = true;
+    try {
+      target.blocks.blocklyListen(e);
+    } finally {
+      applyingRemote = false;
+    }
+    if (target === vm.editingTarget) {
+      // Gộp nhiều op liên tiếp vào MỘT lần vẽ lại vùng code.
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(function () {
+        vm.emitWorkspaceUpdate();
+      }, 60);
+    }
+  }
+
   /** Dự án mới = dự án mặc định có Rex dựng sẵn trong bundle (như menu Tập tin › Mới). */
   function createNew(title) {
     // Reducer chỉ nhận START_FETCHING_NEW khi đang hiện dự án; lúc khác nó bỏ qua im lặng.
@@ -157,6 +250,10 @@
       } catch (err) {
         post({ type: 'blockspace:error', requestId: data.requestId, message: String((err && err.message) || err) });
       }
+    } else if (data.type === 'blockspace:collab-start') {
+      startCollab();
+    } else if (data.type === 'blockspace:collab-apply') {
+      applyRemote(data.op);
     } else if (data.type === 'blockspace:save') {
       save(data.requestId).catch(function (err) {
         post({ type: 'blockspace:error', requestId: data.requestId, message: String((err && err.message) || err) });
@@ -207,7 +304,8 @@
     onVmInit: function (instance) {
       vm = instance;
       vm.on('PROJECT_CHANGED', function () {
-        if (!suppressChange) post({ type: 'blockspace:changed' });
+        // Thay đổi do op từ xa: máy của người làm ra thay đổi tự lưu, máy này không cần lưu trùng.
+        if (!suppressChange && !applyingRemote) post({ type: 'blockspace:changed' });
       });
     },
     // Gọi mỗi khi trình soạn chuyển từ "đang nạp" sang "đang hiện dự án": lần mở đầu và sau mỗi

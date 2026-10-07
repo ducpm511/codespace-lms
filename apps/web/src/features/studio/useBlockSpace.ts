@@ -9,6 +9,7 @@ type EditorMessage =
   | { type: 'blockspace:changed' }
   | { type: 'blockspace:saved'; requestId: string; sb3: ArrayBuffer; title: string }
   | { type: 'blockspace:exported'; requestId: string; projectJson: string; assets: EditorAsset[]; title: string }
+  | { type: 'blockspace:op'; op: unknown }
   | { type: 'blockspace:error'; requestId?: string; message: string };
 
 /** Asset (ảnh/âm thanh) theo tên Scratch: "<md5>.<đuôi>". */
@@ -44,6 +45,8 @@ export function useBlockSpace() {
   const pendingSaves = useRef(new Map<string, (r: { sb3: ArrayBuffer; title: string }) => void>());
   // Đếm số lần trình soạn báo "đã đổi" (ref: sự kiện dày khi kéo khối, không cần render lại).
   const changeSeq = useRef(0);
+  /** Op làm chung do người dùng máy này tạo (T11.6a) — trang soạn gắn hàm nhận. */
+  const onLocalOp = useRef<((op: unknown) => void) | null>(null);
   const pendingExports = useRef(new Map<string, { resolve: (r: EditorExport) => void; reject: (e: Error) => void }>());
   const [state, setState] = useState<BlockSpaceState>({
     ready: false,
@@ -137,6 +140,9 @@ export function useBlockSpace() {
           resolve?.({ sb3: msg.sb3, title: msg.title });
           break;
         }
+        case 'blockspace:op':
+          onLocalOp.current?.(msg.op);
+          break;
         case 'blockspace:exported': {
           const pending = pendingExports.current.get(msg.requestId);
           pendingExports.current.delete(msg.requestId);
@@ -160,5 +166,21 @@ export function useBlockSpace() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  return { iframeRef, state, load, loadDefault, save, open, exportProject, markSaved, changeSeq };
+  const collabStart = useCallback(() => send({ type: 'blockspace:collab-start' }), [send]);
+  const collabApply = useCallback((op: unknown) => send({ type: 'blockspace:collab-apply', op }), [send]);
+
+  return {
+    iframeRef,
+    state,
+    load,
+    loadDefault,
+    save,
+    open,
+    exportProject,
+    markSaved,
+    changeSeq,
+    onLocalOp,
+    collabStart,
+    collabApply,
+  };
 }

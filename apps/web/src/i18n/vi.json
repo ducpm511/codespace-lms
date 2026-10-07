@@ -767,6 +767,11 @@
       "dismiss": "Không vi phạm",
       "remove": "Gỡ",
       "confirmRemove": "Gỡ \"{{title}}\"? Dự án thôi công khai và thu chia sẻ về \"Chỉ mình tôi\"."
+    },
+    "collab": {
+      "live": "{{count}} người đang sửa",
+      "connecting": "Đang kết nối làm chung…",
+      "closed": "Mất kết nối làm chung ({{code}})"
     }
   }
 }

@@ -36,6 +36,8 @@ export default defineConfig({
       '/api': {
         target: `http://localhost:${process.env.API_PORT ?? 3000}`,
         changeOrigin: true,
+        // BlockSpace làm chung: /api/scratch/ws là WebSocket.
+        ws: true,
       },
     },
   },

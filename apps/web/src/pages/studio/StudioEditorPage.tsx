@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SCRATCH_TITLE_MAX_LENGTH } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import { BLOCKSPACE_EDITOR_URL, useBlockSpace } from '../../features/studio/useBlockSpace';
 import { fetchProjectForEditor, pushProject } from '../../features/studio/projectSync';
 import { useProject, useUpdateProject } from '../../features/studio/hooks';
+import { useCollab } from '../../features/studio/useCollab';
 import { PillButton } from '../teach/teachUi';
 
 /** Tự lưu sau ngần này kể từ thay đổi đầu tiên chưa lưu (ADR D3: mở lại mất tối đa ~30 giây công việc). */
@@ -23,7 +24,9 @@ export function StudioEditorPage(): JSX.Element {
   const navigate = useNavigate();
   const project = useProject(id);
   const updateProject = useUpdateProject(id);
-  const { iframeRef, state, load, loadDefault, save, open, exportProject, markSaved, changeSeq } = useBlockSpace();
+  const blockspace = useBlockSpace();
+  const { iframeRef, state, load, loadDefault, save, open, exportProject, markSaved, changeSeq } = blockspace;
+  const [params] = useSearchParams();
 
   const [opening, setOpening] = useState(true);
   const [openError, setOpenError] = useState<string | null>(null);
@@ -35,6 +38,8 @@ export function StudioEditorPage(): JSX.Element {
   const saveAfterLoad = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const detail = project.data;
+  // SPIKE T11.6a: làm chung chỉ bật khi có ?collab=1, và chỉ SAU khi dự án thật đã mở xong.
+  const collab = useCollab(id, params.get('collab') === '1' && state.ready && !opening, blockspace);
 
   // Mở dự án một lần khi cả trình soạn lẫn thông tin dự án đã sẵn sàng.
   useEffect(() => {
@@ -153,6 +158,16 @@ export function StudioEditorPage(): JSX.Element {
         <h1 className="cx-display m-0 min-w-0 truncate" style={{ fontSize: 17 }}>
           {detail?.title ?? 'BlockSpace'}
         </h1>
+        {collab.status !== 'off' && (
+          <span className="tag tag-outline hidden md:inline-flex" title={collab.members.map((m) => m.name).join(', ')}>
+            <i className="ph ph-users-three" aria-hidden />{' '}
+            {collab.status === 'live'
+              ? t('studio.collab.live', { count: collab.members.length })
+              : collab.status === 'closed'
+                ? t('studio.collab.closed', { code: collab.closeCode ?? '' })
+                : t('studio.collab.connecting')}
+          </span>
+        )}
         <span
           className={`ml-auto hidden truncate text-xs md:inline ${status.kind === 'error' ? '' : 'text-muted'}`}
           role="status"

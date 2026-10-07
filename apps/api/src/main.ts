@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { WsAdapter } from '@nestjs/platform-ws';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -34,6 +35,9 @@ async function bootstrap(): Promise<void> {
   const origin = process.env.WEB_ORIGIN ?? 'http://localhost:5173';
   app.enableCors({ origin, credentials: true });
   app.setGlobalPrefix('api');
+  // BlockSpace làm chung (T11.6a): WebSocket thuần (`ws`) — gateway tự khai đường dẫn đầy đủ /api/scratch/ws,
+  // prefix toàn cục không áp cho WebSocket. Caddy `reverse_proxy` tự chuyển tiếp Upgrade.
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   const port = Number(process.env.API_PORT ?? 3000);
   await app.listen(port);

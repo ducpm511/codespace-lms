@@ -767,6 +767,11 @@
       "dismiss": "No problem",
       "remove": "Take down",
       "confirmRemove": "Take down \"{{title}}\"? It stops being public and its sharing goes back to \"Only me\"."
+    },
+    "collab": {
+      "live": "{{count}} editing",
+      "connecting": "Connecting…",
+      "closed": "Collaboration disconnected ({{code}})"
     }
   }
 }
