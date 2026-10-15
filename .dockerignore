@@ -2,6 +2,8 @@
 **/node_modules
 **/dist
 **/.turbo
+# apps/studio/.cache: tarball trình soạn + có thể cả checkout scratch-editor (~3 GB) của build:editor.
+**/.cache
 packages/database/generated
 .git
 .github

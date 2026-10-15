@@ -15,6 +15,7 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY apps/studio/package.json apps/studio/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/database/package.json packages/database/
 RUN pnpm install --frozen-lockfile
@@ -22,8 +23,10 @@ RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json turbo.json ./
 COPY packages/contracts packages/contracts
 COPY apps/web apps/web
+# BlockSpace (P11): build tải scratch-gui ~150 MB từ npm rồi chép ~100 MB file tĩnh vào dist của web.
+COPY apps/studio apps/studio
 
-RUN pnpm --filter @lms/contracts build && pnpm --filter @lms/web build
+RUN pnpm --filter @lms/contracts build && pnpm --filter @lms/studio build && pnpm --filter @lms/web build
 
 FROM caddy:2-alpine AS runtime
 COPY --from=build /repo/apps/web/dist /srv

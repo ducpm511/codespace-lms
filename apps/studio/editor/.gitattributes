@@ -1,0 +1,2 @@
+# Bản vá áp lên scratch-editor: giữ nguyên byte, không đổi xuống dòng (git apply cần đúng LF).
+*.patch -text

@@ -181,6 +181,32 @@ Certificate(id, userId, classId?, courseId, templateId, serialNo @unique,
        revokedAt?, revokedReason?)                       @@unique([userId, courseId, classId])
 ```
 
+### 4.7b BlockSpace — dự án Scratch (P11, ADR 003)
+
+```
+ScratchProject(id, ownerId, title, visibility[private/class/school/public], classId?, remixOfId?,
+       deletedAt?, createdAt, updatedAt)        // xóa mềm; public chỉ qua GV duyệt (T11.5b)
+ScratchProjectVersion(id, projectId, seq, projectJson jsonb ≤5MB, sizeBytes, savedById?, frozenAt?)
+       @@unique([projectId, seq])               // bất biến; frozenAt = đã nộp/công khai → không dọn
+ScratchAsset(md5ext @id, dataFormat, mime, sizeBytes ≤10MB, provider, storageKey, uploadedById?)
+       // theo nội dung, dùng chung giữa phiên bản/remix; private storage (D7)
+ScratchProjectAsset(projectId, md5ext) @@id    // kiểm quyền phục vụ asset; asset FK Restrict
+ScratchCollaborator(projectId, userId, invitedById?) @@id
+ScratchActivityCopy(activityId, userId, projectId @unique) @@id([activityId,userId]) — T11.7, bản sao mỗi em / hoạt động
+Assignment.scratchChecks Json? · Submission.scratchVersionId? → ScratchProjectVersion (đóng băng) — T11.7
+ScratchProject.commentsEnabled · ScratchComment(projectId, authorId, content, hiddenAt?, deletedAt?) ·
+ScratchCommentReport(commentId, reporterId @@unique) · ScratchBannedWord(word @id) — T11.8
+ScratchProjectLike(projectId, userId) @@id      // idempotent
+```
+Lớp bị xóa → `classId` NULL nhưng `visibility` vẫn `class` → service coi như `private`.
+```
+ScratchPublication(projectId @id, slug @unique, publishedVersionId?, publishedTitle?, publishedAt?,
+       requestedVersionId?, requestedAt?, decision[approved/rejected/removed/withdrawn]?, decisionNote?, decidedById?)
+ScratchNickname(userId @id, approved?, pending?, pendingAt?, reviewedById?)      // trang công khai chỉ hiện biệt danh
+ScratchReport(id, projectId, reporterId, reason, note?, resolvedAt?, resolution?) @@unique([projectId, reporterId])
+```
+Công khai là LỚP PHỦ, không đổi `visibility` (enum `public` chưa dùng). Quyền `scratch.moderate` (admin).
+
 ### 4.8 Cross-cutting
 
 ```
@@ -278,6 +304,26 @@ CRUD   /quizzes · /quizzes/:id/questions
 POST   /quizzes/:id/attempts · /attempts/:id/submit
 GET    /classes/:id/gradebook
 POST   /certificates/issue · POST /certificates/:id/revoke   GET /verify/:code  (public)
+# BlockSpace (P11) — quyền từng dự án: ScratchAccessService (không xem được ⇒ 404, xem mà không sửa ⇒ 403)
+GET    /scratch/projects/mine · POST /scratch/projects · GET|PATCH|DELETE /scratch/projects/:id
+GET    /scratch/projects/:id/versions (người sửa) · POST …/versions (multipart `project`, ≤5MB)
+GET    /scratch/projects/:id/versions/:seq|latest (project.json) · GET …/assets/:md5ext (private, CSP sandbox)
+POST   /scratch/assets/:md5ext (multipart `file`, ≤10MB, kiểm md5 + magic bytes, hạn mức 200MB/người)
+GET    /scratch/classes (lớp mình thuộc HOẶC tạo) · GET /scratch/gallery?scope=class&classId=|school (≤60, có nội dung)
+POST   /scratch/projects/:id/remix (bản sao private, giữ remixOfId) · PUT|DELETE /scratch/projects/:id/like (idempotent)
+GET|PUT /scratch/me/nickname · POST|DELETE /scratch/projects/:id/publication · POST /scratch/projects/:id/report
+GET    /scratch/public/:slug[/project.json|/assets/:md5ext] (KHÔNG cần đăng nhập) · POST …/remix|report (cần)
+GET    /scratch/moderation/queue · …/publications/:projectId/{project.json,assets/:md5ext} · POST …/{approve,reject,remove}
+POST   /scratch/moderation/nicknames/:userId/{approve,reject} · POST /scratch/moderation/reports/:id/resolve
+GET    /scratch/projects/:id/collaborators/candidates?q= (chủ; ≥2 ký tự, ≤8 người, email che) · POST …/collaborators {userId} (chủ, ≤5)
+DELETE /scratch/projects/:id/collaborators/:userId (chủ gỡ / đồng tác giả tự rời → đá khỏi phòng làm chung ngay)
+POST   /scratch/activities/:id/open {classId} (hoạt động `scratch`: bản sao riêng, thành viên + gate) — T11.7
+GET    /scratch/submissions/:id/{project.json,assets/:md5ext} (người nộp / submission.read|grade.write theo lớp)
+PUT    /assignments/:id/submissions/save {classId, scratchProjectId} → đóng băng bản mới nhất (bài `scratch`)
+GET|POST /scratch/projects/:id/comments · PUT …/comments/open {open} (chủ) — T11.8
+DELETE /scratch/comments/:id (tác giả / GV) · POST /scratch/comments/:id/{hide,unhide} (chủ / GV) · POST …/report
+POST   /scratch/moderation/comment-reports/:id/resolve {dismiss|hide|delete} · GET|POST|DELETE …/banned-words (admin)
+WS     /api/scratch/ws — làm chung: auth trong message đầu, join (chủ/đồng tác giả), op, resync, snapshot (collab.gateway.ts)
 ```
 
 ## 9. Frontend (apps/web)

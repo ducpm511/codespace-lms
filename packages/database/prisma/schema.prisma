@@ -70,6 +70,26 @@ model User {
   files         File[]          @relation("FileOwner")
   comments      LessonComment[]
 
+  // P11 (BlockSpace)
+  scratchProjects             ScratchProject[]        @relation("ScratchProjectOwner")
+  scratchVersionsSaved        ScratchProjectVersion[] @relation("ScratchVersionSavedBy")
+  scratchAssets               ScratchAsset[]          @relation("ScratchAssetUploadedBy")
+  scratchCollabs              ScratchCollaborator[]   @relation("ScratchCollaboratorUser")
+  scratchInvitesSent          ScratchCollaborator[]   @relation("ScratchCollaboratorInvitedBy")
+  scratchLikes                ScratchProjectLike[]
+  scratchNickname             ScratchNickname?
+  scratchNicknamesRevd        ScratchNickname[]       @relation("ScratchNicknameReviewedBy")
+  scratchDecisions            ScratchPublication[]    @relation("ScratchPublicationDecidedBy")
+  scratchReports              ScratchReport[]         @relation("ScratchReportReporter")
+  scratchReportsSolved        ScratchReport[]         @relation("ScratchReportResolvedBy")
+  scratchActivityCopies       ScratchActivityCopy[]   @relation("ScratchActivityCopies")
+  scratchComments             ScratchComment[]        @relation("ScratchCommentAuthor")
+  scratchCommentsHidden       ScratchComment[]        @relation("ScratchCommentHiddenBy")
+  scratchCommentsDeleted      ScratchComment[]        @relation("ScratchCommentDeletedBy")
+  scratchCommentReports       ScratchCommentReport[]  @relation("ScratchCommentReporter")
+  scratchCommentReportsSolved ScratchCommentReport[]  @relation("ScratchCommentReportResolvedBy")
+  scratchBannedWords          ScratchBannedWord[]     @relation("ScratchBannedWordCreatedBy")
+
   @@map("users")
 }
 
@@ -185,6 +205,7 @@ enum LessonActivityType {
   quiz
   coding
   assignment
+  scratch // P11 T11.7 — refId = dự án mẫu BlockSpace (NULL = dự án trống); mỗi học viên một bản sao
 }
 
 model Course {
@@ -275,6 +296,8 @@ model LessonActivity {
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   file   File?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
+  scratchCopies ScratchActivityCopy[]
+
   @@unique([lessonId, order])
   @@index([fileId])
   @@index([refId])
@@ -338,6 +361,9 @@ model Class {
   // P10 (Gamification G2)
   xpEvents      XpEvent[]
   badgesAwarded UserBadge[]
+
+  // P11 (BlockSpace) — dự án chia sẻ trong lớp
+  scratchProjects ScratchProject[]
 
   @@index([createdById])
   @@map("classes")
@@ -423,6 +449,7 @@ enum SubmissionType {
   text
   file
   link
+  scratch // P11 T11.7 — nộp một phiên bản ĐÓNG BĂNG của dự án BlockSpace
 }
 
 enum SubmissionStatus {
@@ -443,6 +470,8 @@ model Assignment {
   maxScore       Decimal        @default(100) @db.Decimal(6, 2)
   allowLate      Boolean        @default(false)
   submissionType SubmissionType @default(text)
+  // submissionType = scratch: tiêu chí GỢI Ý cho GV khi chấm (đọc project.json tĩnh) — allowlist ở @lms/contracts.
+  scratchChecks  Json?
   createdById    String
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -459,26 +488,29 @@ model Assignment {
 
 // Bài nộp của học viên trong 1 lớp. Điểm là Decimal; KHÔNG hard-delete (giữ lịch sử — soft/return).
 model Submission {
-  id           String           @id @default(cuid())
-  assignmentId String
-  userId       String
-  classId      String
-  contentText  String?
-  fileId       String? // soft-ref tới file private (StorageAdapter) — upload thật hoãn sau P2
-  linkUrl      String?
-  status       SubmissionStatus @default(draft)
-  score        Decimal?         @db.Decimal(6, 2)
-  feedbackMd   String?
-  gradedById   String?
-  gradedAt     DateTime?
-  submittedAt  DateTime?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id               String           @id @default(cuid())
+  assignmentId     String
+  userId           String
+  classId          String
+  contentText      String?
+  fileId           String? // soft-ref tới file private (StorageAdapter) — upload thật hoãn sau P2
+  linkUrl          String?
+  // submissionType = scratch: phiên bản đóng băng (frozenAt) được nộp — học viên sửa tiếp không đổi bài nộp.
+  scratchVersionId String?
+  status           SubmissionStatus @default(draft)
+  score            Decimal?         @db.Decimal(6, 2)
+  feedbackMd       String?
+  gradedById       String?
+  gradedAt         DateTime?
+  submittedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  user       User       @relation("SubmissionByUser", fields: [userId], references: [id], onDelete: Cascade)
-  class      Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
-  gradedBy   User?      @relation("SubmissionGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
+  assignment     Assignment             @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user           User                   @relation("SubmissionByUser", fields: [userId], references: [id], onDelete: Cascade)
+  class          Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  gradedBy       User?                  @relation("SubmissionGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
+  scratchVersion ScratchProjectVersion? @relation(fields: [scratchVersionId], references: [id], onDelete: SetNull)
 
   @@unique([assignmentId, userId, classId])
   @@index([classId])
@@ -985,4 +1017,311 @@ model LessonComment {
   @@index([lessonId, classId, createdAt])
   @@index([userId])
   @@map("lesson_comments")
+}
+
+// === P11 BlockSpace (Scratch Studio) — docs/adr/003-scratch-studio.md D3, D4′, D5′, D7 ===
+// Lưu theo kiểu Scratch: project.json theo PHIÊN BẢN trong Postgres, asset (ảnh/âm thanh) lưu THEO
+// NỘI DUNG (md5ext) ở storage private, dùng chung giữa các phiên bản / bản remix.
+
+// Phạm vi xem. `public` chỉ đạt được qua GV duyệt (T11.5b) — không cho học viên tự đặt.
+enum ScratchVisibility {
+  private
+  class
+  school
+  public
+}
+
+model ScratchProject {
+  id              String            @id @default(cuid())
+  ownerId         String
+  title           String
+  visibility      ScratchVisibility @default(private)
+  // Lớp được chia sẻ khi visibility = class (bắt buộc ở tầng service, NULL với mọi visibility khác).
+  // Lớp bị xóa → classId thành NULL mà visibility vẫn `class`: service PHẢI coi như `private`.
+  classId         String?
+  // Dòng dõi remix: bản gốc bị xóa hẳn thì chỉ mất liên kết, bản remix vẫn còn.
+  remixOfId       String?
+  // Xóa mềm: bài đã nộp trỏ tới phiên bản đóng băng của dự án — không được mất theo.
+  deletedAt       DateTime?
+  // T11.8: chủ dự án tắt bình luận (bình luận cũ vẫn hiện, không nhận bình luận mới).
+  commentsEnabled Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  owner         User                    @relation("ScratchProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  class         Class?                  @relation(fields: [classId], references: [id], onDelete: SetNull)
+  remixOf       ScratchProject?         @relation("ScratchRemix", fields: [remixOfId], references: [id], onDelete: SetNull)
+  remixes       ScratchProject[]        @relation("ScratchRemix")
+  versions      ScratchProjectVersion[]
+  assets        ScratchProjectAsset[]
+  collaborators ScratchCollaborator[]
+  likes         ScratchProjectLike[]
+  publication   ScratchPublication?
+  reports       ScratchReport[]
+  activityCopy  ScratchActivityCopy?
+  comments      ScratchComment[]
+
+  @@index([ownerId, deletedAt, updatedAt])
+  @@index([classId, visibility])
+  @@index([remixOfId])
+  @@map("scratch_projects")
+}
+
+// Một lần lưu = một phiên bản BẤT BIẾN (không UPDATE nội dung). Autosave tạo phiên bản mới; dọn bản cũ
+// chỉ xóa bản chưa đóng băng. `frozenAt` khác NULL = đã nộp bài / đã chia sẻ công khai → giữ vĩnh viễn.
+model ScratchProjectVersion {
+  id          String    @id @default(cuid())
+  projectId   String
+  // Số thứ tự trong dự án (1, 2, 3…). Unique → hai lần lưu đồng thời không thể cùng một số.
+  seq         Int
+  projectJson Json // ≤ 5 MB (kiểm ở API, ADR D3)
+  sizeBytes   Int
+  savedById   String?
+  frozenAt    DateTime?
+  createdAt   DateTime  @default(now())
+
+  project ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  savedBy User?          @relation("ScratchVersionSavedBy", fields: [savedById], references: [id], onDelete: SetNull)
+
+  publishedIn ScratchPublication? @relation("ScratchPublishedVersion")
+  requestedIn ScratchPublication? @relation("ScratchRequestedVersion")
+  submissions Submission[]
+
+  @@unique([projectId, seq])
+  @@index([projectId, frozenAt])
+  @@map("scratch_project_versions")
+}
+
+// Asset theo nội dung: khóa là md5ext ("<md5>.<ext>", đúng tên Scratch dùng trong project.json).
+// Cùng nội dung tải lên hai lần = một bản ghi, một file. Người tải đầu tiên được tính vào hạn mức.
+model ScratchAsset {
+  md5ext       String   @id
+  dataFormat   String // png | svg | jpg | gif | wav | mp3 (allowlist ở @lms/contracts)
+  mime         String
+  sizeBytes    Int
+  provider     String   @default("local") // local | cloudinary — như File
+  storageKey   String
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  uploadedBy User?                 @relation("ScratchAssetUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  projects   ScratchProjectAsset[]
+
+  @@index([uploadedById])
+  @@map("scratch_assets")
+}
+
+// Asset nào thuộc dự án nào (hợp của mọi phiên bản). Dùng để KIỂM QUYỀN khi phục vụ asset private
+// (INVARIANT #3, #5 — ADR D7): được xem asset ⇔ được xem ít nhất một dự án tham chiếu nó.
+// Asset thư viện Scratch (CDN) không có dòng ở đây — trình soạn tải thẳng từ CDN.
+model ScratchProjectAsset {
+  projectId String
+  md5ext    String
+  createdAt DateTime @default(now())
+
+  project ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Restrict: dọn rác asset chỉ được xóa file KHÔNG còn dự án nào tham chiếu.
+  asset   ScratchAsset   @relation(fields: [md5ext], references: [md5ext], onDelete: Restrict)
+
+  @@id([projectId, md5ext])
+  @@index([md5ext])
+  @@map("scratch_project_assets")
+}
+
+// Đồng tác giả do chủ dự án mời (cùng trường) — làm chung thời gian thực ở T11.6.
+model ScratchCollaborator {
+  projectId   String
+  userId      String
+  invitedById String?
+  createdAt   DateTime @default(now())
+
+  project   ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User           @relation("ScratchCollaboratorUser", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User?          @relation("ScratchCollaboratorInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("scratch_collaborators")
+}
+
+// Bản sao RIÊNG của một học viên cho một hoạt động bài học `scratch` (T11.7). Một học viên một bản / hoạt động
+// (học cùng khóa ở 2 lớp vẫn dùng chung một bản). Xóa hoạt động ⇒ mất liên kết, dự án của em vẫn còn.
+model ScratchActivityCopy {
+  activityId String
+  userId     String
+  projectId  String   @unique
+  createdAt  DateTime @default(now())
+
+  activity LessonActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User           @relation("ScratchActivityCopies", fields: [userId], references: [id], onDelete: Cascade)
+  project  ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, userId])
+  @@index([userId])
+  @@map("scratch_activity_copies")
+}
+
+// Mỗi người thích một dự án tối đa một lần (khóa chính = idempotent khi bấm lại / mạng lag).
+model ScratchProjectLike {
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  project ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("scratch_project_likes")
+}
+
+// --- T11.5b Công khai (ADR D4′; người dùng chốt 2026-10-07) ---
+// "Công khai" là một LỚP PHỦ lên dự án, không đổi `visibility`: ai có link `/p/<slug>` (không cần đăng
+// nhập) xem được ĐÚNG phiên bản đã được GV duyệt (đóng băng). Sửa dự án tiếp không đổi bản công khai —
+// muốn cập nhật phải xin duyệt lại; trong lúc chờ, bản cũ vẫn hiện. Người duyệt/gỡ: GV của BẤT KỲ lớp
+// nào học viên đang học (người tạo lớp hoặc instructor/TA) + người có quyền `scratch.moderate`.
+
+enum ScratchPublicationDecision {
+  approved
+  rejected
+  removed // GV/admin gỡ (vd sau báo cáo)
+  withdrawn // chủ dự án tự gỡ
+}
+
+model ScratchPublication {
+  projectId          String                      @id
+  // Mã trong link công khai — ngẫu nhiên, KHÔNG phải id dự án (không đoán được, không lộ id nội bộ).
+  slug               String                      @unique
+  // Bản đang công khai; NULL = không công khai (chưa duyệt lần nào hoặc đã gỡ).
+  publishedVersionId String?                     @unique
+  // Tên chụp lúc duyệt — đổi tên dự án sau đó không đổi trang công khai.
+  publishedTitle     String?
+  publishedAt        DateTime?
+  // Yêu cầu đang chờ duyệt (phiên bản đã đóng băng lúc xin); NULL = không có yêu cầu.
+  requestedVersionId String?                     @unique
+  requestedAt        DateTime?
+  decision           ScratchPublicationDecision?
+  decisionNote       String?
+  decidedById        String?
+  decidedAt          DateTime?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+
+  project          ScratchProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  publishedVersion ScratchProjectVersion? @relation("ScratchPublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  requestedVersion ScratchProjectVersion? @relation("ScratchRequestedVersion", fields: [requestedVersionId], references: [id], onDelete: SetNull)
+  decidedBy        User?                  @relation("ScratchPublicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([requestedAt])
+  @@map("scratch_publications")
+}
+
+// Biệt danh trên trang công khai (thay họ tên — INVARIANT #5). Một biệt danh / học viên, GV duyệt; đổi thì
+// bản đã duyệt vẫn dùng tới khi bản mới được duyệt.
+model ScratchNickname {
+  userId       String    @id
+  approved     String?
+  pending      String?
+  pendingAt    DateTime?
+  reviewedById String?
+  reviewedAt   DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("ScratchNicknameReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([pendingAt])
+  @@map("scratch_nicknames")
+}
+
+enum ScratchReportReason {
+  inappropriate // nội dung không phù hợp
+  personal_info // lộ thông tin cá nhân (ảnh, giọng nói, tên thật…)
+  copied // chép bài người khác không ghi nguồn
+  other
+}
+
+enum ScratchReportResolution {
+  dismissed
+  removed
+}
+
+// Báo cáo dự án — chỉ tài khoản đăng nhập. Dự án VẪN hiện tới khi GV/admin xử lý (người dùng chốt).
+model ScratchReport {
+  id           String                   @id @default(cuid())
+  projectId    String
+  reporterId   String
+  reason       ScratchReportReason
+  note         String? // ≤ 500 ký tự
+  createdAt    DateTime                 @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolution   ScratchReportResolution?
+
+  project    ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporter   User           @relation("ScratchReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy User?          @relation("ScratchReportResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  // Mỗi người một báo cáo / dự án (báo lại = cập nhật lý do) — chặn spam dồn hàng chờ của GV.
+  @@unique([projectId, reporterId])
+  @@index([resolvedAt, createdAt])
+  @@map("scratch_reports")
+}
+
+// === T11.8 Bình luận (ADR D8) — chỉ khi dự án chia sẻ lớp/trường; KHÔNG BAO GIỜ trên trang /p công khai ===
+
+// Ẩn = chủ dự án hoặc GV ẩn (GV + chủ vẫn thấy, bỏ ẩn được). Xóa = xóa MỀM (tác giả tự xóa hoặc GV), không ai
+// thấy nữa nhưng còn trong DB để tra cứu. Nội dung KHÔNG đưa vào audit (có thể có tên / thông tin của trẻ).
+model ScratchComment {
+  id          String    @id @default(cuid())
+  projectId   String
+  authorId    String
+  content     String // ≤ 500 ký tự, đã qua lọc từ cấm
+  hiddenAt    DateTime?
+  hiddenById  String?
+  deletedAt   DateTime?
+  deletedById String?
+  createdAt   DateTime  @default(now())
+
+  project   ScratchProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author    User                   @relation("ScratchCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  hiddenBy  User?                  @relation("ScratchCommentHiddenBy", fields: [hiddenById], references: [id], onDelete: SetNull)
+  deletedBy User?                  @relation("ScratchCommentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  reports   ScratchCommentReport[]
+
+  @@index([projectId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("scratch_comments")
+}
+
+// Báo cáo bình luận — cùng kiểu ScratchReport (1 / người / bình luận). Xử lý: bỏ qua / ẩn / xóa.
+model ScratchCommentReport {
+  id           String              @id @default(cuid())
+  commentId    String
+  reporterId   String
+  reason       ScratchReportReason
+  note         String?
+  createdAt    DateTime            @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolution   String? // dismissed | hidden | deleted
+
+  comment    ScratchComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reporter   User           @relation("ScratchCommentReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy User?          @relation("ScratchCommentReportResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@unique([commentId, reporterId])
+  @@index([resolvedAt, createdAt])
+  @@map("scratch_comment_reports")
+}
+
+// Từ / cụm từ cấm trong bình luận (người dùng chốt: admin sửa trên web). Lưu dạng đã chuẩn hóa (chữ thường, NFC).
+model ScratchBannedWord {
+  word        String   @id
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy User? @relation("ScratchBannedWordCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@map("scratch_banned_words")
 }

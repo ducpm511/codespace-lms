@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLogin, useMe } from '../features/auth/hooks';
 
@@ -10,13 +10,15 @@ export function LoginPage(): JSX.Element {
   const loginMut = useLogin();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [params] = useSearchParams();
+  const next = safeNext(params.get('next'));
 
-  // Đã đăng nhập → về trang chính.
-  if (user) return <Navigate to="/" replace />;
+  // Đã đăng nhập → về trang chính (hoặc trang đang dở, vd trang dự án công khai).
+  if (user) return <Navigate to={next} replace />;
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    loginMut.mutate({ email, password }, { onSuccess: () => navigate('/', { replace: true }) });
+    loginMut.mutate({ email, password }, { onSuccess: () => navigate(next, { replace: true }) });
   };
 
   return (
@@ -134,4 +136,9 @@ export function LoginPage(): JSX.Element {
       </div>
     </div>
   );
+}
+
+/** `?next=` chỉ nhận đường dẫn NỘI BỘ ("/…", không "//host", không "/\host") — chống open redirect. */
+function safeNext(next: string | null): string {
+  return next && /^\/(?![/\\])/.test(next) ? next : '/';
 }

@@ -8,6 +8,7 @@ export const ACTIVITY_META: Record<LessonActivityTypeValue, { icon: string; colo
   quiz: { icon: 'ph-check-square-offset', color: 'var(--cx-coral)' },
   coding: { icon: 'ph-code', color: 'var(--cx-teal)' },
   assignment: { icon: 'ph-target', color: 'var(--cx-amber)' },
+  scratch: { icon: 'ph-puzzle-piece', color: 'var(--cx-purple)' },
 };
 
 export function activityMeta(type: string): { icon: string; color: string } {

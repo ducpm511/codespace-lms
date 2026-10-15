@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40">
+  <!-- Logo chữ tạm cho spike T11.1 — thay bằng logo thiết kế chính thức khi có. -->
+  <rect x="2" y="9" width="10" height="10" rx="2.5" fill="#ffd166"/>
+  <rect x="14" y="9" width="10" height="10" rx="2.5" fill="#ef7d92"/>
+  <rect x="2" y="21" width="22" height="10" rx="2.5" fill="#5eead4"/>
+  <text x="30" y="28" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff">BlockSpace</text>
+</svg>

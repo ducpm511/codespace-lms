@@ -25,6 +25,7 @@ Updated: 2026-08-26
 | **P8** Teach redesign | áp design mới (README §7) cho 6 tab Giảng dạy + builder + sổ điểm | ✅ Done (T8.0–T8.5) |
 | **P9** Production readiness | env fail-fast + helmet/rate-limit, quản trị user trên UI, vòng đời mật khẩu, storage bền, đóng gói & deploy | ✅ Done + **đã deploy thật** |
 | **P10** Gamification G2 + Admin redesign | xếp hạng theo lớp/tuần, mục tiêu lớp, giáo viên trao thưởng, streak nhân văn, áp design mới khu Quản trị | 🔄 **Đang chạy** — T10.1/T10.3/T10.5 ✅ **đã lên production** (`main` = `a10b41f`, 2026-08-26); còn T10.2, T10.4 |
+| **P11** BlockSpace (Scratch Studio) | trình soạn Scratch tự host, dự án cá nhân, chia sẻ trong trường, remix, làm chung, gắn vào bài học/bài tập | 🔄 T11.1 spike ✅ (`HANDOFF_P11.md`); còn rà pháp lý AGPL |
 
 Phụ thuộc chung: `contracts -> prisma schema -> backend -> frontend`.
 
@@ -93,7 +94,29 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | H2 | Chốt email provider (gợi ý Resend) | Quên-mật-khẩu |
 | H3 | **Chốt đích sao lưu ngoài máy (R2/B2)** | **O4b — rủi ro cao nhất hiện nay** |
 | H5 | `Class` chưa có lịch học hằng tuần → "streak khớp lịch học" dựa vào đâu? | **T10.4** (xem HANDOFF §T10.4) |
+| H6 | BlockSpace: **rà pháp lý AGPL** (ADR 003). Q1–Q6 đã chốt 07/10 | Phát hành P11 (không chặn spike) |
 | ~~H4~~ | ✅ **Đã chốt 2026-08-26** — audit không tra tên (câu mô tả chung, 0 PII); **bỏ hẳn** nhóm login; **thêm** dãy số liệu khu Quản trị. Chi tiết `HANDOFF_P10.md §T10.5`. | — |
+
+### Phase P11 — BlockSpace (Scratch Studio) ✅ CODE XONG T11.0–T11.8 (15/10) — chờ pháp lý AGPL (H6) + PR + deploy
+
+Thiết kế: **`docs/adr/003-scratch-studio.md`** (chốt: scratch-gui AGPL, có công khai, bình luận, ghi âm/ảnh, làm chung realtime). Thứ tự T11.0 → T11.1 → T11.2 → T11.3‖T11.4 → T11.5–T11.8.
+
+| Task | Nội dung | Surface | Rủi ro |
+|---|---|---|---|
+| T11.0 | ✅ **Code xong 07/10** — build từ mã nguồn `scratch-editor` v15.2.0 + 4 bản vá (`apps/studio/editor/patches`), Rex mặc định + 6 dáng trong thư viện, gỡ nhân vật thương hiệu Scratch, menu "Mã nguồn" (AGPL §13). Release `blockspace-editor-15.2.0-bs1` đã ghim sha512 (`HANDOFF_P11.md §T11.0`) | ops | giấy phép |
+| T11.1 | ✅ **Spike xong 07/10** — BlockSpace chạy trong LMS (`/studio`, `apps/studio`), nạp/lưu qua postMessage; 102 MB tĩnh, ~5,7 MB gzip lần mở đầu, 0 RAM VPS. Kết quả + bẫy: `HANDOFF_P11.md` | web + ops | — |
+| T11.2 | ✅ **Xong 07/10** — migration `p11_scratch_projects` (5 bảng + `scratch_project_assets` để kiểm quyền asset), contracts `scratch.ts` (DTO, giới hạn, allowlist md5ext). `HANDOFF_P11.md §T11.2` | contracts + schema | migration |
+| T11.3 | ✅ **Xong 07/10** — module `apps/api/src/scratch` (CRUD, phiên bản bất biến + dọn bản cũ, asset theo md5 có kiểm md5/magic bytes/hạn mức 200 MB, phục vụ asset private qua dự án). 35 unit test + 34 ca trên API thật. `HANDOFF_P11.md §T11.3` | api | **IDOR, upload PII** |
+| T11.4 | ✅ **Xong 07/10** — `/studio` (Dự án của tôi, menu BlockSpace cho mọi user), `/studio/:id/edit` (toàn màn hình, tự lưu 20 s + khi ẩn tab/rời trang, mở lại còn nguyên), `/studio/:id` (player). Đã xem bằng mắt cả HV lẫn GV. `HANDOFF_P11.md §T11.4` | web | — |
+| T11.5 | ✅ **Xong 07/10** — chia sẻ `private/class/school` (khung cho chủ dự án), gallery tab Của tôi / từng lớp / Cả trường, remix (bản private, giữ dòng dõi), thích idempotent. 46 unit test scratch + 25 ca trên API thật; xem bằng mắt GV + HV. `HANDOFF_P11.md §T11.5` | api + web | IDOR |
+| T11.5b | ✅ **Xong 07/10** — xin công khai → GV (mọi lớp em học)/admin duyệt, phiên bản đóng băng, biệt danh duyệt, `/p/<slug>` không cần đăng nhập + ẩn danh tính, báo cáo (vẫn hiện tới khi GV xử lý), trang kiểm duyệt. Migration `p11_public_sharing` + quyền `scratch.moderate`. `HANDOFF_P11.md §T11.5b` | api + web | **trẻ em, PII** |
+| T11.6a | ✅ **Spike xong 07/10** — gateway WS `/api/scratch/ws` (auth message đầu, ≤6/phòng, seq + đệm nối lại), đồng bộ khối giữa 2 trình soạn chạy thật (sau `?collab=1`). 180 kết nối / 357 op/s: +41 MB RAM, p95 34 ms, 0 mất op. `HANDOFF_P11.md §T11.6a` | api + web | RAM VPS |
+| T11.6b | ✅ **Xong 07/10** — mời đồng tác giả (cả trường, ≤5, email che, thông báo), gỡ/tự rời đá khỏi phòng ngay, kiểm lại quyền 60 s; đồng bộ người vào sau / nối lại / xung đột bằng snapshot do máy đúng lưu; nhân vật/costume/âm thanh/ghi chú đồng bộ qua `reload`; chỉ người lưu chính tự lưu; mất mạng → che + tự nối lại. Bỏ cờ `?collab=1`. 83 unit test scratch + 11 test client + 32 ca API thật + 2 trình soạn thật. `HANDOFF_P11.md §T11.6b` | api + web | race, mất dữ liệu |
+| T11.7 | ✅ **Xong 15/10** — hoạt động bài học `scratch` (mẫu của GV → bản sao private mỗi em, idempotent, theo gate), bài nộp `scratch` (đóng băng phiên bản cùng transaction), GV xem bài nộp qua submission (dự án em vẫn private), màn chấm player + 10 tiêu chí gợi ý đọc tĩnh. Migration `p11_lms_integration`. 21 unit test mới + 29 ca API thật; xem bằng mắt HV + GV. `HANDOFF_P11.md §T11.7` | api + web | IDOR |
+| T11.8 | ✅ **Xong 15/10** — bình luận khi dự án chia sẻ lớp/trường (không trên /p), chủ dự án ẩn + bật/tắt, GV (của chủ hoặc người viết)/admin ẩn + xóa mềm, báo cáo bình luận vào hàng chờ, lọc từ cấm (từ nguyên vẹn, giữ dấu; admin sửa trên web), 5/phút · 30/giờ, báo cáo 10/giờ, audit không ghi nội dung. Migration `p11_scratch_comments`. 24 unit test mới + 36 ca API thật; xem bằng mắt GV + HV. `HANDOFF_P11.md §T11.8` | api + web | an toàn trẻ em |
+
+**Acceptance:** tạo dự án không cần tài khoản ngoài; tự lưu, mở lại còn nguyên; chia sẻ lớp → bạn chạy + remix được, ngoài lớp 403;
+đồng tác giả không ghi đè nhau; GV chạy bài nộp, thấy gợi ý tiêu chí, cho điểm; RAM VPS tăng ≤ 50 MB so với P10.
 
 ---
 
@@ -147,8 +170,7 @@ refId null. Chi tiết đầy đủ: `CURRENT_STATE.md §P7`.
 
 ## Bản vá đã hoàn thành
 
-Ba bản vá của phiên P7 (lỗi bảo mật P5 `currentUser.id`, PDF chứng chỉ tiếng Việt, thêm học viên bằng
-email) đã chuyển sang [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md](../../docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md).
+Ba bản vá phiên P7 → [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md](../../docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md).
 
 ## Nợ kỹ thuật đã giải quyết (Phase P6 Tech Debt Cleaned)
 
@@ -157,8 +179,7 @@ email) đã chuyển sang [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixe
 - ✅ **P5 PDF**: Đã sinh PDF chứng chỉ hoàn chỉnh qua `pdf-lib` + `StorageAdapter` lưu file và tải về qua `GET /certificates/:id/pdf` (D1 fix).
 - ✅ **Quiz.published**: Đã thêm trường schema + toggle hoạt động trong TeachQuiz (T6.5).
 - ✅ **Gamification**: Đã chuyển từ mock sang backend thật (Level, XP, Streak, Badges, triggers) (D4 fix).
-- ✅ **Discussion/comment**: Đã có module comment + form thảo luận bài học (D5 fix).
-- ✅ **Section/Lesson edit/delete**: Đã có UI inline edit/delete trong TeachCourses (T6.4).
+- ✅ **Discussion/comment** (D5) · ✅ **Section/Lesson edit/delete** UI inline trong TeachCourses (T6.4).
 
 ---
 

@@ -21,4 +21,10 @@ export class SaveSubmissionDto implements SaveSubmissionRequest {
   @IsString()
   @MaxLength(64)
   fileId?: string;
+
+  /** Bài BlockSpace: dự án mình sửa được — quyền kiểm ở ScratchLmsService.freezeLatest. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  scratchProjectId?: string;
 }

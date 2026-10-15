@@ -2,12 +2,40 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-08-26
+Updated: 2026-10-07
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+
+### P11 · BlockSpace đang làm (2026-10-07) — nhánh `claude/blockspace-scratch-studio-p11-d86c69`
+
+- `main` = `e203005` (PR #5: ConfirmDialog thay `window.confirm`) — **CHƯA phát hành lên production**
+  (người dùng xác nhận 07/10). Production vẫn ở bản trước đó.
+- Nhánh P11 = `main` + 5 commit kế hoạch/spike T11.1 (đặt lại lên `e203005`, nội dung trùng `9365d0e`)
+  + T11.0. Chi tiết, số đo, việc còn lại: `HANDOFF_P11.md`.
+- **Schema đổi (T11.2):** migration `p11_scratch_projects` — 6 bảng `scratch_*` mới, không đụng bảng cũ.
+- **Schema đổi (T11.5b):** migration `p11_public_sharing` — 3 bảng (`scratch_publications`, `scratch_nicknames`,
+  `scratch_reports`) + quyền `scratch.moderate` cho admin/super_admin (cấp trong migration, không chỉ seed).
+- **DB dev đã bị xóa sạch 07/10** (lỗi `migrate diff` dùng DB dev làm shadow) rồi dựng lại qua API:
+  `p11teacher@codespace.vn` (instructor, tạo khóa + lớp), `p7member@codespace.vn` (HV trong lớp),
+  `p7outsider@codespace.vn` (HV ngoài lớp) — mật khẩu `Learn123!`; admin seed `p9-admin@codespace.local`.
+  Khóa "Lập trình Scratch cơ bản" (published, 3 bài, mỗi bài 1 activity markdown), lớp `SCR-DEV-01`
+  (bài 1–2 mở gate, bài 3 khóa). Dữ liệu P7–P10 cũ (bài nộp, XP, huy hiệu trao tay…) KHÔNG còn.
+- Trình soạn build sẵn ở GitHub Releases `blockspace-editor-15.2.0-bs1`, sha512 đã ghim (`HANDOFF_P11.md §T11.0`).
+  `apps/studio/src/bridge.js` (T11.6b) không nằm trong tarball — đổi bridge KHÔNG cần release editor mới.
+- **Làm chung (T11.6b) cần WebSocket `/api/scratch/ws`** qua Caddy (reverse_proxy tự chuyển Upgrade) — kiểm khi
+  deploy. Không đổi schema (bảng `scratch_collaborators` có từ T11.2). DB dev có dự án mẫu "Mê cung làm chung"
+  của `p7member` với đồng tác giả `p7outsider`.
+- **Schema đổi (T11.7):** migration `p11_lms_integration` — thêm giá trị enum `scratch` (LessonActivityType,
+  SubmissionType), 2 cột NULL được (`assignments.scratchChecks`, `submissions.scratchVersionId`), bảng
+  `scratch_activity_copies`. Đã áp lên DB dev (backup trước: `scratchpad/db-before-t117.sql`), không lệch schema.
+- **Schema đổi (T11.8):** migration `p11_scratch_comments` — cột `scratch_projects.commentsEnabled` (mặc định true),
+  3 bảng (`scratch_comments`, `scratch_comment_reports`, `scratch_banned_words` + 24 từ mặc định). Đã áp lên DB dev
+  (backup trước: `scratchpad/db-before-t118.sql`), không lệch schema.
+- **Code P11 xong T11.0–T11.8.** Trước khi phát hành: H6 pháp lý AGPL, mở PR nhánh P11 vào `main` (PR #5 vẫn chưa
+  phát hành — sẽ lên cùng), deploy kiểm Caddy WebSocket `/api/scratch/ws` + 4 migration P11.
 
 ### P10 · ĐÃ PHÁT HÀNH LÊN PRODUCTION (2026-08-26, ~16:27 giờ VN)
 

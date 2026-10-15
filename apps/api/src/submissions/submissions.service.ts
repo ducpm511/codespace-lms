@@ -9,6 +9,7 @@ import { PERMISSIONS, type Paginated, type SubmissionDto } from '@lms/contracts'
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { RbacService } from '../rbac/rbac.service';
+import { ScratchLmsService } from '../scratch/scratch-lms.service';
 import type { SaveSubmissionDto } from './dto/save-submission.dto';
 import type { SubmitSubmissionDto } from './dto/submit-submission.dto';
 import type { GradeSubmissionDto } from './dto/grade-submission.dto';
@@ -19,6 +20,7 @@ export class SubmissionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rbac: RbacService,
+    private readonly scratch: ScratchLmsService,
   ) {}
 
   async saveDraft(
@@ -44,25 +46,36 @@ export class SubmissionsService {
     if (existing?.status === 'graded') {
       throw new BadRequestException('Bài nộp đã được chấm, không thể sửa');
     }
+    if (dto.scratchProjectId && assignment.submissionType !== 'scratch') {
+      throw new BadRequestException('Bài tập này không nộp dự án BlockSpace');
+    }
 
-    const submission = await this.prisma.submission.upsert({
-      where: { assignmentId_userId_classId: { assignmentId, userId, classId: dto.classId } },
-      create: {
-        assignmentId,
-        userId,
-        classId: dto.classId,
-        contentText: dto.contentText ?? null,
-        linkUrl: dto.linkUrl ?? null,
-        fileId: dto.fileId ?? null,
-        status: 'draft',
-      },
-      update: {
-        contentText: dto.contentText !== undefined ? dto.contentText : existing?.contentText,
-        linkUrl: dto.linkUrl !== undefined ? dto.linkUrl : existing?.linkUrl,
-        fileId: dto.fileId !== undefined ? dto.fileId : existing?.fileId,
-        status: existing?.status === 'submitted' ? 'draft' : (existing?.status ?? 'draft'),
-      },
-      include: { user: { select: { email: true, fullName: true } } },
+    // Bài BlockSpace (T11.7): đóng băng phiên bản mới nhất của dự án đã chọn CÙNG transaction với bài nộp.
+    const submission = await this.prisma.$transaction(async (tx) => {
+      const scratchVersionId = dto.scratchProjectId
+        ? await this.scratch.freezeLatest(dto.scratchProjectId, userId, tx)
+        : undefined;
+      return tx.submission.upsert({
+        where: { assignmentId_userId_classId: { assignmentId, userId, classId: dto.classId } },
+        create: {
+          assignmentId,
+          userId,
+          classId: dto.classId,
+          contentText: dto.contentText ?? null,
+          linkUrl: dto.linkUrl ?? null,
+          fileId: dto.fileId ?? null,
+          scratchVersionId: scratchVersionId ?? null,
+          status: 'draft',
+        },
+        update: {
+          contentText: dto.contentText !== undefined ? dto.contentText : existing?.contentText,
+          linkUrl: dto.linkUrl !== undefined ? dto.linkUrl : existing?.linkUrl,
+          fileId: dto.fileId !== undefined ? dto.fileId : existing?.fileId,
+          scratchVersionId,
+          status: existing?.status === 'submitted' ? 'draft' : (existing?.status ?? 'draft'),
+        },
+        include: submissionInclude,
+      });
     });
 
     return toSubmissionDto(submission);
@@ -100,7 +113,12 @@ export class SubmissionsService {
       throw new BadRequestException('Bài nộp đã được chấm');
     }
 
-    if (!existing.contentText && !existing.linkUrl && !existing.fileId) {
+    // Bài BlockSpace: phải có phiên bản đóng băng — chỉ có chữ thôi không tính là đã làm bài.
+    if (assignment.submissionType === 'scratch') {
+      if (!existing.scratchVersionId) {
+        throw new BadRequestException('Chưa chọn dự án BlockSpace để nộp');
+      }
+    } else if (!existing.contentText && !existing.linkUrl && !existing.fileId) {
       throw new BadRequestException('Chưa có nội dung nộp bài');
     }
 
@@ -110,7 +128,7 @@ export class SubmissionsService {
         status: 'submitted',
         submittedAt: new Date(),
       },
-      include: { user: { select: { email: true, fullName: true } } },
+      include: submissionInclude,
     });
 
     return toSubmissionDto(updated);
@@ -124,7 +142,7 @@ export class SubmissionsService {
     await this.ensureActiveMember(classId, userId);
     const sub = await this.prisma.submission.findUnique({
       where: { assignmentId_userId_classId: { assignmentId, userId, classId } },
-      include: { user: { select: { email: true, fullName: true } } },
+      include: submissionInclude,
     });
     return sub ? toSubmissionDto(sub) : null;
   }
@@ -154,7 +172,7 @@ export class SubmissionsService {
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
         orderBy: { updatedAt: 'desc' },
-        include: { user: { select: { email: true, fullName: true } } },
+        include: submissionInclude,
       }),
       this.prisma.submission.count({ where }),
     ]);
@@ -170,7 +188,7 @@ export class SubmissionsService {
   async findOne(id: string, currentUser: AuthPrincipal): Promise<SubmissionDto> {
     const sub = await this.prisma.submission.findUnique({
       where: { id },
-      include: { user: { select: { email: true, fullName: true } } },
+      include: submissionInclude,
     });
     if (!sub) {
       throw new NotFoundException('Bài nộp không tồn tại');
@@ -222,7 +240,7 @@ export class SubmissionsService {
           gradedAt: new Date(),
           status: 'graded',
         },
-        include: { user: { select: { email: true, fullName: true } } },
+        include: submissionInclude,
       }),
       this.prisma.notification.create({
         data: {
@@ -266,6 +284,11 @@ export class SubmissionsService {
   }
 }
 
+const submissionInclude = {
+  user: { select: { email: true, fullName: true } },
+  scratchVersion: { select: { seq: true, frozenAt: true, projectId: true, project: { select: { title: true } } } },
+} satisfies Prisma.SubmissionInclude;
+
 type SubmissionRow = {
   id: string;
   assignmentId: string;
@@ -280,6 +303,7 @@ type SubmissionRow = {
   submittedAt: Date | null;
   gradedAt: Date | null;
   user?: { email: string; fullName: string } | null;
+  scratchVersion?: { seq: number; frozenAt: Date | null; projectId: string; project: { title: string } } | null;
 };
 
 function toSubmissionDto(s: SubmissionRow): SubmissionDto {
@@ -292,6 +316,14 @@ function toSubmissionDto(s: SubmissionRow): SubmissionDto {
     contentText: s.contentText,
     linkUrl: s.linkUrl,
     fileId: s.fileId,
+    scratch: s.scratchVersion
+      ? {
+          projectId: s.scratchVersion.projectId,
+          projectTitle: s.scratchVersion.project.title,
+          versionSeq: s.scratchVersion.seq,
+          frozenAt: (s.scratchVersion.frozenAt ?? new Date(0)).toISOString(),
+        }
+      : null,
     score: s.score !== null && s.score !== undefined ? Number(s.score) : null,
     feedbackMd: s.feedbackMd,
     submittedAt: s.submittedAt ? s.submittedAt.toISOString() : null,

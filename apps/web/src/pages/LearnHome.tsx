@@ -17,6 +17,7 @@ import { ClassLeaderboard } from './learn/ClassLeaderboard';
 import { LessonCommentsSection } from '../features/comments/LessonCommentsSection';
 import { MarkdownBlock, PdfBlock, VideoBlock } from '../features/lesson-activities/ActivityBlocks';
 import { activityMeta } from '../features/lesson-activities/activityMeta';
+import { ScratchActivityBlock } from '../features/studio/ScratchActivityBlock';
 import { LearnQuizWorkspace } from './learn/LearnQuiz';
 import { LearnCodingWorkspace } from './learn/LearnCoding';
 import { StudentGradebookSection } from './learn/StudentGradebookSection';
@@ -694,6 +695,11 @@ function ActivityBody({
   }
   if (activity.type === 'video') {
     return activity.videoUrl ? <VideoBlock videoUrl={activity.videoUrl} /> : <Empty />;
+  }
+
+  // BlockSpace (T11.7): không có refId phía học viên — mở bản sao riêng qua API.
+  if (activity.type === 'scratch' && activity.refAvailable) {
+    return <ScratchActivityBlock activityId={activity.id} classId={classId} />;
   }
 
   // quiz / coding / assignment — mở workspace engine sẵn có (tự enforce gate + không lộ đáp án).

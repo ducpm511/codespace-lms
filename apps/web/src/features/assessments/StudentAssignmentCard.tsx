@@ -5,6 +5,7 @@ import type { AssignmentDetail } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import { useMySubmission, useSaveSubmission, useSubmitSubmission } from './hooks';
 import { MarkdownBlock } from '../lesson-activities/ActivityBlocks';
+import { ScratchSubmissionFields } from '../studio/ScratchSubmissionFields';
 
 export function StudentAssignmentCard({
   classId,
@@ -69,7 +70,8 @@ export function StudentAssignmentCard({
         <div>
           <h3 className="card-title">{assignment.title}</h3>
           <p className="card-meta">
-            {t('assignments.maxScore')}: {assignment.maxScore} · {assignment.submissionType}
+            {t('assignments.maxScore')}: {assignment.maxScore} ·{' '}
+            {t(`assignments.type_${assignment.submissionType}`, { defaultValue: assignment.submissionType })}
             {assignment.dueAt && ` · ${t('assignments.dueAt')}: ${new Date(assignment.dueAt).toLocaleDateString()}`}
           </p>
           {/* Đề bài của giáo viên. Trước đây KHÔNG hiển thị ở đâu cả: `AssignmentSummary` không
@@ -101,46 +103,50 @@ export function StudentAssignmentCard({
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-2">
-        {assignment.submissionType === 'link' || assignment.submissionType === 'text' ? (
-          <div className="field">
-            <label>{t('submissions.yourSubmission')}</label>
-            {assignment.submissionType === 'link' && (
-              <input
-                className="input mb-2"
-                type="url"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder={t('submissions.linkPlaceholder')}
+      {assignment.submissionType === 'scratch' ? (
+        <ScratchSubmissionFields classId={classId} assignment={assignment} submission={submission ?? null} />
+      ) : (
+        <form onSubmit={handleSave} className="space-y-2">
+          {assignment.submissionType === 'link' || assignment.submissionType === 'text' ? (
+            <div className="field">
+              <label>{t('submissions.yourSubmission')}</label>
+              {assignment.submissionType === 'link' && (
+                <input
+                  className="input mb-2"
+                  type="url"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder={t('submissions.linkPlaceholder')}
+                  disabled={isGraded}
+                />
+              )}
+              <textarea
+                className="input text-xs"
+                value={contentText}
+                onChange={(e) => setContentText(e.target.value)}
+                placeholder={t('submissions.contentPlaceholder')}
+                rows={3}
                 disabled={isGraded}
               />
-            )}
-            <textarea
-              className="input text-xs"
-              value={contentText}
-              onChange={(e) => setContentText(e.target.value)}
-              placeholder={t('submissions.contentPlaceholder')}
-              rows={3}
-              disabled={isGraded}
-            />
-          </div>
-        ) : null}
+            </div>
+          ) : null}
 
-        {!isGraded && (
-          <div className="flex items-center gap-2 pt-1">
-            <button type="submit" disabled={saveMutation.isPending || submitMutation.isPending} className="btn btn-secondary">
-              {t('submissions.saveDraft')}
-            </button>
-            <button type="button" onClick={handleSubmit} disabled={saveMutation.isPending || submitMutation.isPending} className="btn btn-primary">
-              {t('submissions.submit')}
-            </button>
-          </div>
-        )}
+          {!isGraded && (
+            <div className="flex items-center gap-2 pt-1">
+              <button type="submit" disabled={saveMutation.isPending || submitMutation.isPending} className="btn btn-secondary">
+                {t('submissions.saveDraft')}
+              </button>
+              <button type="button" onClick={handleSubmit} disabled={saveMutation.isPending || submitMutation.isPending} className="btn btn-primary">
+                {t('submissions.submit')}
+              </button>
+            </div>
+          )}
 
-        {successMsg && <p className="text-xs" style={{ color: 'var(--color-accent-300)' }}>{successMsg}</p>}
-        {saveMutation.isError && <p className="text-xs text-red-400">{errMsg(saveMutation.error)}</p>}
-        {submitMutation.isError && <p className="text-xs text-red-400">{errMsg(submitMutation.error)}</p>}
-      </form>
+          {successMsg && <p className="text-xs" style={{ color: 'var(--color-accent-300)' }}>{successMsg}</p>}
+          {saveMutation.isError && <p className="text-xs text-red-400">{errMsg(saveMutation.error)}</p>}
+          {submitMutation.isError && <p className="text-xs text-red-400">{errMsg(submitMutation.error)}</p>}
+        </form>
+      )}
     </div>
   );
 }

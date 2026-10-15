@@ -126,3 +126,13 @@ export async function apiFetchObjectUrl(path: string): Promise<string> {
   }
   return URL.createObjectURL(await res.blob());
 }
+
+/** Tải nội dung nhị phân private. 404 ⇒ `null` (vd asset thư viện Scratch không nằm trên server). */
+export async function apiFetchArrayBuffer(path: string): Promise<ArrayBuffer | null> {
+  const res = await requestWithRefresh(path, { method: 'GET' }, false);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    await throwApiError(res);
+  }
+  return res.arrayBuffer();
+}

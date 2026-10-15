@@ -18,3 +18,4 @@ export * from './gamification';
 export * from './audit';
 export * from './report';
 export * from './comment';
+export * from './scratch';

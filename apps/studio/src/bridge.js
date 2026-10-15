@@ -1,0 +1,448 @@
+/*
+ * BlockSpace bridge — dựng trình soạn Scratch (scratch-gui standalone, biến toàn cục `GUI`) và nói
+ * chuyện với trang LMS cha qua postMessage. Giao thức: xem README.md.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * Cố ý KHÔNG gọi API LMS từ đây: trình soạn không cần token, mọi lưu/tải đi qua trang cha. Nhờ vậy
+ * sau này tách trình soạn sang origin riêng chỉ là đổi URL iframe.
+ */
+(function () {
+  'use strict';
+
+  var ORIGIN = window.location.origin;
+  var parentWin = window.parent !== window ? window.parent : null;
+  var vm = null;
+  var suppressChange = false;
+  // Tên dự án chờ gắn khi dự án mới (blockspace:new) nạp xong; undefined = không có dự án mới đang chờ.
+  var pendingNewTitle;
+  var SOURCE_URL = '%SOURCE_URL%';
+  // ?mode=player: chỉ sân khấu + cờ xanh (trang xem dự án), không có khu lập trình.
+  var PLAYER = new URLSearchParams(window.location.search).get('mode') === 'player';
+
+  function post(msg, transfer) {
+    if (parentWin) parentWin.postMessage(msg, ORIGIN, transfer || []);
+  }
+
+  function projectTitle() {
+    try {
+      return state.store.getState().scratchGui.projectTitle || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function setTitle(title) {
+    if (typeof title !== 'string') return;
+    // Tên dự án là prop có kiểm soát (`projectTitle`, TitledHOC ghi đè Redux bằng prop) → render lại
+    // với prop mới; dispatch thêm để vẫn đổi khi prop trùng giá trị cũ mà học viên đã sửa tay.
+    renderGui({ projectTitle: title });
+    state.dispatch({ type: 'projectTitle/SET_PROJECT_TITLE', title: title });
+  }
+
+  function releaseChanges() {
+    // loadProject phát vài PROJECT_CHANGED trong lúc nạp — không phải thay đổi của học viên.
+    setTimeout(function () {
+      suppressChange = false;
+    }, 0);
+  }
+
+  function load(buffer, title) {
+    suppressChange = true;
+    return vm
+      .loadProject(buffer)
+      .then(function () {
+        setTitle(title);
+        post({ type: 'blockspace:loaded' });
+      })
+      .catch(function (err) {
+        post({ type: 'blockspace:error', message: String((err && err.message) || err) });
+      })
+      .finally(releaseChanges);
+  }
+
+  // Đuôi md5ext → loại asset của scratch-storage.
+  var ASSET_TYPES = {
+    png: 'ImageBitmap',
+    jpg: 'ImageBitmap',
+    gif: 'ImageBitmap',
+    svg: 'ImageVector',
+    wav: 'Sound',
+    mp3: 'Sound',
+  };
+
+  /**
+   * Mở dự án từ LMS: project.json + các asset LMS đã tải (có token) — nạp sẵn vào bộ nhớ của
+   * scratch-storage rồi mới loadProject, nên trình soạn KHÔNG phải gọi API. Asset không có trong danh
+   * sách (asset thư viện Scratch) vẫn tải từ CDN như bình thường.
+   */
+  function open(projectJson, assets, title, keepTarget) {
+    var storage = vm.runtime.storage;
+    (assets || []).forEach(function (a) {
+      var parts = String(a.md5ext).split('.');
+      var type = ASSET_TYPES[parts[1]];
+      if (!type || !(a.data instanceof ArrayBuffer)) return;
+      storage.builtinHelper._store(storage.AssetType[type], parts[1], new Uint8Array(a.data), parts[0]);
+    });
+    // Làm chung nạp lại giữa chừng: quay về đúng nhân vật đang sửa (loadProject chọn nhân vật đầu tiên).
+    var editing = keepTarget && vm.editingTarget ? targetKey(vm.editingTarget) : null;
+    suppressChange = true;
+    return vm
+      .loadProject(projectJson)
+      .then(function () {
+        if (editing) {
+          var t = findTarget(editing);
+          if (t && t !== vm.editingTarget) vm.setEditingTarget(t.id);
+        }
+        structureBaseline();
+        setTitle(title);
+        post({ type: 'blockspace:loaded' });
+      })
+      .catch(function (err) {
+        post({ type: 'blockspace:error', message: String((err && err.message) || err) });
+      })
+      .finally(releaseChanges);
+  }
+
+  /** Xuất project.json + MỌI asset đang dùng (LMS tự bỏ qua asset server đã có). */
+  function exportProject(requestId) {
+    var seen = {};
+    var assets = [];
+    var transfer = [];
+    vm.assets.forEach(function (asset) {
+      if (!asset || !asset.data) return;
+      var md5ext = asset.assetId + '.' + asset.dataFormat;
+      if (seen[md5ext]) return;
+      seen[md5ext] = true;
+      var data = asset.data.slice().buffer; // bản sao — không chuyển quyền bộ nhớ VM đang dùng
+      assets.push({ md5ext: md5ext, data: data });
+      transfer.push(data);
+    });
+    post(
+      {
+        type: 'blockspace:exported',
+        requestId: requestId,
+        projectJson: vm.toJSON(),
+        assets: assets,
+        title: projectTitle(),
+      },
+      transfer,
+    );
+  }
+
+  // --- Làm chung (ADR 003 D5′; T11.6a spike → T11.6b) ----------------------------------------------------
+  // Bắt sự kiện khối của target ĐANG SỬA bằng cách bọc Blocks.prototype.blocklyListen (GUI gắn
+  // vm.blockListener vào workspace TRƯỚC khi onVmInit chạy nên không bọc được hàm đó), tuần tự hóa thành
+  // JSON (xml → chuỗi, toạ độ → {x,y}) gửi cho trang cha; trang cha chuyển qua WebSocket. Op nhận về được
+  // dựng lại (DOMParser) và áp thẳng vào VM của đúng target, rồi làm mới vùng code nếu là target đang sửa.
+  // Target nhận diện bằng TÊN (id target mỗi máy sinh khác nhau khi nạp; tên nhân vật là duy nhất).
+  // Thay đổi KHÔNG phải sự kiện khối (nhân vật, costume, âm thanh, ghi chú) không gửi từng cái: bridge chỉ
+  // báo "cấu trúc đã đổi" (`blockspace:structure`), trang cha lưu phiên bản và các máy khác nạp lại.
+  var COLLAB_TYPES = {
+    create: 1,
+    delete: 1,
+    move: 1,
+    change: 1,
+    var_create: 1,
+    var_rename: 1,
+    var_delete: 1,
+  };
+  var COLLAB_FIELDS = [
+    'type',
+    'blockId',
+    'varId',
+    'element',
+    'name',
+    'newValue',
+    'oldParentId',
+    'oldInputName',
+    'newParentId',
+    'newInputName',
+    'varName',
+    'varType',
+    'isLocal',
+    'isCloud',
+    'newName',
+    'ids',
+  ];
+  var collabOn = false;
+  var applyingRemote = false;
+  var refreshTimer = null;
+  var refreshDeferred = false;
+  var pointerDown = false;
+
+  function targetKey(target) {
+    return target.isStage ? '#stage' : target.getName();
+  }
+
+  function findTarget(key) {
+    return key === '#stage' ? vm.runtime.getTargetForStage() : vm.runtime.getSpriteTargetByName(key);
+  }
+
+  // Vẽ lại vùng code (emitWorkspaceUpdate) giữa lúc người dùng đang kéo khối sẽ làm rơi khối đang kéo —
+  // hoãn tới khi nhả chuột. VM đã có thay đổi ngay; chỉ phần hiển thị chờ.
+  function refreshWorkspace() {
+    if (pointerDown) {
+      refreshDeferred = true;
+      return;
+    }
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(function () {
+      if (pointerDown) {
+        refreshDeferred = true;
+        return;
+      }
+      vm.emitWorkspaceUpdate();
+    }, 60);
+  }
+  document.addEventListener(
+    'pointerdown',
+    function () {
+      pointerDown = true;
+    },
+    true,
+  );
+  ['pointerup', 'pointercancel'].forEach(function (type) {
+    document.addEventListener(
+      type,
+      function () {
+        pointerDown = false;
+        if (refreshDeferred) {
+          refreshDeferred = false;
+          // Đợi Blockly xử lý xong cú thả (sự kiện move của chính người dùng) rồi mới vẽ lại.
+          setTimeout(refreshWorkspace, 0);
+        }
+      },
+      true,
+    );
+  });
+
+  // Dấu vân tay "cấu trúc": nhân vật, costume, âm thanh, ghi chú. KHÔNG gồm vị trí/hướng/costume đang hiện
+  // (đổi liên tục khi chạy dự án) và thứ tự lớp (khối "lên lớp trên cùng" đổi nó lúc chạy).
+  var structureKey = null;
+  var structureNames = {};
+  var structureTimer = null;
+
+  function structureOf() {
+    var names = {};
+    var parts = vm.runtime.targets
+      .filter(function (t) {
+        return t.isOriginal;
+      })
+      .map(function (t) {
+        var key = targetKey(t);
+        names[t.id] = key;
+        var asset = function (a) {
+          return a.assetId + '.' + a.dataFormat + ':' + a.name;
+        };
+        var comments = Object.keys(t.comments || {}).map(function (id) {
+          var c = t.comments[id];
+          return id + ':' + (c.blockId || '') + ':' + c.text;
+        });
+        return [key, t.getCostumes().map(asset), t.getSounds().map(asset), comments.sort()];
+      })
+      .sort(function (a, b) {
+        return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
+      });
+    return { key: JSON.stringify(parts), names: names };
+  }
+
+  function structureBaseline() {
+    clearTimeout(structureTimer);
+    structureTimer = null;
+    var s = structureOf();
+    structureKey = s.key;
+    structureNames = s.names;
+  }
+
+  function checkStructure() {
+    structureTimer = null;
+    if (!collabOn || suppressChange) return;
+    var s = structureOf();
+    if (s.key === structureKey) return;
+    var renames = {};
+    Object.keys(s.names).forEach(function (id) {
+      var before = structureNames[id];
+      if (before && before !== s.names[id]) renames[before] = s.names[id];
+    });
+    structureKey = s.key;
+    structureNames = s.names;
+    post({ type: 'blockspace:structure', renames: renames });
+  }
+
+  function scheduleStructureCheck() {
+    // targetsUpdate bắn mỗi khung hình khi dự án đang chạy — gộp, tối đa ~2 lần/giây.
+    if (collabOn && !structureTimer) structureTimer = setTimeout(checkStructure, 400);
+  }
+
+  function serializeEvent(e) {
+    var out = {};
+    COLLAB_FIELDS.forEach(function (f) {
+      if (e[f] !== undefined) out[f] = e[f];
+    });
+    if (e.xml && typeof e.xml.outerHTML === 'string') out.xml = e.xml.outerHTML;
+    if (e.newCoordinate) out.newCoordinate = { x: e.newCoordinate.x, y: e.newCoordinate.y };
+    return out;
+  }
+
+  function startCollab() {
+    if (collabOn) return;
+    var editing = vm.editingTarget;
+    if (!editing) return;
+    collabOn = true;
+    var proto = Object.getPrototypeOf(editing.blocks);
+    var original = proto.blocklyListen;
+    proto.blocklyListen = function (e) {
+      // Chỉ sự kiện từ vùng code (target đang sửa) — không phải flyout, không phải op đang áp từ xa.
+      if (!applyingRemote && vm.editingTarget && this === vm.editingTarget.blocks && e && COLLAB_TYPES[e.type]) {
+        try {
+          post({ type: 'blockspace:op', op: { target: targetKey(vm.editingTarget), e: serializeEvent(e) } });
+        } catch (err) {
+          /* không chặn thao tác của học viên vì lỗi gửi */
+        }
+      }
+      return original.call(this, e);
+    };
+    vm.on('targetsUpdate', scheduleStructureCheck);
+    structureBaseline();
+  }
+
+  function applyRemote(op) {
+    if (!op || !op.e || typeof op.target !== 'string') return;
+    var target = findTarget(op.target);
+    // Nhân vật không có ở máy này = trạng thái đã lệch (vd bị xóa mà chưa nạp lại) → trang cha xin đồng bộ.
+    if (!target) return post({ type: 'blockspace:collab-error', message: 'target ' + op.target });
+    var e = Object.assign({}, op.e);
+    // Biến cục bộ: scratch-vm gắn vào target ĐANG SỬA của máy này — nhân vật khác thì bỏ (hiếm: tạo biến
+    // "chỉ cho nhân vật này" khi đang sửa nhân vật đó; máy kia thấy biến sau lần nạp lại kế tiếp).
+    if (/^var_/.test(e.type) && e.isLocal && target !== vm.editingTarget) return;
+    if (typeof e.xml === 'string') e.xml = new DOMParser().parseFromString(e.xml, 'text/xml').documentElement;
+    applyingRemote = true;
+    try {
+      target.blocks.blocklyListen(e);
+    } catch (err) {
+      post({ type: 'blockspace:collab-error', message: String((err && err.message) || err) });
+      return;
+    } finally {
+      applyingRemote = false;
+    }
+    // Gộp nhiều op liên tiếp vào MỘT lần vẽ lại vùng code.
+    if (target === vm.editingTarget) refreshWorkspace();
+  }
+
+  /** Dự án mới = dự án mặc định có Rex dựng sẵn trong bundle (như menu Tập tin › Mới). */
+  function createNew(title) {
+    // Reducer chỉ nhận START_FETCHING_NEW khi đang hiện dự án; lúc khác nó bỏ qua im lặng.
+    var loading = state.store.getState().scratchGui.projectState.loadingState;
+    if (loading !== 'SHOWING_WITH_ID' && loading !== 'SHOWING_WITHOUT_ID') {
+      post({ type: 'blockspace:error', message: 'BlockSpace đang bận, thử lại sau giây lát' });
+      return;
+    }
+    suppressChange = true;
+    pendingNewTitle = typeof title === 'string' ? title : null;
+    state.dispatch({ type: 'scratch-gui/project-state/START_FETCHING_NEW' });
+  }
+
+  function save(requestId) {
+    return vm.saveProjectSb3().then(function (blob) {
+      return blob.arrayBuffer().then(function (buf) {
+        post({ type: 'blockspace:saved', requestId: requestId, sb3: buf, title: projectTitle() }, [buf]);
+      });
+    });
+  }
+
+  window.addEventListener('message', function (ev) {
+    if (ev.origin !== ORIGIN || ev.source !== parentWin || !vm) return;
+    var data = ev.data || {};
+    if (data.type === 'blockspace:load' && data.sb3 instanceof ArrayBuffer) load(data.sb3, data.title);
+    else if (data.type === 'blockspace:new') createNew(data.title);
+    else if (data.type === 'blockspace:open' && typeof data.projectJson === 'string') {
+      open(data.projectJson, data.assets, data.title, data.keepTarget === true);
+    } else if (data.type === 'blockspace:export') {
+      try {
+        exportProject(data.requestId);
+      } catch (err) {
+        post({ type: 'blockspace:error', requestId: data.requestId, message: String((err && err.message) || err) });
+      }
+    } else if (data.type === 'blockspace:collab-start') {
+      startCollab();
+    } else if (data.type === 'blockspace:collab-apply') {
+      applyRemote(data.op);
+    } else if (data.type === 'blockspace:save') {
+      save(data.requestId).catch(function (err) {
+        post({ type: 'blockspace:error', requestId: data.requestId, message: String((err && err.message) || err) });
+      });
+    }
+  });
+
+  function openTab(url) {
+    window.open(url, '_blank', 'noopener');
+  }
+
+  var appEl = document.getElementById('app');
+  GUI.setAppElement(appEl);
+  // isPlayerOnly là state Redux của trình soạn (không phải prop) → đặt lúc tạo EditorState.
+  var state = new GUI.EditorState({ locale: 'vi', isPlayerOnly: PLAYER });
+  var root = GUI.createStandaloneRoot(state, appEl);
+
+  var baseProps = {
+    // '0' = dự án mặc định (Rex) dựng sẵn trong bundle. Không có projectId thì trình soạn không nạp
+    // gì và không bao giờ gọi onProjectLoaded (bản gốc lấy id từ URL qua HashParserHOC).
+    projectId: '0',
+    // ADR 003 D2: logo BlockSpace (bản vá 0002 cho thanh menu dùng prop này thay vì logo Scratch).
+    logo: './blockspace-logo.svg',
+    logoAlt: 'BlockSpace',
+    // AGPL-3.0 §13: người dùng qua mạng phải được mời nhận mã nguồn tương ứng của trình soạn.
+    onClickAbout: [
+      {
+        title: 'Mã nguồn BlockSpace',
+        onClick: function () {
+          openTab(SOURCE_URL);
+        },
+      },
+      {
+        title: 'Giấy phép (AGPL-3.0)',
+        onClick: function () {
+          openTab('./LICENSE.txt');
+        },
+      },
+    ],
+    canEditTitle: true,
+    canSave: false,
+    // false: trong scratch-gui, canCreateNew = "được tạo dự án TRÊN SERVER Scratch" — bật thì dự án
+    // chưa có id bị tự lưu lên scratch.mit.edu và báo "Không thể tạo dự án". LMS lo lưu/tạo mới.
+    canCreateNew: false,
+    backpackVisible: false,
+    showComingSoon: false,
+    onClickLogo: function () {},
+    onVmInit: function (instance) {
+      vm = instance;
+      vm.on('PROJECT_CHANGED', function () {
+        // Kể cả thay đổi do op từ xa: khi làm chung chỉ người lưu chính tự lưu, máy đó phải biết có thay đổi.
+        if (!suppressChange) post({ type: 'blockspace:changed', remote: applyingRemote });
+      });
+    },
+    // Gọi mỗi khi trình soạn chuyển từ "đang nạp" sang "đang hiện dự án": lần mở đầu và sau mỗi
+    // blockspace:new (vm.loadProject trực tiếp KHÔNG đi qua đây).
+    onProjectLoaded: function () {
+      var boot = document.getElementById('boot');
+      if (boot) boot.remove();
+      if (pendingNewTitle !== undefined) {
+        setTitle(pendingNewTitle === null ? undefined : pendingNewTitle);
+        pendingNewTitle = undefined;
+        releaseChanges();
+        post({ type: 'blockspace:loaded' });
+      }
+      if (!window.__blockspaceReady) {
+        window.__blockspaceReady = true;
+        post({ type: 'blockspace:ready' });
+      }
+    },
+  };
+  var extraProps = {};
+  function renderGui(extra) {
+    extraProps = Object.assign({}, extraProps, extra);
+    root.render(Object.assign({}, baseProps, extraProps));
+  }
+  renderGui({});
+})();

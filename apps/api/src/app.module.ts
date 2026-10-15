@@ -22,6 +22,7 @@ import { FilesModule } from './files/files.module';
 import { TeachModule } from './teach/teach.module';
 import { AdminModule } from './admin/admin.module';
 import { StorageModule } from './common/storage/storage.module';
+import { ScratchModule } from './scratch/scratch.module';
 import { HealthController } from './health/health.controller';
 import { validateEnv } from './config/env.validation';
 
@@ -63,6 +64,7 @@ import { validateEnv } from './config/env.validation';
     AuditModule,
     CommentsModule,
     FilesModule,
+    ScratchModule,
     TeachModule,
     AdminModule,
   ],

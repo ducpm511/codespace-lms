@@ -1,0 +1,45 @@
+diff --git a/packages/scratch-gui/src/lib/throttled-property-hoc.jsx b/packages/scratch-gui/src/lib/throttled-property-hoc.jsx
+index 7e508df..bc85c83 100644
+--- a/packages/scratch-gui/src/lib/throttled-property-hoc.jsx
++++ b/packages/scratch-gui/src/lib/throttled-property-hoc.jsx
+@@ -16,6 +16,9 @@ const ThrottledPropertyHOC = function (propName, throttleTime) {
+      */
+     return function (WrappedComponent) {
+         class ThrottledPropertyWrapper extends React.Component {
++            componentWillUnmount () {
++                clearTimeout(this._trailingTimeout);
++            }
+             shouldComponentUpdate (nextProps) {
+                 for (const property in nextProps) {
+                     if (property !== propName && this.props[property] !== nextProps[property]) {
+@@ -25,14 +28,26 @@ const ThrottledPropertyHOC = function (propName, throttleTime) {
+ 
+                 // If only that prop has changed, allow update to go to render based
+                 // on _lastRenderedTime and _lastRenderTime are updated in render
+-                if (nextProps[propName] !== this._lastRenderedValue &&
+-                    Date.now() - this._lastRenderTime > throttleTime
+-                ) {
+-                    return true; // Allow this update to go to render
++                if (nextProps[propName] !== this._lastRenderedValue) {
++                    const wait = throttleTime - (Date.now() - this._lastRenderTime);
++                    if (wait < 0) {
++                        return true; // Allow this update to go to render
++                    }
++                    // BlockSpace: render the latest value once the window closes. Without this
++                    // trailing update, a change that arrives inside the window is dropped for good
++                    // (e.g. the code-area watermark keeps the previous project's costume).
++                    this.scheduleTrailingUpdate(wait);
+                 }
+ 
+                 return false;
+             }
++            scheduleTrailingUpdate (wait) {
++                if (this._trailingTimeout) return;
++                this._trailingTimeout = setTimeout(() => {
++                    this._trailingTimeout = null;
++                    if (this.props[propName] !== this._lastRenderedValue) this.forceUpdate();
++                }, wait + 1);
++            }
+             render () {
+                 this._lastRenderTime = Date.now();
+                 this._lastRenderedValue = this.props[propName];
