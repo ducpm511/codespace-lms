@@ -28,7 +28,10 @@ chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary)
 - **Làm chung (T11.6b) cần WebSocket `/api/scratch/ws`** qua Caddy (reverse_proxy tự chuyển Upgrade) — kiểm khi
   deploy. Không đổi schema (bảng `scratch_collaborators` có từ T11.2). DB dev có dự án mẫu "Mê cung làm chung"
   của `p7member` với đồng tác giả `p7outsider`.
-- Xong: T11.0–T11.6b. Còn: T11.7 (gắn bài học/nộp bài), T11.8 (bình luận), H6 pháp lý AGPL trước khi phát hành.
+- **Schema đổi (T11.7):** migration `p11_lms_integration` — thêm giá trị enum `scratch` (LessonActivityType,
+  SubmissionType), 2 cột NULL được (`assignments.scratchChecks`, `submissions.scratchVersionId`), bảng
+  `scratch_activity_copies`. Đã áp lên DB dev (backup trước: `scratchpad/db-before-t117.sql`), không lệch schema.
+- Xong: T11.0–T11.7. Còn: T11.8 (bình luận), H6 pháp lý AGPL trước khi phát hành.
 
 ### P10 · ĐÃ PHÁT HÀNH LÊN PRODUCTION (2026-08-26, ~16:27 giờ VN)
 

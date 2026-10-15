@@ -136,6 +136,14 @@ trường quản lý). Không bình luận trên trang `public`.
   op người khác đụng cùng khối thì tự xin đồng bộ lại), và thay đổi không phải khối (nhân vật, costume, âm thanh,
   ghi chú — lưu + phát `reload`, người sau ghi đè). Chỉ "người lưu chính" (vào sớm nhất) tự lưu.
 
+## Cách gắn LMS (T11.7, 2026-10-15 — chi tiết D6)
+
+- Hoạt động `scratch`: mẫu tùy chọn (không có = dự án trống), GV gắn phải là chủ / đồng tác giả của mẫu. Mỗi em MỘT
+  bản sao private / hoạt động, tạo lúc mở lần đầu; GV sửa mẫu sau đó không đổi bản em đã có.
+- Bài nộp `scratch`: em chọn BẤT KỲ dự án nào mình sửa được (thường là bản sao của hoạt động); nộp = đóng băng
+  phiên bản mới nhất; nộp lại được tới khi GV chấm. GV xem bài nộp qua submission, không qua quyền xem dự án.
+- Gợi ý tiêu chí: 10 tiêu chí cố định (allowlist), chỉ hiện cho GV lúc chấm.
+
 ## Open Questions (còn mở)
 
 - **Pháp lý:** nhờ người có chuyên môn xác nhận ranh giới AGPL giữa trình soạn (iframe) và LMS.

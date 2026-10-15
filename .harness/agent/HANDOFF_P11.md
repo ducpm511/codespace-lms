@@ -2,6 +2,47 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.7 Gắn BlockSpace vào LMS ✅ (2026-10-15)
+
+Migration `20261015090000_p11_lms_integration` (sinh bằng `migrate diff --from-schema-datamodel <schema cũ từ git>`
+— KHÔNG đụng DB): enum `LessonActivityType.scratch`, `SubmissionType.scratch`, `assignments.scratchChecks` (JSON),
+`submissions.scratchVersionId` (FK SetNull), bảng `scratch_activity_copies` (PK activityId+userId, projectId unique).
+
+- **Hoạt động bài học `scratch`** (`lesson-activities.service.ts`): `refId` = dự án MẪU, tùy chọn (NULL = dự án trống
+  với Rex). GV gắn mẫu phải là **chủ / đồng tác giả** của nó (không thì ai có `course.update` cũng chép được dự án
+  private của người khác cho cả lớp); chỉ kiểm khi ĐỔI mẫu (GV khác sửa tiêu đề vẫn được). Mẫu phải đã lưu ≥ 1 lần.
+  Học viên KHÔNG nhận id mẫu (`refId: null`), mẫu bị xóa ⇒ `refAvailable: false`.
+- **Mở hoạt động** `POST /scratch/activities/:id/open {classId}` (`scratch-lms.service.ts`): thành viên active +
+  khóa gán cho lớp + gate mở (cùng luật quiz/bài tập). Lần đầu tạo bản sao PRIVATE của phiên bản mới nhất của mẫu
+  (chép tham chiếu asset, không chép file), tên = tiêu đề hoạt động; các lần sau trả đúng bản đó; bấm đúp (P2002)
+  trả bản thắng; em xóa bản sao ⇒ lần mở sau tạo bản mới. Một bản / học viên / hoạt động (2 lớp cùng khóa dùng chung).
+- **Bài tập `scratch`**: lưu nháp với `scratchProjectId` (dự án mình sửa được) ⇒ ĐÓNG BĂNG phiên bản mới nhất
+  (`frozenAt`) cùng transaction với bài nộp; nộp cần có phiên bản. Em sửa tiếp không đổi bài nộp; nộp lại (chưa chấm)
+  = đóng băng bản mới hơn. `SubmissionDto.scratch` = {projectId, projectTitle, versionSeq, frozenAt}.
+- **Chấm**: `GET /scratch/submissions/:id/{project.json, assets/:md5ext}` — người nộp hoặc có
+  `submission.read`/`grade.write` THEO LỚP của bài nộp (như `SubmissionsService.findOne`); asset chỉ khi PHIÊN BẢN
+  đã nộp dùng nó. GV vẫn KHÔNG mở được dự án private của em trong BlockSpace. Màn chấm: player + bảng gợi ý tiêu chí.
+- **Tiêu chí gợi ý** (`assignments.scratchChecks`, allowlist 10 khóa trong `@lms/contracts`): GV tick khi tạo/sửa bài
+  (mặc định cờ xanh + vòng lặp), server chuẩn hóa (bỏ trùng, `min` chỉ cho `minSprites`, mặc định 2), bài không phải
+  `scratch` ⇒ NULL. Web `features/studio/rubric.ts` đọc project.json TĨNH, chỉ đếm khối nằm trong kịch bản có khối
+  mũ (khối rời không tính) — chỉ gợi ý, GV tự cho điểm.
+- XP: không thêm nguồn mới (ADR D6) — hoàn thành bài học như cũ.
+
+**Đã kiểm:** unit API 438/438 (mới: 11 `ScratchLmsService`, 6 hoạt động scratch, 3 bài nộp scratch, 1 chuẩn hóa
+tiêu chí), web 34/34 (3 rubric). API thật (`scratchpad/live-t117.mjs`, 29 ca): IDOR mẫu 404, HV không thấy id mẫu,
+bản sao idempotent + đúng nội dung + ảnh tải được, dự án trống, gate đóng 403, ngoài lớp 403, nộp dự án không sửa
+được 404, đóng băng, sửa sau khi nộp không đổi bài nộp, GV đọc bài nộp + asset có CSP sandbox, asset lạ 404, người
+ngoài 403, nộp lại bản #2, chấm, đã chấm không nộp lại. Bằng mắt: HV thấy 2 hoạt động BlockSpace ở bài 1, "Mở
+BlockSpace" vào đúng bản sao; thẻ bài tập chọn dự án → "Đã nộp … bản #2"; GV: loại BlockSpace + ô chọn mẫu trong
+trình soạn bài, form bài tập có "Dự án BlockSpace" + ô tiêu chí, màn chấm có player + gợi ý đúng với dự án.
+DB dev: bài 1 có 2 hoạt động BlockSpace + 2 bài tập BlockSpace (1 đã chấm), mẫu "Mẫu: Mê cung của Rex" của p11teacher.
+
+**Còn lại / giới hạn:**
+- GV chưa xem được bản sao ĐANG LÀM của em (chỉ xem khi em nộp) — cần thì thêm "xem tiến độ" theo hoạt động.
+- Bài tập không gắn bài học vẫn chỉ hiện với học viên qua hoạt động "Bài tập" trong bài (hành vi cũ của P7).
+- Gợi ý tiêu chí chưa hiện cho học viên trước khi nộp (ADR chỉ cho GV).
+- Mỗi lần nộp lại đóng băng thêm một phiên bản (không bao giờ dọn) — nộp lại nhiều lần sẽ tốn chỗ.
+
 ## T11.6b Làm chung đầy đủ ✅ (2026-10-07)
 
 Quyết định người dùng chốt: `docs/adr/003-scratch-studio.md §Quyết định làm chung`. API: `docs/DESIGN.md §8`.

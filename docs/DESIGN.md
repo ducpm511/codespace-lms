@@ -192,6 +192,8 @@ ScratchAsset(md5ext @id, dataFormat, mime, sizeBytes ≤10MB, provider, storageK
        // theo nội dung, dùng chung giữa phiên bản/remix; private storage (D7)
 ScratchProjectAsset(projectId, md5ext) @@id    // kiểm quyền phục vụ asset; asset FK Restrict
 ScratchCollaborator(projectId, userId, invitedById?) @@id
+ScratchActivityCopy(activityId, userId, projectId @unique) @@id([activityId,userId]) — T11.7, bản sao mỗi em / hoạt động
+Assignment.scratchChecks Json? · Submission.scratchVersionId? → ScratchProjectVersion (đóng băng) — T11.7
 ScratchProjectLike(projectId, userId) @@id      // idempotent
 ```
 Lớp bị xóa → `classId` NULL nhưng `visibility` vẫn `class` → service coi như `private`.
@@ -313,6 +315,9 @@ GET    /scratch/moderation/queue · …/publications/:projectId/{project.json,as
 POST   /scratch/moderation/nicknames/:userId/{approve,reject} · POST /scratch/moderation/reports/:id/resolve
 GET    /scratch/projects/:id/collaborators/candidates?q= (chủ; ≥2 ký tự, ≤8 người, email che) · POST …/collaborators {userId} (chủ, ≤5)
 DELETE /scratch/projects/:id/collaborators/:userId (chủ gỡ / đồng tác giả tự rời → đá khỏi phòng làm chung ngay)
+POST   /scratch/activities/:id/open {classId} (hoạt động `scratch`: bản sao riêng, thành viên + gate) — T11.7
+GET    /scratch/submissions/:id/{project.json,assets/:md5ext} (người nộp / submission.read|grade.write theo lớp)
+PUT    /assignments/:id/submissions/save {classId, scratchProjectId} → đóng băng bản mới nhất (bài `scratch`)
 WS     /api/scratch/ws — làm chung: auth trong message đầu, join (chủ/đồng tác giả), op, resync, snapshot (collab.gateway.ts)
 ```
 
