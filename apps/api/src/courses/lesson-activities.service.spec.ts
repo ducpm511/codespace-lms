@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { LessonActivitiesService } from './lesson-activities.service';
 import type { PrismaService } from '../prisma/prisma.service';
+import type { CreateLessonActivityDto } from './dto/create-lesson-activity.dto';
 
 const now = new Date('2026-08-18T00:00:00Z');
 
@@ -37,6 +38,7 @@ function makePrisma() {
     quiz: { findUnique: jest.fn(), findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
     codingProblem: { findUnique: jest.fn(), findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
     assignment: { findUnique: jest.fn(), findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
+    scratchProject: { findUnique: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     $transaction: jest.fn(),
   };
 }
@@ -44,6 +46,7 @@ function makePrisma() {
 describe('LessonActivitiesService', () => {
   let prisma: ReturnType<typeof makePrisma>;
   let service: LessonActivitiesService;
+  const create = (dto: CreateLessonActivityDto, actor = 'teacher') => service.create('c1', 's1', 'l1', dto, actor);
 
   beforeEach(() => {
     prisma = makePrisma();
@@ -69,26 +72,26 @@ describe('LessonActivitiesService', () => {
   describe('create — validate theo loại', () => {
     it('markdown rỗng bị từ chối', async () => {
       await expect(
-        service.create('c1', 's1', 'l1', { type: 'markdown', contentMd: '   ' }),
+        create({ type: 'markdown', contentMd: '   ' }),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(prisma.lessonActivity.create).not.toHaveBeenCalled();
     });
 
     it('video ngoài allowlist bị từ chối (INVARIANT nhúng iframe)', async () => {
       await expect(
-        service.create('c1', 's1', 'l1', { type: 'video', videoUrl: 'https://evil.example.com/x' }),
+        create({ type: 'video', videoUrl: 'https://evil.example.com/x' }),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(prisma.lessonActivity.create).not.toHaveBeenCalled();
     });
 
     it('video host giả mạo tiền tố allowlist bị từ chối', async () => {
       await expect(
-        service.create('c1', 's1', 'l1', { type: 'video', videoUrl: 'https://evil-youtube.com/embed/1' }),
+        create({ type: 'video', videoUrl: 'https://evil-youtube.com/embed/1' }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('video YouTube hợp lệ được lưu, các cột khác về null', async () => {
-      await service.create('c1', 's1', 'l1', {
+      await create({
         type: 'video',
         videoUrl: 'https://www.youtube.com/embed/abc',
         contentMd: 'rác chéo loại',
@@ -109,21 +112,88 @@ describe('LessonActivitiesService', () => {
     it('pdf phải trỏ tới File có mime application/pdf', async () => {
       prisma.file.findUnique.mockResolvedValue({ id: 'f1', mime: 'image/png' });
       await expect(
-        service.create('c1', 's1', 'l1', { type: 'pdf', fileId: 'f1' }),
+        create({ type: 'pdf', fileId: 'f1' }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('ref phải thuộc đúng khóa học (chống gắn chéo khóa)', async () => {
       prisma.quiz.findUnique.mockResolvedValue({ id: 'q1', courseId: 'OTHER', title: 'Q' });
       await expect(
-        service.create('c1', 's1', 'l1', { type: 'quiz', refId: 'q1' }),
+        create({ type: 'quiz', refId: 'q1' }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('gắn quiz vào bài học sẽ set Quiz.lessonId để luật gate áp đúng bài', async () => {
       prisma.quiz.findUnique.mockResolvedValue({ id: 'q1', courseId: 'c1', title: 'Q' });
-      await service.create('c1', 's1', 'l1', { type: 'quiz', refId: 'q1' });
+      await create({ type: 'quiz', refId: 'q1' });
       expect(prisma.quiz.update).toHaveBeenCalledWith({ where: { id: 'q1' }, data: { lessonId: 'l1' } });
+    });
+  });
+
+  describe('scratch (T11.7)', () => {
+    const template = (over: Record<string, unknown> = {}) => ({
+      ownerId: 'teacher',
+      deletedAt: null,
+      collaborators: [],
+      _count: { versions: 2 },
+      ...over,
+    });
+
+    it('không có dự án mẫu ⇒ lưu được (học viên bắt đầu từ dự án trống)', async () => {
+      await create({ type: 'scratch', contentMd: 'rác' });
+      expect(prisma.lessonActivity.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ type: 'scratch', refId: null, contentMd: null }),
+      });
+    });
+
+    it('dự án mẫu của chính mình (hoặc mình là đồng tác giả) ⇒ lưu', async () => {
+      prisma.scratchProject.findUnique.mockResolvedValue(template());
+      await create({ type: 'scratch', refId: 'p1' });
+      prisma.scratchProject.findUnique.mockResolvedValue(
+        template({ ownerId: 'x', collaborators: [{ userId: 'teacher' }] }),
+      );
+      await create({ type: 'scratch', refId: 'p2' });
+      expect(prisma.lessonActivity.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('dự án của người khác / đã xóa / không tồn tại ⇒ 404 (không chép dự án private của người khác)', async () => {
+      for (const row of [template({ ownerId: 'student' }), template({ deletedAt: now }), null]) {
+        prisma.scratchProject.findUnique.mockResolvedValue(row);
+        await expect(create({ type: 'scratch', refId: 'p1' })).rejects.toBeInstanceOf(NotFoundException);
+      }
+      expect(prisma.lessonActivity.create).not.toHaveBeenCalled();
+    });
+
+    it('dự án mẫu chưa lưu lần nào ⇒ 400', async () => {
+      prisma.scratchProject.findUnique.mockResolvedValue(template({ _count: { versions: 0 } }));
+      await expect(create({ type: 'scratch', refId: 'p1' })).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('GV khác sửa tiêu đề hoạt động ⇒ KHÔNG kiểm lại quyền dự án mẫu đang gắn', async () => {
+      prisma.lessonActivity.findUnique.mockResolvedValue(
+        activityRow({ type: 'scratch', contentMd: null, refId: 'p1' }),
+      );
+      await service.update('c1', 's1', 'l1', 'a1', { title: 'Mới' }, 'other-teacher');
+      expect(prisma.scratchProject.findUnique).not.toHaveBeenCalled();
+      expect(prisma.lessonActivity.update).toHaveBeenCalledWith({
+        where: { id: 'a1' },
+        data: expect.objectContaining({ title: 'Mới', refId: 'p1' }),
+      });
+    });
+
+    it('học viên KHÔNG nhận id dự án mẫu; mẫu bị xóa ⇒ chưa sẵn sàng', async () => {
+      prisma.lessonActivity.findMany.mockResolvedValue([
+        activityRow({ id: 'a1', type: 'scratch', contentMd: null, refId: 'p1' }),
+        activityRow({ id: 'a2', type: 'scratch', contentMd: null, refId: 'gone' }),
+        activityRow({ id: 'a3', type: 'scratch', contentMd: null, refId: null }),
+      ]);
+      prisma.scratchProject.findMany.mockResolvedValue([{ id: 'p1', title: 'Mẫu của cô' }]);
+      const out = (await service.listForStudent(['l1'])).get('l1')!;
+      expect(out.map((a) => [a.refId, a.refTitle, a.refAvailable])).toEqual([
+        [null, null, true],
+        [null, null, false],
+        [null, null, true],
+      ]);
     });
   });
 

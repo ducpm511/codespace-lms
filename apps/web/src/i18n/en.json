@@ -438,7 +438,25 @@
     "delete": "Delete assignment",
     "confirmDelete": "Delete assignment \"{{title}}\"? All student submissions and grades in EVERY class taking this course will be deleted too. This cannot be undone.",
     "selectClassToGrade": "Pick a class above to see submissions and grade them.",
-    "editLoadFailed": "Could not load the assignment."
+    "editLoadFailed": "Could not load the assignment.",
+    "type_text": "Text",
+    "type_link": "Link",
+    "type_file": "File",
+    "type_scratch": "BlockSpace project",
+    "scratchPick": "Choose a project to submit",
+    "scratchHint": "You can keep editing after submitting — the submission keeps the version from when you pressed Submit.",
+    "scratchSubmit": "Submit this project",
+    "scratchResubmit": "Resubmit latest version",
+    "scratchSubmitted": "Submitted \"{{title}}\" (version #{{seq}}, {{time}}).",
+    "scratchNoProjects": "You have no saved projects yet. Make one in",
+    "scratchChecks": "Grading hints",
+    "scratchChecksHint": "The project is scanned and each hint is ticked if present — a quick look only, it does not grade.",
+    "scratchCheckMin": "At least",
+    "scratchVersion": "Submitted version: \"{{title}}\" #{{seq}} · {{time}}",
+    "scratchHints": "Grading hints (automatic, counts only blocks in scripts that start with a hat block)",
+    "scratchSprites": "{{count}} sprites (need ≥ {{min}})",
+    "scratchBlocks": "{{count}} blocks",
+    "scratchNone": "not found"
   },
   "submissions": {
     "status_draft": "Draft",
@@ -582,7 +600,13 @@
     "dropzoneTitle": "Drop a PDF file here",
     "dropzoneHint": "or click to pick from your device · up to {{size}} MB",
     "choosePdf": "Choose PDF file",
-    "pdfPrivacyHint": "Files are stored privately — only students in the class can open them."
+    "pdfPrivacyHint": "Files are stored privately — only students in the class can open them.",
+    "type_scratch": "BlockSpace",
+    "scratchBlank": "Blank project (start with Rex)",
+    "scratchTemplate": "Starter project",
+    "scratchTemplateHint": "Each student gets their own copy the first time they open it. Later edits to the starter only reach students who open it after that.",
+    "scratchStudentHint": "Open BlockSpace to work — your project saves to \"My projects\" automatically.",
+    "scratchOpen": "Open BlockSpace"
   },
   "classStatus": {
     "planning": "Planned",
@@ -796,5 +820,17 @@
       "confirmLeaveBody": "You won't be able to open its editor anymore unless the owner invites you again.",
       "owner": "Owner"
     }
+  },
+  "scratchChecks": {
+    "greenFlag": "Starts with the green flag",
+    "loop": "Uses a loop",
+    "condition": "Uses a condition (if… then)",
+    "variable": "Uses a variable",
+    "broadcast": "Broadcasts a message",
+    "interaction": "Interaction (keys, mouse, ask)",
+    "sound": "Plays a sound",
+    "clone": "Creates clones",
+    "customBlock": "Makes a custom block",
+    "minSprites": "Number of sprites"
   }
 }

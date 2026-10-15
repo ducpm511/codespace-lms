@@ -5,6 +5,7 @@ import { LESSON_ACTIVITY_TYPES, MAX_UPLOAD_BYTES } from '@lms/contracts';
 import type { CreateLessonActivityRequest, LessonActivityDto, LessonActivityTypeValue } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
 import { useAssignments } from '../../features/assessments/hooks';
+import { useMyProjects } from '../../features/studio/hooks';
 import { useCodingProblems } from '../../features/coding/hooks';
 import { useQuizzes } from '../../features/quiz/hooks';
 import {
@@ -262,6 +263,8 @@ function summaryLine(a: LessonActivityDto, t: (k: string, o?: Record<string, unk
       return a.fileName ?? '—';
     case 'video':
       return a.videoUrl ?? '—';
+    case 'scratch':
+      return a.refId ? (a.refTitle ?? t('activity.refMissing')) : t('activity.scratchBlank');
     default:
       return a.refTitle ?? t('activity.refMissing');
   }
@@ -416,14 +419,15 @@ function ActivityFields({
     (type === 'markdown' && contentMd.trim().length > 0) ||
     (type === 'pdf' && fileId.length > 0) ||
     (type === 'video' && videoUrl.trim().length > 0) ||
-    (isRef && refId.length > 0);
+    (isRef && refId.length > 0) ||
+    type === 'scratch';
 
   const submit = () => {
     const body: Record<string, string> = { title: title.trim() };
     if (type === 'markdown') body.contentMd = contentMd;
     if (type === 'pdf') body.fileId = fileId;
     if (type === 'video') body.videoUrl = videoUrl.trim();
-    if (isRef) body.refId = refId;
+    if (isRef || type === 'scratch') body.refId = refId;
     onSubmit(body);
   };
 
@@ -488,6 +492,10 @@ function ActivityFields({
 
       {isRef && <RefPicker type={type} courseId={courseId} value={refId} onChange={setRefId} />}
 
+      {type === 'scratch' && (
+        <ScratchTemplatePicker value={refId} currentTitle={initial?.refTitle ?? null} onChange={setRefId} />
+      )}
+
       {error && <p className="m-0 text-sm" style={{ color: ERROR_COLOR }}>{error}</p>}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -500,6 +508,43 @@ function ActivityFields({
           </PillButton>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Dự án mẫu cho hoạt động BlockSpace (T11.7): dự án của mình (hoặc mình là đồng tác giả) đã lưu ít nhất một lần.
+ * Mỗi học viên mở hoạt động nhận một BẢN SAO riêng; GV sửa mẫu sau đó chỉ ảnh hưởng em mở lần đầu sau này.
+ */
+function ScratchTemplatePicker({
+  value,
+  currentTitle,
+  onChange,
+}: {
+  value: string;
+  currentTitle: string | null;
+  onChange: (id: string) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const mine = useMyProjects();
+  const options = (mine.data ?? []).filter((p) => p.latestSeq !== null);
+  // Đang sửa hoạt động mà mẫu là dự án của GV khác: vẫn giữ lựa chọn hiện tại.
+  const keepCurrent = value && !options.some((p) => p.id === value);
+  return (
+    <div className="field m-0">
+      <label htmlFor="scratch-template">{t('activity.scratchTemplate')}</label>
+      <select id="scratch-template" className="input" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{t('activity.scratchBlank')}</option>
+        {keepCurrent && <option value={value}>{currentTitle ?? t('activity.refMissing')}</option>}
+        {options.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.title}
+          </option>
+        ))}
+      </select>
+      <p className="text-muted m-0" style={{ fontSize: 11 }}>
+        {t('activity.scratchTemplateHint')}
+      </p>
     </div>
   );
 }

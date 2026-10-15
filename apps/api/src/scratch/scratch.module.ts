@@ -17,6 +17,8 @@ import {
 import { CollabGateway } from './collab/collab.gateway';
 import { ScratchCollaboratorsController } from './scratch-collaborators.controller';
 import { ScratchCollaboratorsService } from './scratch-collaborators.service';
+import { ScratchLmsController } from './scratch-lms.controller';
+import { ScratchLmsService } from './scratch-lms.service';
 
 /** BlockSpace (P11) — dự án Scratch, phiên bản, asset, chia sẻ, công khai. docs/adr/003-scratch-studio.md. */
 @Module({
@@ -28,6 +30,7 @@ import { ScratchCollaboratorsService } from './scratch-collaborators.service';
     ScratchPublicController,
     ScratchModerationController,
     ScratchCollaboratorsController,
+    ScratchLmsController,
   ],
   providers: [
     ScratchAccessService,
@@ -39,7 +42,8 @@ import { ScratchCollaboratorsService } from './scratch-collaborators.service';
     ScratchModerationService,
     CollabGateway,
     ScratchCollaboratorsService,
+    ScratchLmsService,
   ],
-  exports: [ScratchAccessService],
+  exports: [ScratchAccessService, ScratchLmsService],
 })
 export class ScratchModule {}

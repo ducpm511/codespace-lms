@@ -64,14 +64,15 @@ export class LessonActivitiesService {
     sectionId: string,
     lessonId: string,
     dto: CreateLessonActivityDto,
+    actorId: string,
   ): Promise<LessonActivityDto[]> {
     await this.ensureLesson(courseId, sectionId, lessonId);
-    const payload = await this.validatePayload(courseId, dto.type, {
-      contentMd: dto.contentMd,
-      fileId: dto.fileId,
-      videoUrl: dto.videoUrl,
-      refId: dto.refId,
-    });
+    const payload = await this.validatePayload(
+      courseId,
+      dto.type,
+      { contentMd: dto.contentMd, fileId: dto.fileId, videoUrl: dto.videoUrl, refId: dto.refId },
+      actorId,
+    );
     const order = dto.order ?? (await this.nextOrder(lessonId));
 
     await this.prisma.$transaction(async (tx) => {
@@ -91,6 +92,7 @@ export class LessonActivitiesService {
     lessonId: string,
     activityId: string,
     dto: UpdateLessonActivityDto,
+    actorId: string,
   ): Promise<LessonActivityDto[]> {
     await this.ensureLesson(courseId, sectionId, lessonId);
     const current = await this.ensureActivity(lessonId, activityId);
@@ -103,7 +105,8 @@ export class LessonActivitiesService {
       videoUrl: dto.videoUrl === undefined ? current.videoUrl : dto.videoUrl,
       refId: dto.refId === undefined ? current.refId : dto.refId,
     };
-    const payload = await this.validatePayload(courseId, type, merged);
+    // Dự án mẫu chỉ kiểm quyền khi ĐỔI — GV khác sửa tiêu đề hoạt động không cần sở hữu dự án mẫu.
+    const payload = await this.validatePayload(courseId, type, merged, actorId, current.refId);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.lessonActivity.update({
@@ -187,6 +190,22 @@ export class LessonActivitiesService {
     for (const a of rows) {
       const type = a.type as LessonActivityTypeValue;
       const ref = a.refId ? availability.get(`${a.type}:${a.refId}`) : undefined;
+      if (type === 'scratch') {
+        // Không trả id dự án mẫu (thường private của GV): học viên mở qua POST /scratch/activities/:id/open.
+        // Mẫu đã bị xóa ⇒ chưa sẵn sàng; không có mẫu ⇒ bắt đầu từ dự án trống.
+        const dto: StudentLessonActivityDto = {
+          id: a.id,
+          lessonId: a.lessonId,
+          order: a.order,
+          type,
+          title: a.title,
+          refId: null,
+          refTitle: null,
+          refAvailable: a.refId ? Boolean(ref?.available) : true,
+        };
+        out.set(a.lessonId, [...(out.get(a.lessonId) ?? []), dto]);
+        continue;
+      }
       const available = REF_ACTIVITY_TYPES.includes(type) ? Boolean(ref?.available) : true;
       const dto: StudentLessonActivityDto = {
         id: a.id,
@@ -227,8 +246,35 @@ export class LessonActivitiesService {
     courseId: string,
     type: LessonActivityTypeValue,
     input: { contentMd?: string | null; fileId?: string | null; videoUrl?: string | null; refId?: string | null },
+    actorId: string,
+    currentRefId: string | null = null,
   ): Promise<{ contentMd: string | null; fileId: string | null; videoUrl: string | null; refId: string | null }> {
     const empty = { contentMd: null, fileId: null, videoUrl: null, refId: null };
+
+    if (type === 'scratch') {
+      // Dự án mẫu (tùy chọn). Học viên nhận BẢN SAO nội dung ⇒ GV gắn phải là chủ / đồng tác giả của nó —
+      // không thì ai có quyền sửa khóa học cũng chép được dự án private của người khác cho cả lớp (IDOR).
+      const refId = input.refId || null;
+      if (refId && refId !== currentRefId) {
+        const project = await this.prisma.scratchProject.findUnique({
+          where: { id: refId },
+          select: {
+            ownerId: true,
+            deletedAt: true,
+            collaborators: { where: { userId: actorId }, select: { userId: true } },
+            _count: { select: { versions: true } },
+          },
+        });
+        const editable = project && (project.ownerId === actorId || project.collaborators.length > 0);
+        if (!project || project.deletedAt || !editable) {
+          throw new NotFoundException('Dự án mẫu không tồn tại hoặc không phải của bạn');
+        }
+        if (project._count.versions === 0) {
+          throw new BadRequestException('Dự án mẫu chưa lưu lần nào');
+        }
+      }
+      return { ...empty, refId };
+    }
 
     if (type === 'markdown') {
       const contentMd = input.contentMd?.trim();
@@ -343,6 +389,16 @@ export class LessonActivitiesService {
         out.set(`${type}:${r.id}`, r.title);
       }
     }
+
+    // Dự án mẫu BlockSpace (GV soạn bài thấy tên; học viên KHÔNG — xem listForStudent).
+    const scratchIds = rows.filter((r) => r.type === 'scratch' && r.refId).map((r) => r.refId as string);
+    if (scratchIds.length > 0) {
+      const projects = await this.prisma.scratchProject.findMany({
+        where: { id: { in: scratchIds }, deletedAt: null },
+        select: { id: true, title: true },
+      });
+      for (const p of projects) out.set(`scratch:${p.id}`, p.title);
+    }
     return out;
   }
 
@@ -386,6 +442,15 @@ export class LessonActivitiesService {
       for (const a of assignments) {
         out.set(`assignment:${a.id}`, { title: a.title, available: true });
       }
+    }
+
+    const scratchIds = ids('scratch');
+    if (scratchIds.length > 0) {
+      const projects = await this.prisma.scratchProject.findMany({
+        where: { id: { in: scratchIds }, deletedAt: null },
+        select: { id: true, title: true },
+      });
+      for (const p of projects) out.set(`scratch:${p.id}`, { title: p.title, available: true });
     }
 
     return out;

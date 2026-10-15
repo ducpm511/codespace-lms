@@ -438,7 +438,25 @@
     "delete": "Xóa bài tập",
     "confirmDelete": "Xóa bài tập \"{{title}}\"? Mọi bài nộp và điểm của học viên ở TẤT CẢ các lớp học khóa này cũng bị xóa theo. Không thể hoàn tác.",
     "selectClassToGrade": "Chọn một lớp ở phía trên để xem bài nộp và chấm điểm.",
-    "editLoadFailed": "Không tải được bài tập."
+    "editLoadFailed": "Không tải được bài tập.",
+    "type_text": "Văn bản",
+    "type_link": "Đường link",
+    "type_file": "Tệp",
+    "type_scratch": "Dự án BlockSpace",
+    "scratchPick": "Chọn dự án để nộp",
+    "scratchHint": "Nộp xong em vẫn sửa tiếp được — bài nộp giữ nguyên bản lúc bấm Nộp.",
+    "scratchSubmit": "Nộp dự án này",
+    "scratchResubmit": "Nộp lại bản mới nhất",
+    "scratchSubmitted": "Đã nộp \"{{title}}\" (bản #{{seq}}, {{time}}).",
+    "scratchNoProjects": "Em chưa có dự án nào đã lưu. Làm một dự án trong",
+    "scratchChecks": "Tiêu chí gợi ý khi chấm",
+    "scratchChecksHint": "Hệ thống đọc dự án và đánh dấu tiêu chí nào có — chỉ để cô/thầy nhìn nhanh, không tự cho điểm.",
+    "scratchCheckMin": "Ít nhất",
+    "scratchVersion": "Bản đã nộp: \"{{title}}\" #{{seq}} · {{time}}",
+    "scratchHints": "Gợi ý tiêu chí (đọc tự động, chỉ đếm khối trong kịch bản có khối mũ)",
+    "scratchSprites": "{{count}} nhân vật (cần ≥ {{min}})",
+    "scratchBlocks": "{{count}} khối",
+    "scratchNone": "chưa thấy"
   },
   "submissions": {
     "status_draft": "Bản nháp",
@@ -582,7 +600,13 @@
     "dropzoneTitle": "Kéo thả file PDF vào đây",
     "dropzoneHint": "hoặc bấm để chọn từ máy · tối đa {{size}} MB",
     "choosePdf": "Chọn file PDF",
-    "pdfPrivacyHint": "File lưu riêng tư, chỉ học viên trong lớp xem được."
+    "pdfPrivacyHint": "File lưu riêng tư, chỉ học viên trong lớp xem được.",
+    "type_scratch": "BlockSpace",
+    "scratchBlank": "Dự án trống (bắt đầu với Rex)",
+    "scratchTemplate": "Dự án mẫu",
+    "scratchTemplateHint": "Mỗi học viên nhận một bản sao riêng khi mở lần đầu. Sửa dự án mẫu sau đó chỉ áp dụng cho em mở lần đầu sau này.",
+    "scratchStudentHint": "Mở BlockSpace để làm — bài của em tự lưu vào \"Dự án của tôi\".",
+    "scratchOpen": "Mở BlockSpace"
   },
   "classStatus": {
     "planning": "Sắp khai giảng",
@@ -796,5 +820,17 @@
       "confirmLeaveBody": "Bạn sẽ không mở được trình soạn của dự án nữa, trừ khi chủ dự án mời lại.",
       "owner": "Chủ dự án"
     }
+  },
+  "scratchChecks": {
+    "greenFlag": "Bắt đầu bằng lá cờ xanh",
+    "loop": "Có vòng lặp",
+    "condition": "Có điều kiện (nếu… thì)",
+    "variable": "Dùng biến",
+    "broadcast": "Phát tin nhắn",
+    "interaction": "Tương tác (phím, chuột, hỏi đáp)",
+    "sound": "Có âm thanh",
+    "clone": "Tạo bản sao",
+    "customBlock": "Tự tạo khối",
+    "minSprites": "Số nhân vật"
   }
 }

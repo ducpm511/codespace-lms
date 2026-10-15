@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SUBMISSION_TYPES } from '@lms/contracts';
+import type { ScratchCheck } from '@lms/contracts';
+import { ScratchChecksEditor } from '../../features/studio/ScratchChecksEditor';
+import { DEFAULT_SCRATCH_CHECKS } from '../../features/studio/rubric';
+import { ScratchSubmissionReview } from '../../features/studio/ScratchSubmissionReview';
 import { useConfirm } from '../../components/useConfirm';
 import type { AssignmentDetail, AssignmentSummary, SubmissionDto, SubmissionTypeValue } from '@lms/contracts';
 import { ApiError } from '../../lib/api';
@@ -353,6 +358,9 @@ function EditAssignmentForm({
   );
   const [allowLate, setAllowLate] = useState(assignment.allowLate);
   const [dueAt, setDueAt] = useState(assignment.dueAt ? toLocalInput(assignment.dueAt) : '');
+  const [scratchChecks, setScratchChecks] = useState<ScratchCheck[]>(
+    assignment.scratchChecks ?? DEFAULT_SCRATCH_CHECKS,
+  );
   const update = useUpdateAssignment();
 
   const submit = (e: FormEvent) => {
@@ -365,6 +373,7 @@ function EditAssignmentForm({
           descriptionMd: descriptionMd.trim() || null,
           maxScore: Number(maxScore),
           submissionType,
+          scratchChecks: submissionType === 'scratch' ? scratchChecks : undefined,
           allowLate,
           dueAt: dueAt ? new Date(dueAt).toISOString() : null,
         },
@@ -405,11 +414,15 @@ function EditAssignmentForm({
           value={submissionType}
           onChange={(e) => setSubmissionType(e.target.value as SubmissionTypeValue)}
         >
-          <option value="text">Text</option>
-          <option value="link">Link</option>
-          <option value="file">File</option>
+          {SUBMISSION_TYPES.map((v) => (
+            <option key={v} value={v}>
+              {t(`assignments.type_${v}`)}
+            </option>
+          ))}
         </select>
       </div>
+
+      {submissionType === 'scratch' && <ScratchChecksEditor value={scratchChecks} onChange={setScratchChecks} />}
 
       <div className="flex gap-2">
         <div className="field flex-1">
@@ -475,6 +488,7 @@ function CreateAssignmentForm({
   const [submissionType, setSubmissionType] = useState<SubmissionTypeValue>('text');
   const [allowLate, setAllowLate] = useState(false);
   const [dueAt, setDueAt] = useState('');
+  const [scratchChecks, setScratchChecks] = useState<ScratchCheck[]>(DEFAULT_SCRATCH_CHECKS);
 
   const create = useCreateAssignment();
 
@@ -487,6 +501,7 @@ function CreateAssignmentForm({
         descriptionMd: descriptionMd.trim() || undefined,
         maxScore: Number(maxScore),
         submissionType,
+        scratchChecks: submissionType === 'scratch' ? scratchChecks : undefined,
         allowLate,
         dueAt: dueAt ? new Date(dueAt).toISOString() : undefined,
       },
@@ -538,12 +553,15 @@ function CreateAssignmentForm({
             value={submissionType}
             onChange={(e) => setSubmissionType(e.target.value as SubmissionTypeValue)}
           >
-            <option value="text">Text</option>
-            <option value="link">Link</option>
-            <option value="file">File</option>
+            {SUBMISSION_TYPES.map((v) => (
+              <option key={v} value={v}>
+                {t(`assignments.type_${v}`)}
+              </option>
+            ))}
           </select>
         </div>
       </div>
+      {submissionType === 'scratch' && <ScratchChecksEditor value={scratchChecks} onChange={setScratchChecks} />}
       <div className="field">
         <label>{t('assignments.dueAt')}</label>
         <input className="input" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
@@ -694,6 +712,9 @@ function GradingForm({
         <p className="text-muted m-0" style={{ fontSize: 11, marginBottom: 6 }}>
           {t('assignments.submissionContent')}
         </p>
+        {submission.scratch && (
+          <ScratchSubmissionReview submission={submission} checks={assignment.scratchChecks ?? []} />
+        )}
         {submission.contentText && (
           <p className="m-0" style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>
             {submission.contentText}
@@ -704,7 +725,7 @@ function GradingForm({
             {submission.linkUrl}
           </a>
         )}
-        {!submission.contentText && !submission.linkUrl && (
+        {!submission.contentText && !submission.linkUrl && !submission.scratch && (
           <p className="text-muted m-0 italic" style={{ fontSize: 13 }}>
             ({t('common.empty')})
           </p>

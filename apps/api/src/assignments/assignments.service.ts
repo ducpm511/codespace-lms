@@ -1,5 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import type { AssignmentDetail, AssignmentSummary, Paginated } from '@lms/contracts';
+import { Prisma } from '@lms/database';
+import { SCRATCH_CHECK_KEYS, SCRATCH_CHECKS_WITH_MIN } from '@lms/contracts';
+import type { AssignmentDetail, AssignmentSummary, Paginated, ScratchCheck } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateAssignmentDto } from './dto/create-assignment.dto';
 import type { UpdateAssignmentDto } from './dto/update-assignment.dto';
@@ -76,6 +78,7 @@ export class AssignmentsService {
         maxScore: dto.maxScore,
         allowLate: dto.allowLate,
         submissionType: dto.submissionType,
+        scratchChecks: scratchChecksData(dto.submissionType ?? 'text', dto.scratchChecks),
         createdById,
       },
     });
@@ -91,7 +94,19 @@ export class AssignmentsService {
   }
 
   async update(id: string, dto: UpdateAssignmentDto): Promise<AssignmentDetail> {
-    await this.ensureAssignment(id);
+    const current = await this.prisma.assignment.findUnique({
+      where: { id },
+      select: { submissionType: true, scratchChecks: true },
+    });
+    if (!current) {
+      throw new NotFoundException('Bài tập không tồn tại');
+    }
+    const type = dto.submissionType ?? current.submissionType;
+    // Đổi sang loại khác ⇒ bỏ tiêu chí; không gửi tiêu chí ⇒ giữ tiêu chí cũ (nếu vẫn là scratch).
+    const checks =
+      dto.scratchChecks !== undefined || type !== 'scratch'
+        ? scratchChecksData(type, dto.scratchChecks ?? undefined)
+        : undefined;
     const updated = await this.prisma.assignment.update({
       where: { id },
       data: {
@@ -101,6 +116,7 @@ export class AssignmentsService {
         maxScore: dto.maxScore,
         allowLate: dto.allowLate,
         submissionType: dto.submissionType,
+        scratchChecks: checks,
       },
     });
     return toDetail(updated);
@@ -130,6 +146,25 @@ export class AssignmentsService {
   }
 }
 
+/**
+ * Tiêu chí gợi ý BlockSpace: chỉ cho bài nộp `scratch` (khác ⇒ DB NULL). Bỏ trùng khóa, giữ thứ tự allowlist;
+ * `min` chỉ cho tiêu chí cần ngưỡng (mặc định 2), tiêu chí khác bỏ `min`.
+ */
+export function normalizeScratchChecks(checks: ScratchCheck[] | undefined): ScratchCheck[] {
+  const byKey = new Map((checks ?? []).map((c) => [c.key, c]));
+  return SCRATCH_CHECK_KEYS.filter((k) => byKey.has(k)).map((key) =>
+    SCRATCH_CHECKS_WITH_MIN.includes(key) ? { key, min: byKey.get(key)?.min ?? 2 } : { key },
+  );
+}
+
+function scratchChecksData(
+  submissionType: string,
+  checks: ScratchCheck[] | undefined,
+): Prisma.InputJsonValue | typeof Prisma.DbNull {
+  if (submissionType !== 'scratch') return Prisma.DbNull;
+  return normalizeScratchChecks(checks) as unknown as Prisma.InputJsonValue;
+}
+
 function toDate(iso: string | null | undefined): Date | null | undefined {
   if (iso === undefined) return undefined;
   if (iso === null) return null;
@@ -148,6 +183,7 @@ type AssignmentRow = {
   maxScore: unknown; // Prisma.Decimal
   allowLate: boolean;
   submissionType: string;
+  scratchChecks?: Prisma.JsonValue;
   createdAt: Date;
 };
 
@@ -161,6 +197,7 @@ function toSummary(a: AssignmentRow): AssignmentSummary {
     maxScore: Number(a.maxScore),
     allowLate: a.allowLate,
     submissionType: a.submissionType,
+    scratchChecks: a.submissionType === 'scratch' ? ((a.scratchChecks as ScratchCheck[] | null) ?? []) : null,
     createdAt: a.createdAt.toISOString(),
   };
 }

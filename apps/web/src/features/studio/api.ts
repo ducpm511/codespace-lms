@@ -1,5 +1,7 @@
 import type {
   AddScratchCollaboratorRequest,
+  OpenScratchActivityRequest,
+  OpenScratchActivityResponse,
   ScratchCollaboratorCandidateDto,
   ScratchCollaboratorDto,
   CreateScratchReportRequest,
@@ -75,6 +77,21 @@ export const remixProject = (id: string, title?: string): Promise<ScratchProject
 
 export const setProjectLike = (id: string, liked: boolean): Promise<ScratchLikeResponse> =>
   apiFetch(`${base}/${id}/like`, { method: liked ? 'PUT' : 'DELETE' });
+
+// --- Gắn LMS (T11.7) ---
+
+/** Mở hoạt động bài học BlockSpace: lấy / tạo bản sao riêng của mình. */
+export const openScratchActivity = (activityId: string, classId: string): Promise<OpenScratchActivityResponse> =>
+  apiFetch(`/scratch/activities/${encodeURIComponent(activityId)}/open`, {
+    method: 'POST',
+    body: JSON.stringify({ classId } satisfies OpenScratchActivityRequest),
+  });
+
+const sub = (id: string) => `/scratch/submissions/${encodeURIComponent(id)}`;
+export const getSubmissionJson = (submissionId: string): Promise<string | null> =>
+  jsonOrNull(`${sub(submissionId)}/project.json`);
+export const getSubmissionAsset = (submissionId: string, md5ext: string): Promise<ArrayBuffer | null> =>
+  apiFetchArrayBuffer(`${sub(submissionId)}/assets/${md5ext}`);
 
 // --- Đồng tác giả (T11.6b) ---
 

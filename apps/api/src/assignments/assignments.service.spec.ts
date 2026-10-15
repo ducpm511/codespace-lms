@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { AssignmentsService } from './assignments.service';
+import { AssignmentsService, normalizeScratchChecks } from './assignments.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
 function makePrisma() {
@@ -134,5 +134,20 @@ describe('AssignmentsService', () => {
         expect.objectContaining({ where: { courseId: 'c1' } }),
       );
     });
+  });
+});
+
+describe('normalizeScratchChecks (T11.7)', () => {
+  it('bỏ trùng, theo thứ tự allowlist; min chỉ cho tiêu chí cần ngưỡng (mặc định 2)', () => {
+    expect(
+      normalizeScratchChecks([
+        { key: 'loop', min: 9 },
+        { key: 'minSprites' },
+        { key: 'greenFlag' },
+        { key: 'loop' },
+      ]),
+    ).toEqual([{ key: 'greenFlag' }, { key: 'loop' }, { key: 'minSprites', min: 2 }]);
+    expect(normalizeScratchChecks([{ key: 'minSprites', min: 4 }])).toEqual([{ key: 'minSprites', min: 4 }]);
+    expect(normalizeScratchChecks(undefined)).toEqual([]);
   });
 });

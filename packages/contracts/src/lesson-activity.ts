@@ -3,7 +3,7 @@
 // Activity trỏ tới engine (quiz/coding/assignment) chỉ mang `refId` + tiêu đề — nội dung lấy qua endpoint engine
 // sẵn có (đã tự enforce membership/gate/không lộ đáp án).
 
-export type LessonActivityTypeValue = 'markdown' | 'pdf' | 'video' | 'quiz' | 'coding' | 'assignment';
+export type LessonActivityTypeValue = 'markdown' | 'pdf' | 'video' | 'quiz' | 'coding' | 'assignment' | 'scratch';
 
 export const LESSON_ACTIVITY_TYPES: readonly LessonActivityTypeValue[] = [
   'markdown',
@@ -12,6 +12,7 @@ export const LESSON_ACTIVITY_TYPES: readonly LessonActivityTypeValue[] = [
   'quiz',
   'coding',
   'assignment',
+  'scratch',
 ];
 
 /** Activity trỏ tới engine sẵn có — cần `refId`. */
@@ -66,7 +67,11 @@ interface LessonActivityBase {
   fileSizeBytes?: number | null;
   /** type=video — link nhúng, host thuộc `VIDEO_EMBED_HOSTS`. */
   videoUrl?: string | null;
-  /** type=quiz|coding|assignment — id của Quiz/CodingProblem/Assignment. */
+  /**
+   * type=quiz|coding|assignment — id của Quiz/CodingProblem/Assignment.
+   * type=scratch — id dự án MẪU BlockSpace (null = bắt đầu từ dự án trống). Học viên KHÔNG nhận id này
+   * (dự án mẫu thường private của GV) — chỉ nhận bản sao riêng qua `POST /scratch/activities/:id/open`.
+   */
   refId?: string | null;
   refTitle?: string | null;
 }

@@ -145,6 +145,58 @@ export interface ScratchLikeResponse {
   likedByMe: boolean;
 }
 
+// --- Gắn LMS: hoạt động bài học + bài tập nộp dự án (T11.7 — ADR D6) ---
+
+/** Mở hoạt động `scratch`: lấy (hoặc tạo lần đầu) bản sao riêng của mình từ dự án mẫu. */
+export interface OpenScratchActivityRequest {
+  classId: string;
+}
+
+export interface OpenScratchActivityResponse {
+  projectId: string;
+  /** true = vừa tạo bản sao lần này. */
+  created: boolean;
+}
+
+/**
+ * Tiêu chí GỢI Ý khi chấm bài BlockSpace — đọc project.json tĩnh, chỉ để GV nhìn nhanh, GV vẫn tự cho điểm.
+ * Chỉ tính khối nằm trong một kịch bản có khối mũ (khối rời không tính).
+ */
+export type ScratchCheckKey =
+  | 'greenFlag'
+  | 'loop'
+  | 'condition'
+  | 'variable'
+  | 'broadcast'
+  | 'interaction'
+  | 'sound'
+  | 'clone'
+  | 'customBlock'
+  | 'minSprites';
+
+export const SCRATCH_CHECK_KEYS: readonly ScratchCheckKey[] = [
+  'greenFlag',
+  'loop',
+  'condition',
+  'variable',
+  'broadcast',
+  'interaction',
+  'sound',
+  'clone',
+  'customBlock',
+  'minSprites',
+];
+
+/** Tiêu chí cần ngưỡng (`min`) — các tiêu chí khác chỉ cần "có ít nhất một". */
+export const SCRATCH_CHECKS_WITH_MIN: readonly ScratchCheckKey[] = ['minSprites'];
+export const SCRATCH_CHECK_MIN_MAX = 20;
+
+export interface ScratchCheck {
+  key: ScratchCheckKey;
+  /** Chỉ cho tiêu chí trong SCRATCH_CHECKS_WITH_MIN (1..SCRATCH_CHECK_MIN_MAX). */
+  min?: number;
+}
+
 // --- Công khai, biệt danh, báo cáo, kiểm duyệt (T11.5b — ADR D4′) ---
 
 export type ScratchPublicationDecisionValue = 'approved' | 'rejected' | 'removed' | 'withdrawn';

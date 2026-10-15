@@ -1,4 +1,7 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsIn,
@@ -9,8 +12,11 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { SCRATCH_CHECK_KEYS, SUBMISSION_TYPES } from '@lms/contracts';
 import type { CreateAssignmentRequest, SubmissionTypeValue } from '@lms/contracts';
+import { ScratchCheckDto } from './scratch-check.dto';
 
 export class CreateAssignmentDto implements CreateAssignmentRequest {
   @IsString()
@@ -48,6 +54,14 @@ export class CreateAssignmentDto implements CreateAssignmentRequest {
   allowLate?: boolean;
 
   @IsOptional()
-  @IsIn(['text', 'file', 'link'])
+  @IsIn(SUBMISSION_TYPES as readonly string[])
   submissionType?: SubmissionTypeValue;
+
+  /** Chỉ có nghĩa khi submissionType = scratch (bài khác: server lưu null). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(SCRATCH_CHECK_KEYS.length)
+  @ValidateNested({ each: true })
+  @Type(() => ScratchCheckDto)
+  scratchChecks?: ScratchCheckDto[];
 }

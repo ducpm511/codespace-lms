@@ -2,9 +2,10 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { SubmissionsService } from './submissions.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
+import type { ScratchLmsService } from '../scratch/scratch-lms.service';
 
 function makePrisma() {
-  return {
+  const prisma = {
     assignment: {
       findUnique: jest.fn(),
     },
@@ -27,8 +28,13 @@ function makePrisma() {
     notification: {
       create: jest.fn(),
     },
-    $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
+    $transaction: jest.fn(),
   };
+  // Hai kiểu: mảng thao tác, hoặc callback nhận tx (saveDraft đóng băng dự án BlockSpace trong transaction).
+  prisma.$transaction.mockImplementation((arg: unknown) =>
+    typeof arg === 'function' ? (arg as (tx: unknown) => unknown)(prisma) : Promise.all(arg as Promise<unknown>[]),
+  );
+  return prisma;
 }
 
 function makeRbac() {
@@ -63,6 +69,7 @@ describe('SubmissionsService', () => {
   let prisma: ReturnType<typeof makePrisma>;
   let rbac: ReturnType<typeof makeRbac>;
   let service: SubmissionsService;
+  let scratch: { freezeLatest: jest.Mock };
 
   beforeEach(() => {
     prisma = makePrisma();
@@ -70,7 +77,65 @@ describe('SubmissionsService', () => {
     service = new SubmissionsService(
       prisma as unknown as PrismaService,
       rbac as unknown as RbacService,
+      (scratch = { freezeLatest: jest.fn().mockResolvedValue('ver-7') }) as unknown as ScratchLmsService,
     );
+  });
+
+  describe('BlockSpace (T11.7)', () => {
+    const openClass = () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.classCourse.findUnique.mockResolvedValue({ id: 'cc' });
+      prisma.lessonGate.findUnique.mockResolvedValue({ isActive: true });
+    };
+    const scratchAssignment = (submissionType = 'scratch') => ({
+      id: 'a1',
+      courseId: 'c1',
+      lessonId: null,
+      dueAt: null,
+      submissionType,
+    });
+
+    it('lưu bài: đóng băng phiên bản mới nhất của dự án đã chọn trong CÙNG transaction rồi ghi vào bài nộp', async () => {
+      openClass();
+      prisma.assignment.findUnique.mockResolvedValue(scratchAssignment());
+      prisma.submission.findUnique.mockResolvedValue(null);
+      prisma.submission.upsert.mockResolvedValue(
+        sampleSubmission({ scratchVersion: { seq: 7, frozenAt: now, projectId: 'p1', project: { title: 'Mê cung' } } }),
+      );
+      const dto = await service.saveDraft('a1', 'student-1', { classId: 'class-1', scratchProjectId: 'p1' });
+      expect(scratch.freezeLatest).toHaveBeenCalledWith('p1', 'student-1', prisma);
+      expect(prisma.submission.upsert.mock.calls[0][0].create.scratchVersionId).toBe('ver-7');
+      expect(dto.scratch).toEqual({
+        projectId: 'p1',
+        projectTitle: 'Mê cung',
+        versionSeq: 7,
+        frozenAt: now.toISOString(),
+      });
+    });
+
+    it('gửi dự án cho bài KHÔNG phải BlockSpace ⇒ 400, không đóng băng gì', async () => {
+      openClass();
+      prisma.assignment.findUnique.mockResolvedValue(scratchAssignment('text'));
+      prisma.submission.findUnique.mockResolvedValue(null);
+      await expect(
+        service.saveDraft('a1', 'student-1', { classId: 'class-1', scratchProjectId: 'p1' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(scratch.freezeLatest).not.toHaveBeenCalled();
+    });
+
+    it('nộp bài BlockSpace chưa chọn dự án ⇒ 400 (có chữ thôi không đủ)', async () => {
+      openClass();
+      prisma.assignment.findUnique.mockResolvedValue(scratchAssignment());
+      prisma.submission.findUnique.mockResolvedValue(sampleSubmission({ scratchVersionId: null }));
+      await expect(service.submit('a1', 'student-1', { classId: 'class-1' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      prisma.submission.findUnique.mockResolvedValue(sampleSubmission({ scratchVersionId: 'ver-7' }));
+      prisma.submission.update.mockResolvedValue(sampleSubmission({ status: 'submitted' }));
+      await expect(service.submit('a1', 'student-1', { classId: 'class-1' })).resolves.toMatchObject({
+        status: 'submitted',
+      });
+    });
   });
 
   describe('saveDraft', () => {

@@ -166,8 +166,9 @@ export class CoursesController {
     @Param('sectionId') sectionId: string,
     @Param('lessonId') lessonId: string,
     @Body() dto: CreateLessonActivityDto,
+    @CurrentUser() user: AuthPrincipal,
   ): Promise<LessonActivityDto[]> {
-    return this.activities.create(id, sectionId, lessonId, dto);
+    return this.activities.create(id, sectionId, lessonId, dto, user.userId);
   }
 
   @Put(':id/sections/:sectionId/lessons/:lessonId/activities/reorder')
@@ -189,8 +190,9 @@ export class CoursesController {
     @Param('lessonId') lessonId: string,
     @Param('activityId') activityId: string,
     @Body() dto: UpdateLessonActivityDto,
+    @CurrentUser() user: AuthPrincipal,
   ): Promise<LessonActivityDto[]> {
-    return this.activities.update(id, sectionId, lessonId, activityId, dto);
+    return this.activities.update(id, sectionId, lessonId, activityId, dto, user.userId);
   }
 
   @Delete(':id/sections/:sectionId/lessons/:lessonId/activities/:activityId')

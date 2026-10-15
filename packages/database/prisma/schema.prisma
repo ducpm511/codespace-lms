@@ -71,17 +71,18 @@ model User {
   comments      LessonComment[]
 
   // P11 (BlockSpace)
-  scratchProjects      ScratchProject[]        @relation("ScratchProjectOwner")
-  scratchVersionsSaved ScratchProjectVersion[] @relation("ScratchVersionSavedBy")
-  scratchAssets        ScratchAsset[]          @relation("ScratchAssetUploadedBy")
-  scratchCollabs       ScratchCollaborator[]   @relation("ScratchCollaboratorUser")
-  scratchInvitesSent   ScratchCollaborator[]   @relation("ScratchCollaboratorInvitedBy")
-  scratchLikes         ScratchProjectLike[]
-  scratchNickname      ScratchNickname?
-  scratchNicknamesRevd ScratchNickname[]       @relation("ScratchNicknameReviewedBy")
-  scratchDecisions     ScratchPublication[]    @relation("ScratchPublicationDecidedBy")
-  scratchReports       ScratchReport[]         @relation("ScratchReportReporter")
-  scratchReportsSolved ScratchReport[]         @relation("ScratchReportResolvedBy")
+  scratchProjects       ScratchProject[]        @relation("ScratchProjectOwner")
+  scratchVersionsSaved  ScratchProjectVersion[] @relation("ScratchVersionSavedBy")
+  scratchAssets         ScratchAsset[]          @relation("ScratchAssetUploadedBy")
+  scratchCollabs        ScratchCollaborator[]   @relation("ScratchCollaboratorUser")
+  scratchInvitesSent    ScratchCollaborator[]   @relation("ScratchCollaboratorInvitedBy")
+  scratchLikes          ScratchProjectLike[]
+  scratchNickname       ScratchNickname?
+  scratchNicknamesRevd  ScratchNickname[]       @relation("ScratchNicknameReviewedBy")
+  scratchDecisions      ScratchPublication[]    @relation("ScratchPublicationDecidedBy")
+  scratchReports        ScratchReport[]         @relation("ScratchReportReporter")
+  scratchReportsSolved  ScratchReport[]         @relation("ScratchReportResolvedBy")
+  scratchActivityCopies ScratchActivityCopy[]   @relation("ScratchActivityCopies")
 
   @@map("users")
 }
@@ -198,6 +199,7 @@ enum LessonActivityType {
   quiz
   coding
   assignment
+  scratch // P11 T11.7 — refId = dự án mẫu BlockSpace (NULL = dự án trống); mỗi học viên một bản sao
 }
 
 model Course {
@@ -287,6 +289,8 @@ model LessonActivity {
 
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   file   File?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  scratchCopies ScratchActivityCopy[]
 
   @@unique([lessonId, order])
   @@index([fileId])
@@ -439,6 +443,7 @@ enum SubmissionType {
   text
   file
   link
+  scratch // P11 T11.7 — nộp một phiên bản ĐÓNG BĂNG của dự án BlockSpace
 }
 
 enum SubmissionStatus {
@@ -459,6 +464,8 @@ model Assignment {
   maxScore       Decimal        @default(100) @db.Decimal(6, 2)
   allowLate      Boolean        @default(false)
   submissionType SubmissionType @default(text)
+  // submissionType = scratch: tiêu chí GỢI Ý cho GV khi chấm (đọc project.json tĩnh) — allowlist ở @lms/contracts.
+  scratchChecks  Json?
   createdById    String
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -475,26 +482,29 @@ model Assignment {
 
 // Bài nộp của học viên trong 1 lớp. Điểm là Decimal; KHÔNG hard-delete (giữ lịch sử — soft/return).
 model Submission {
-  id           String           @id @default(cuid())
-  assignmentId String
-  userId       String
-  classId      String
-  contentText  String?
-  fileId       String? // soft-ref tới file private (StorageAdapter) — upload thật hoãn sau P2
-  linkUrl      String?
-  status       SubmissionStatus @default(draft)
-  score        Decimal?         @db.Decimal(6, 2)
-  feedbackMd   String?
-  gradedById   String?
-  gradedAt     DateTime?
-  submittedAt  DateTime?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id               String           @id @default(cuid())
+  assignmentId     String
+  userId           String
+  classId          String
+  contentText      String?
+  fileId           String? // soft-ref tới file private (StorageAdapter) — upload thật hoãn sau P2
+  linkUrl          String?
+  // submissionType = scratch: phiên bản đóng băng (frozenAt) được nộp — học viên sửa tiếp không đổi bài nộp.
+  scratchVersionId String?
+  status           SubmissionStatus @default(draft)
+  score            Decimal?         @db.Decimal(6, 2)
+  feedbackMd       String?
+  gradedById       String?
+  gradedAt         DateTime?
+  submittedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  user       User       @relation("SubmissionByUser", fields: [userId], references: [id], onDelete: Cascade)
-  class      Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
-  gradedBy   User?      @relation("SubmissionGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
+  assignment     Assignment             @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user           User                   @relation("SubmissionByUser", fields: [userId], references: [id], onDelete: Cascade)
+  class          Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  gradedBy       User?                  @relation("SubmissionGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
+  scratchVersion ScratchProjectVersion? @relation(fields: [scratchVersionId], references: [id], onDelete: SetNull)
 
   @@unique([assignmentId, userId, classId])
   @@index([classId])
@@ -1040,6 +1050,7 @@ model ScratchProject {
   likes         ScratchProjectLike[]
   publication   ScratchPublication?
   reports       ScratchReport[]
+  activityCopy  ScratchActivityCopy?
 
   @@index([ownerId, deletedAt, updatedAt])
   @@index([classId, visibility])
@@ -1065,6 +1076,7 @@ model ScratchProjectVersion {
 
   publishedIn ScratchPublication? @relation("ScratchPublishedVersion")
   requestedIn ScratchPublication? @relation("ScratchRequestedVersion")
+  submissions Submission[]
 
   @@unique([projectId, seq])
   @@index([projectId, frozenAt])
@@ -1121,6 +1133,23 @@ model ScratchCollaborator {
   @@id([projectId, userId])
   @@index([userId])
   @@map("scratch_collaborators")
+}
+
+// Bản sao RIÊNG của một học viên cho một hoạt động bài học `scratch` (T11.7). Một học viên một bản / hoạt động
+// (học cùng khóa ở 2 lớp vẫn dùng chung một bản). Xóa hoạt động ⇒ mất liên kết, dự án của em vẫn còn.
+model ScratchActivityCopy {
+  activityId String
+  userId     String
+  projectId  String   @unique
+  createdAt  DateTime @default(now())
+
+  activity LessonActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User           @relation("ScratchActivityCopies", fields: [userId], references: [id], onDelete: Cascade)
+  project  ScratchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, userId])
+  @@index([userId])
+  @@map("scratch_activity_copies")
 }
 
 // Mỗi người thích một dự án tối đa một lần (khóa chính = idempotent khi bấm lại / mạng lag).
