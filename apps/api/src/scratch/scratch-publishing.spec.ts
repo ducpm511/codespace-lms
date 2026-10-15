@@ -101,7 +101,8 @@ describe('ScratchPublishingService', () => {
         findUnique: jest.fn().mockResolvedValue({ asset: { storageKey: 'k', mime: 'image/png' } }),
       },
       scratchProject: { findUniqueOrThrow: jest.fn().mockResolvedValue({ ownerId: 'owner' }) },
-      scratchReport: { upsert: jest.fn() },
+      scratchReport: { upsert: jest.fn(), count: jest.fn().mockResolvedValue(0) },
+      scratchCommentReport: { count: jest.fn().mockResolvedValue(0) },
     };
     transaction = jest.fn().mockImplementation((fn) => fn(tx));
     access = { owned: jest.fn().mockResolvedValue({}), readable: jest.fn().mockResolvedValue({ isOwner: false }) };
@@ -158,6 +159,13 @@ describe('ScratchPublishingService', () => {
     await expect(svc.reportPublic('s', { reason: 'other' }, 'owner')).rejects.toBeInstanceOf(BadRequestException);
     access.readable.mockResolvedValue({ isOwner: true });
     await expect(svc.report('p1', { reason: 'other' }, 'owner')).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.scratchReport.upsert).not.toHaveBeenCalled();
+  });
+
+  it('T11.8: quá SCRATCH_REPORT_PER_HOUR báo cáo / giờ (dự án + bình luận tính chung) → 429', async () => {
+    prisma.scratchReport.count.mockResolvedValue(6);
+    prisma.scratchCommentReport.count.mockResolvedValue(4);
+    await expect(svc.report('p1', { reason: 'other' }, 'kid')).rejects.toMatchObject({ status: 429 });
     expect(prisma.scratchReport.upsert).not.toHaveBeenCalled();
   });
 });

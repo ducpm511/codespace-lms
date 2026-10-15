@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { PERMISSIONS } from '@lms/contracts';
 import type { ScratchProjectSummaryDto } from '@lms/contracts';
 import { useMe } from '../../features/auth/hooks';
 import {
@@ -28,8 +29,14 @@ export function StudioHome(): JSX.Element {
   const classes = useScratchClasses();
   const queue = useModerationQueue();
   const pendingModeration = queue.data
-    ? queue.data.publications.length + queue.data.reports.length + queue.data.nicknames.length
+    ? queue.data.publications.length +
+      queue.data.reports.length +
+      queue.data.nicknames.length +
+      queue.data.commentReports.length
     : 0;
+  // Admin (scratch.moderate) luôn vào được trang kiểm duyệt — để sửa danh sách từ cấm (T11.8).
+  const { data: me } = useMe();
+  const isAdminModerator = me?.permissions.includes(PERMISSIONS.SCRATCH_MODERATE) ?? false;
 
   const tabs = [
     { key: 'mine', label: t('studio.tabMine') },
@@ -64,9 +71,10 @@ export function StudioHome(): JSX.Element {
             <PillButton icon="ph-plus" disabled={create.isPending} onClick={newProject}>
               {t('studio.newProject')}
             </PillButton>
-            {pendingModeration > 0 && (
+            {(pendingModeration > 0 || isAdminModerator) && (
               <Link to="/studio/moderation" className="btn btn-secondary cx-press" style={{ borderRadius: 999 }}>
-                <i className="ph ph-shield-check" aria-hidden /> {t('studio.mod.entry', { count: pendingModeration })}
+                <i className="ph ph-shield-check" aria-hidden />{' '}
+                {pendingModeration > 0 ? t('studio.mod.entry', { count: pendingModeration }) : t('studio.mod.title')}
               </Link>
             )}
           </div>

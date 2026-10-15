@@ -7,6 +7,9 @@ import { useModerationActions, useModerationQueue } from '../../features/studio/
 import { ScratchPlayer } from '../../features/studio/ScratchPlayer';
 import { useConfirm } from '../../components/useConfirm';
 import { PillButton } from '../teach/teachUi';
+import { PERMISSIONS } from '@lms/contracts';
+import { useMe } from '../../features/auth/hooks';
+import { BannedWordsPanel, CommentReportRow } from '../../features/studio/CommentModeration';
 
 /**
  * Hàng chờ kiểm duyệt BlockSpace — GV thấy học viên các lớp mình dạy, admin thấy cả trường (backend lọc).
@@ -16,6 +19,8 @@ export function StudioModerationPage(): JSX.Element {
   const { t } = useTranslation();
   const queue = useModerationQueue();
   const q = queue.data;
+  const { data: me } = useMe();
+  const isAdmin = me?.permissions.includes(PERMISSIONS.SCRATCH_MODERATE) ?? false;
 
   return (
     <div className="mx-auto flex max-w-[1120px] flex-col gap-6">
@@ -43,11 +48,24 @@ export function StudioModerationPage(): JSX.Element {
               <ReportRow key={r.id} item={r} />
             ))}
           </Section>
+          <Section icon="ph-chat-circle-dots" title={t('studio.mod.commentReports')} count={q.commentReports.length}>
+            {q.commentReports.map((r) => (
+              <CommentReportRow key={r.id} item={r} />
+            ))}
+          </Section>
           <Section icon="ph-identification-badge" title={t('studio.mod.nicknames')} count={q.nicknames.length}>
             {q.nicknames.map((n) => (
               <NicknameRow key={n.userId} userId={n.userId} fullName={n.fullName} pending={n.pending} />
             ))}
           </Section>
+          {isAdmin && (
+            <section className="flex flex-col gap-3">
+              <h2 className="cx-display m-0 flex items-center gap-2 text-xl">
+                <i className="ph ph-prohibit" aria-hidden /> {t('studio.mod.banned')}
+              </h2>
+              <BannedWordsPanel />
+            </section>
+          )}
         </>
       )}
     </div>

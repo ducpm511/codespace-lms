@@ -8,6 +8,7 @@ import {
   getMyNickname,
   reportProject,
   reportPublic,
+  reportComment,
   requestPublication,
   resolveReport,
   withdrawPublication,
@@ -138,10 +139,16 @@ export function usePublication(id: string) {
 }
 
 /** Báo cáo — dự án trong LMS (`projectId`) hoặc từ trang công khai (`slug`). */
-export function useReport(target: { projectId: string } | { slug: string }) {
+export type ReportTarget = { projectId: string } | { slug: string } | { commentId: string };
+
+export function useReport(target: ReportTarget) {
   return useMutation({
     mutationFn: (dto: CreateScratchReportRequest) =>
-      'slug' in target ? reportPublic(target.slug, dto) : reportProject(target.projectId, dto),
+      'slug' in target
+        ? reportPublic(target.slug, dto)
+        : 'commentId' in target
+          ? reportComment(target.commentId, dto)
+          : reportProject(target.projectId, dto),
   });
 }
 

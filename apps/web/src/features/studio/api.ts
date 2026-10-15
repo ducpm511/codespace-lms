@@ -1,5 +1,10 @@
 import type {
   AddScratchCollaboratorRequest,
+  CreateScratchCommentRequest,
+  ScratchBannedWordDto,
+  ScratchCommentDto,
+  ScratchCommentReportActionValue,
+  ScratchCommentsDto,
   OpenScratchActivityRequest,
   OpenScratchActivityResponse,
   ScratchCollaboratorCandidateDto,
@@ -93,6 +98,24 @@ export const getSubmissionJson = (submissionId: string): Promise<string | null> 
 export const getSubmissionAsset = (submissionId: string, md5ext: string): Promise<ArrayBuffer | null> =>
   apiFetchArrayBuffer(`${sub(submissionId)}/assets/${md5ext}`);
 
+// --- Bình luận (T11.8) ---
+
+export const listComments = (projectId: string): Promise<ScratchCommentsDto> =>
+  apiFetch(`${base}/${projectId}/comments`);
+export const createComment = (projectId: string, content: string): Promise<ScratchCommentDto> =>
+  apiFetch(`${base}/${projectId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ content } satisfies CreateScratchCommentRequest),
+  });
+export const setCommentsOpen = (projectId: string, open: boolean): Promise<void> =>
+  apiFetch(`${base}/${projectId}/comments/open`, { method: 'PUT', body: JSON.stringify({ open }) });
+const comment = (id: string) => `/scratch/comments/${encodeURIComponent(id)}`;
+export const deleteComment = (id: string): Promise<void> => apiFetch(comment(id), { method: 'DELETE' });
+export const setCommentHidden = (id: string, hidden: boolean): Promise<void> =>
+  apiFetch(`${comment(id)}/${hidden ? 'hide' : 'unhide'}`, { method: 'POST' });
+export const reportComment = (id: string, dto: CreateScratchReportRequest): Promise<void> =>
+  apiFetch(`${comment(id)}/report`, { method: 'POST', body: JSON.stringify(dto) });
+
 // --- Đồng tác giả (T11.6b) ---
 
 const collaborators = (id: string) => `${base}/${id}/collaborators`;
@@ -152,5 +175,12 @@ export const decidePublication = (projectId: string, decision: 'approve' | 'reje
   });
 export const decideNickname = (userId: string, decision: 'approve' | 'reject') =>
   apiFetch<void>(`${mod}/nicknames/${userId}/${decision}`, { method: 'POST' });
+export const resolveCommentReport = (id: string, action: ScratchCommentReportActionValue) =>
+  apiFetch<void>(`${mod}/comment-reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ action }) });
+export const listBannedWords = (): Promise<ScratchBannedWordDto[]> => apiFetch(`${mod}/banned-words`);
+export const addBannedWord = (word: string): Promise<ScratchBannedWordDto[]> =>
+  apiFetch(`${mod}/banned-words`, { method: 'POST', body: JSON.stringify({ word }) });
+export const removeBannedWord = (word: string): Promise<ScratchBannedWordDto[]> =>
+  apiFetch(`${mod}/banned-words/${encodeURIComponent(word)}`, { method: 'DELETE' });
 export const resolveReport = (id: string, action: 'dismiss' | 'remove') =>
   apiFetch<void>(`${mod}/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ action }) });

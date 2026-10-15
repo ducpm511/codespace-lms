@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { SCRATCH_REPORT_NOTE_MAX, SCRATCH_REPORT_REASONS } from '@lms/contracts';
 import type { ScratchReportReasonValue } from '@lms/contracts';
 import { PillButton } from '../../pages/teach/teachUi';
-import { useReport } from './hooks';
+import { useReport, type ReportTarget } from './hooks';
 
 /** Nút "Báo cáo" + form gọn. Dự án vẫn hiện tới khi giáo viên xem (người dùng chốt 2026-10-07). */
-export function ReportControl({ target }: { target: { projectId: string } | { slug: string } }): JSX.Element {
+export function ReportControl({ target, compact }: { target: ReportTarget; compact?: boolean }): JSX.Element {
   const { t } = useTranslation();
   const report = useReport(target);
   const [open, setOpen] = useState(false);
@@ -18,8 +18,14 @@ export function ReportControl({ target }: { target: { projectId: string } | { sl
   }
   if (!open) {
     return (
-      <button type="button" className="btn btn-ghost cx-press self-start text-sm" onClick={() => setOpen(true)}>
-        <i className="ph ph-flag" aria-hidden /> {t('studio.report.button')}
+      <button
+        type="button"
+        className="btn btn-ghost cx-press self-start text-sm"
+        onClick={() => setOpen(true)}
+        aria-label={compact ? t('studio.report.button') : undefined}
+        title={compact ? t('studio.report.button') : undefined}
+      >
+        <i className="ph ph-flag" aria-hidden /> {compact ? null : t('studio.report.button')}
       </button>
     );
   }
@@ -36,7 +42,12 @@ export function ReportControl({ target }: { target: { projectId: string } | { sl
       <div className="flex flex-col gap-1.5" role="radiogroup">
         {SCRATCH_REPORT_REASONS.map((r) => (
           <label key={r} className="flex items-center gap-2 text-sm">
-            <input type="radio" name="report-reason" checked={reason === r} onChange={() => setReason(r)} />
+            <input
+              type="radio"
+              name={`report-reason-${JSON.stringify(target)}`}
+              checked={reason === r}
+              onChange={() => setReason(r)}
+            />
             {t(`studio.report.reason_${r}`)}
           </label>
         ))}

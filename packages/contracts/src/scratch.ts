@@ -300,4 +300,79 @@ export interface ScratchModerationQueueDto {
   publications: ScratchModerationPublicationItem[];
   reports: ScratchModerationReportItem[];
   nicknames: ScratchModerationNicknameItem[];
+  /** T11.8 — báo cáo bình luận chưa xử lý. */
+  commentReports: ScratchModerationCommentReportItem[];
+}
+
+// --- Bình luận (T11.8 — ADR D8) ---
+
+export const SCRATCH_COMMENT_MAX_LENGTH = 500;
+/** Giới hạn tần suất mỗi người (cả hệ thống): chống spam, không phải chống trò chuyện bình thường. */
+export const SCRATCH_COMMENT_PER_MINUTE = 5;
+export const SCRATCH_COMMENT_PER_HOUR = 30;
+/** Số báo cáo (dự án + bình luận) tối đa mỗi người / giờ. */
+export const SCRATCH_REPORT_PER_HOUR = 10;
+/** Số bình luận mới nhất trả về mỗi lần. */
+export const SCRATCH_COMMENT_LIST_LIMIT = 200;
+export const SCRATCH_BANNED_WORD_MAX_LENGTH = 50;
+
+export interface ScratchCommentDto {
+  id: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+  /** Đã bị chủ dự án / GV ẩn — chỉ chủ dự án và GV nhận bình luận ẩn. */
+  hidden: boolean;
+  mine: boolean;
+}
+
+export interface ScratchCommentsDto {
+  /** Dự án có chia sẻ (lớp / trường) — private thì không có bình luận. */
+  available: boolean;
+  /** Chủ dự án đang cho bình luận mới. */
+  open: boolean;
+  canComment: boolean;
+  /** Chủ dự án: ẩn / bỏ ẩn, bật / tắt bình luận. */
+  isOwner: boolean;
+  /** GV / admin: ẩn, xóa. */
+  canModerate: boolean;
+  items: ScratchCommentDto[];
+}
+
+export interface CreateScratchCommentRequest {
+  content: string;
+}
+
+export interface SetScratchCommentsOpenRequest {
+  open: boolean;
+}
+
+export type ScratchCommentReportActionValue = 'dismiss' | 'hide' | 'delete';
+
+export interface ResolveScratchCommentReportRequest {
+  action: ScratchCommentReportActionValue;
+}
+
+export interface ScratchModerationCommentReportItem {
+  id: string;
+  commentId: string;
+  projectId: string;
+  projectTitle: string;
+  content: string;
+  authorName: string;
+  reporterName: string;
+  reason: ScratchReportReasonValue;
+  note: string | null;
+  createdAt: string;
+  hidden: boolean;
+}
+
+export interface ScratchBannedWordDto {
+  word: string;
+  createdAt: string;
+}
+
+export interface AddScratchBannedWordRequest {
+  word: string;
 }

@@ -790,7 +790,15 @@
       "reportedBy": "By {{owner}} · reported by {{reporter}} at {{date}}",
       "dismiss": "No problem",
       "remove": "Take down",
-      "confirmRemove": "Take down \"{{title}}\"? It stops being public and its sharing goes back to \"Only me\"."
+      "confirmRemove": "Take down \"{{title}}\"? It stops being public and its sharing goes back to \"Only me\".",
+      "commentReports": "Reported comments",
+      "commentReportedBy": "On \"{{project}}\" · reported by {{reporter}} at {{date}}",
+      "openProject": "Open project",
+      "banned": "Banned words in comments",
+      "bannedHint": "Comments containing these words or phrases are blocked (whole words, case-insensitive, Vietnamese accents kept).",
+      "bannedPlaceholder": "Add a word or phrase…",
+      "bannedAdd": "Add",
+      "bannedRemove": "Remove \"{{word}}\""
     },
     "collab": {
       "live": "{{count}} editing",
@@ -819,6 +827,20 @@
       "confirmLeaveTitle": "Leave this project?",
       "confirmLeaveBody": "You won't be able to open its editor anymore unless the owner invites you again.",
       "owner": "Owner"
+    },
+    "comments": {
+      "title": "Comments ({{count}})",
+      "allow": "Allow comments",
+      "placeholder": "Write a comment for your friend…",
+      "kind": "Be kind and specific",
+      "send": "Send",
+      "closed": "The owner has turned comments off.",
+      "empty": "No comments yet. Be the first to cheer them on!",
+      "hiddenTag": "Hidden",
+      "hide": "Hide",
+      "unhide": "Unhide",
+      "delete": "Delete",
+      "confirmDelete": "Delete this comment? No one will see it anymore."
     }
   },
   "scratchChecks": {

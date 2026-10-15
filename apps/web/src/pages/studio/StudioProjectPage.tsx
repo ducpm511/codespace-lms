@@ -7,6 +7,7 @@ import { useLikeProject, useProject, useRemixProject } from '../../features/stud
 import { ShareControl } from '../../features/studio/ShareControl';
 import { PublishControl } from '../../features/studio/PublishControl';
 import { CoauthorsControl } from '../../features/studio/CoauthorsControl';
+import { CommentsSection } from '../../features/studio/CommentsSection';
 import { useMe } from '../../features/auth/hooks';
 import { ReportControl } from '../../features/studio/ReportControl';
 import { ScratchPlayer } from '../../features/studio/ScratchPlayer';
@@ -114,6 +115,8 @@ function ProjectView({ id }: { id: string }): JSX.Element {
       )}
 
       <ScratchPlayer source={source} title={detail.title} onReady={onReady} />
+
+      <CommentsSection projectId={id} />
 
       {detail.isOwner && (
         <section className="card mx-auto flex w-full flex-col gap-3 p-5" style={{ maxWidth: 482, borderRadius: 18 }}>

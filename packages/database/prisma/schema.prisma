@@ -71,18 +71,24 @@ model User {
   comments      LessonComment[]
 
   // P11 (BlockSpace)
-  scratchProjects       ScratchProject[]        @relation("ScratchProjectOwner")
-  scratchVersionsSaved  ScratchProjectVersion[] @relation("ScratchVersionSavedBy")
-  scratchAssets         ScratchAsset[]          @relation("ScratchAssetUploadedBy")
-  scratchCollabs        ScratchCollaborator[]   @relation("ScratchCollaboratorUser")
-  scratchInvitesSent    ScratchCollaborator[]   @relation("ScratchCollaboratorInvitedBy")
-  scratchLikes          ScratchProjectLike[]
-  scratchNickname       ScratchNickname?
-  scratchNicknamesRevd  ScratchNickname[]       @relation("ScratchNicknameReviewedBy")
-  scratchDecisions      ScratchPublication[]    @relation("ScratchPublicationDecidedBy")
-  scratchReports        ScratchReport[]         @relation("ScratchReportReporter")
-  scratchReportsSolved  ScratchReport[]         @relation("ScratchReportResolvedBy")
-  scratchActivityCopies ScratchActivityCopy[]   @relation("ScratchActivityCopies")
+  scratchProjects             ScratchProject[]        @relation("ScratchProjectOwner")
+  scratchVersionsSaved        ScratchProjectVersion[] @relation("ScratchVersionSavedBy")
+  scratchAssets               ScratchAsset[]          @relation("ScratchAssetUploadedBy")
+  scratchCollabs              ScratchCollaborator[]   @relation("ScratchCollaboratorUser")
+  scratchInvitesSent          ScratchCollaborator[]   @relation("ScratchCollaboratorInvitedBy")
+  scratchLikes                ScratchProjectLike[]
+  scratchNickname             ScratchNickname?
+  scratchNicknamesRevd        ScratchNickname[]       @relation("ScratchNicknameReviewedBy")
+  scratchDecisions            ScratchPublication[]    @relation("ScratchPublicationDecidedBy")
+  scratchReports              ScratchReport[]         @relation("ScratchReportReporter")
+  scratchReportsSolved        ScratchReport[]         @relation("ScratchReportResolvedBy")
+  scratchActivityCopies       ScratchActivityCopy[]   @relation("ScratchActivityCopies")
+  scratchComments             ScratchComment[]        @relation("ScratchCommentAuthor")
+  scratchCommentsHidden       ScratchComment[]        @relation("ScratchCommentHiddenBy")
+  scratchCommentsDeleted      ScratchComment[]        @relation("ScratchCommentDeletedBy")
+  scratchCommentReports       ScratchCommentReport[]  @relation("ScratchCommentReporter")
+  scratchCommentReportsSolved ScratchCommentReport[]  @relation("ScratchCommentReportResolvedBy")
+  scratchBannedWords          ScratchBannedWord[]     @relation("ScratchBannedWordCreatedBy")
 
   @@map("users")
 }
@@ -1026,19 +1032,21 @@ enum ScratchVisibility {
 }
 
 model ScratchProject {
-  id         String            @id @default(cuid())
-  ownerId    String
-  title      String
-  visibility ScratchVisibility @default(private)
+  id              String            @id @default(cuid())
+  ownerId         String
+  title           String
+  visibility      ScratchVisibility @default(private)
   // Lớp được chia sẻ khi visibility = class (bắt buộc ở tầng service, NULL với mọi visibility khác).
   // Lớp bị xóa → classId thành NULL mà visibility vẫn `class`: service PHẢI coi như `private`.
-  classId    String?
+  classId         String?
   // Dòng dõi remix: bản gốc bị xóa hẳn thì chỉ mất liên kết, bản remix vẫn còn.
-  remixOfId  String?
+  remixOfId       String?
   // Xóa mềm: bài đã nộp trỏ tới phiên bản đóng băng của dự án — không được mất theo.
-  deletedAt  DateTime?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+  deletedAt       DateTime?
+  // T11.8: chủ dự án tắt bình luận (bình luận cũ vẫn hiện, không nhận bình luận mới).
+  commentsEnabled Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   owner         User                    @relation("ScratchProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   class         Class?                  @relation(fields: [classId], references: [id], onDelete: SetNull)
@@ -1051,6 +1059,7 @@ model ScratchProject {
   publication   ScratchPublication?
   reports       ScratchReport[]
   activityCopy  ScratchActivityCopy?
+  comments      ScratchComment[]
 
   @@index([ownerId, deletedAt, updatedAt])
   @@index([classId, visibility])
@@ -1257,4 +1266,62 @@ model ScratchReport {
   @@unique([projectId, reporterId])
   @@index([resolvedAt, createdAt])
   @@map("scratch_reports")
+}
+
+// === T11.8 Bình luận (ADR D8) — chỉ khi dự án chia sẻ lớp/trường; KHÔNG BAO GIỜ trên trang /p công khai ===
+
+// Ẩn = chủ dự án hoặc GV ẩn (GV + chủ vẫn thấy, bỏ ẩn được). Xóa = xóa MỀM (tác giả tự xóa hoặc GV), không ai
+// thấy nữa nhưng còn trong DB để tra cứu. Nội dung KHÔNG đưa vào audit (có thể có tên / thông tin của trẻ).
+model ScratchComment {
+  id          String    @id @default(cuid())
+  projectId   String
+  authorId    String
+  content     String // ≤ 500 ký tự, đã qua lọc từ cấm
+  hiddenAt    DateTime?
+  hiddenById  String?
+  deletedAt   DateTime?
+  deletedById String?
+  createdAt   DateTime  @default(now())
+
+  project   ScratchProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author    User                   @relation("ScratchCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  hiddenBy  User?                  @relation("ScratchCommentHiddenBy", fields: [hiddenById], references: [id], onDelete: SetNull)
+  deletedBy User?                  @relation("ScratchCommentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  reports   ScratchCommentReport[]
+
+  @@index([projectId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("scratch_comments")
+}
+
+// Báo cáo bình luận — cùng kiểu ScratchReport (1 / người / bình luận). Xử lý: bỏ qua / ẩn / xóa.
+model ScratchCommentReport {
+  id           String              @id @default(cuid())
+  commentId    String
+  reporterId   String
+  reason       ScratchReportReason
+  note         String?
+  createdAt    DateTime            @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolution   String? // dismissed | hidden | deleted
+
+  comment    ScratchComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reporter   User           @relation("ScratchCommentReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy User?          @relation("ScratchCommentReportResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@unique([commentId, reporterId])
+  @@index([resolvedAt, createdAt])
+  @@map("scratch_comment_reports")
+}
+
+// Từ / cụm từ cấm trong bình luận (người dùng chốt: admin sửa trên web). Lưu dạng đã chuẩn hóa (chữ thường, NFC).
+model ScratchBannedWord {
+  word        String   @id
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy User? @relation("ScratchBannedWordCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@map("scratch_banned_words")
 }

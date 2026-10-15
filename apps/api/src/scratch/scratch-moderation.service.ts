@@ -20,7 +20,7 @@ export class ScratchModerationService {
 
   async queue(moderatorId: string): Promise<ScratchModerationQueueDto> {
     const owner = await this.moderators.studentScope(moderatorId);
-    const [pubs, reports, nicknames] = await Promise.all([
+    const [pubs, reports, nicknames, commentReports] = await Promise.all([
       this.prisma.scratchPublication.findMany({
         where: { requestedVersionId: { not: null }, project: { deletedAt: null, owner } },
         select: {
@@ -60,6 +60,30 @@ export class ScratchModerationService {
         select: { userId: true, approved: true, pending: true, user: { select: { fullName: true } } },
         orderBy: { pendingAt: 'asc' },
       }),
+      // T11.8: bình luận trên dự án của học viên mình, HOẶC do học viên mình viết.
+      this.prisma.scratchCommentReport.findMany({
+        where: {
+          resolvedAt: null,
+          comment: { deletedAt: null, OR: [{ project: { deletedAt: null, owner } }, { author: owner }] },
+        },
+        select: {
+          id: true,
+          reason: true,
+          note: true,
+          createdAt: true,
+          reporter: { select: { fullName: true } },
+          comment: {
+            select: {
+              id: true,
+              content: true,
+              hiddenAt: true,
+              author: { select: { fullName: true } },
+              project: { select: { id: true, title: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
     ]);
     return {
       publications: pubs.map((p) => {
@@ -91,6 +115,19 @@ export class ScratchModerationService {
         fullName: n.user.fullName,
         approved: n.approved,
         pending: n.pending!,
+      })),
+      commentReports: commentReports.map((r) => ({
+        id: r.id,
+        commentId: r.comment.id,
+        projectId: r.comment.project.id,
+        projectTitle: r.comment.project.title,
+        content: r.comment.content,
+        authorName: r.comment.author.fullName,
+        reporterName: r.reporter.fullName,
+        reason: r.reason as ScratchReportReasonValue,
+        note: r.note,
+        createdAt: r.createdAt.toISOString(),
+        hidden: r.comment.hiddenAt !== null,
       })),
     };
   }

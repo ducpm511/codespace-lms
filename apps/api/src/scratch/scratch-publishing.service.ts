@@ -12,6 +12,7 @@ import { STORAGE_ADAPTER, type StorageAdapter } from '../common/storage/storage.
 import { ScratchAccessService } from './scratch-access.service';
 import type { ScratchActor, ScratchAssetDownload } from './scratch-projects.service';
 import { referencedMd5exts } from './project-json';
+import { assertReportQuota } from './rate-limits';
 
 /** Trạng thái công khai cho chủ dự án (DTO). */
 export function toPublicationDto(
@@ -218,6 +219,7 @@ export class ScratchPublishingService {
   }
 
   private async saveReport(projectId: string, dto: CreateScratchReportRequest, reporterId: string) {
+    await assertReportQuota(this.prisma, reporterId);
     const data: Prisma.ScratchReportUncheckedUpdateInput = {
       reason: dto.reason,
       note: dto.note?.trim() || null,

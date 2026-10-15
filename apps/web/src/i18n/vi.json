@@ -790,7 +790,15 @@
       "reportedBy": "Của {{owner}} · {{reporter}} báo cáo lúc {{date}}",
       "dismiss": "Không vi phạm",
       "remove": "Gỡ",
-      "confirmRemove": "Gỡ \"{{title}}\"? Dự án thôi công khai và thu chia sẻ về \"Chỉ mình tôi\"."
+      "confirmRemove": "Gỡ \"{{title}}\"? Dự án thôi công khai và thu chia sẻ về \"Chỉ mình tôi\".",
+      "commentReports": "Báo cáo bình luận",
+      "commentReportedBy": "Trên \"{{project}}\" · {{reporter}} báo cáo lúc {{date}}",
+      "openProject": "Mở dự án",
+      "banned": "Từ cấm trong bình luận",
+      "bannedHint": "Bình luận chứa từ / cụm từ dưới đây sẽ bị chặn (khớp cả từ, không phân biệt hoa thường, giữ dấu tiếng Việt).",
+      "bannedPlaceholder": "Thêm từ hoặc cụm từ…",
+      "bannedAdd": "Thêm",
+      "bannedRemove": "Bỏ \"{{word}}\""
     },
     "collab": {
       "live": "{{count}} người đang sửa",
@@ -819,6 +827,20 @@
       "confirmLeaveTitle": "Rời dự án này?",
       "confirmLeaveBody": "Bạn sẽ không mở được trình soạn của dự án nữa, trừ khi chủ dự án mời lại.",
       "owner": "Chủ dự án"
+    },
+    "comments": {
+      "title": "Bình luận ({{count}})",
+      "allow": "Cho bình luận",
+      "placeholder": "Viết lời nhận xét cho bạn…",
+      "kind": "Nhận xét lịch sự, cụ thể nhé",
+      "send": "Gửi",
+      "closed": "Chủ dự án đang tắt bình luận.",
+      "empty": "Chưa có bình luận nào. Hãy là người đầu tiên khen bạn!",
+      "hiddenTag": "Đã ẩn",
+      "hide": "Ẩn",
+      "unhide": "Bỏ ẩn",
+      "delete": "Xóa",
+      "confirmDelete": "Xóa bình luận này? Mọi người sẽ không thấy nữa."
     }
   },
   "scratchChecks": {
