@@ -97,7 +97,7 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | H6 | BlockSpace: **rà pháp lý AGPL** (ADR 003). Q1–Q6 đã chốt 07/10 | Phát hành P11 (không chặn spike) |
 | ~~H4~~ | ✅ **Đã chốt 2026-08-26** — audit không tra tên (câu mô tả chung, 0 PII); **bỏ hẳn** nhóm login; **thêm** dãy số liệu khu Quản trị. Chi tiết `HANDOFF_P10.md §T10.5`. | — |
 
-### Phase P11 — BlockSpace (Scratch Studio) 📝 KẾ HOẠCH (chưa code)
+### Phase P11 — BlockSpace (Scratch Studio) ✅ CODE XONG T11.0–T11.8 (15/10) — chờ pháp lý AGPL (H6) + PR + deploy
 
 Thiết kế: **`docs/adr/003-scratch-studio.md`** (chốt: scratch-gui AGPL, có công khai, bình luận, ghi âm/ảnh, làm chung realtime). Thứ tự T11.0 → T11.1 → T11.2 → T11.3‖T11.4 → T11.5–T11.8.
 
@@ -113,7 +113,7 @@ Thiết kế: **`docs/adr/003-scratch-studio.md`** (chốt: scratch-gui AGPL, c�
 | T11.6a | ✅ **Spike xong 07/10** — gateway WS `/api/scratch/ws` (auth message đầu, ≤6/phòng, seq + đệm nối lại), đồng bộ khối giữa 2 trình soạn chạy thật (sau `?collab=1`). 180 kết nối / 357 op/s: +41 MB RAM, p95 34 ms, 0 mất op. `HANDOFF_P11.md §T11.6a` | api + web | RAM VPS |
 | T11.6b | ✅ **Xong 07/10** — mời đồng tác giả (cả trường, ≤5, email che, thông báo), gỡ/tự rời đá khỏi phòng ngay, kiểm lại quyền 60 s; đồng bộ người vào sau / nối lại / xung đột bằng snapshot do máy đúng lưu; nhân vật/costume/âm thanh/ghi chú đồng bộ qua `reload`; chỉ người lưu chính tự lưu; mất mạng → che + tự nối lại. Bỏ cờ `?collab=1`. 83 unit test scratch + 11 test client + 32 ca API thật + 2 trình soạn thật. `HANDOFF_P11.md §T11.6b` | api + web | race, mất dữ liệu |
 | T11.7 | ✅ **Xong 15/10** — hoạt động bài học `scratch` (mẫu của GV → bản sao private mỗi em, idempotent, theo gate), bài nộp `scratch` (đóng băng phiên bản cùng transaction), GV xem bài nộp qua submission (dự án em vẫn private), màn chấm player + 10 tiêu chí gợi ý đọc tĩnh. Migration `p11_lms_integration`. 21 unit test mới + 29 ca API thật; xem bằng mắt HV + GV. `HANDOFF_P11.md §T11.7` | api + web | IDOR |
-| T11.8 | Bình luận (class/school) + GV ẩn/xóa + báo cáo + rate-limit + audit | api + web | an toàn trẻ em |
+| T11.8 | ✅ **Xong 15/10** — bình luận khi dự án chia sẻ lớp/trường (không trên /p), chủ dự án ẩn + bật/tắt, GV (của chủ hoặc người viết)/admin ẩn + xóa mềm, báo cáo bình luận vào hàng chờ, lọc từ cấm (từ nguyên vẹn, giữ dấu; admin sửa trên web), 5/phút · 30/giờ, báo cáo 10/giờ, audit không ghi nội dung. Migration `p11_scratch_comments`. 24 unit test mới + 36 ca API thật; xem bằng mắt GV + HV. `HANDOFF_P11.md §T11.8` | api + web | an toàn trẻ em |
 
 **Acceptance:** tạo dự án không cần tài khoản ngoài; tự lưu, mở lại còn nguyên; chia sẻ lớp → bạn chạy + remix được, ngoài lớp 403;
 đồng tác giả không ghi đè nhau; GV chạy bài nộp, thấy gợi ý tiêu chí, cho điểm; RAM VPS tăng ≤ 50 MB so với P10.

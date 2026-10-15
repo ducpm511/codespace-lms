@@ -194,6 +194,8 @@ ScratchProjectAsset(projectId, md5ext) @@id    // kiểm quyền phục vụ ass
 ScratchCollaborator(projectId, userId, invitedById?) @@id
 ScratchActivityCopy(activityId, userId, projectId @unique) @@id([activityId,userId]) — T11.7, bản sao mỗi em / hoạt động
 Assignment.scratchChecks Json? · Submission.scratchVersionId? → ScratchProjectVersion (đóng băng) — T11.7
+ScratchProject.commentsEnabled · ScratchComment(projectId, authorId, content, hiddenAt?, deletedAt?) ·
+ScratchCommentReport(commentId, reporterId @@unique) · ScratchBannedWord(word @id) — T11.8
 ScratchProjectLike(projectId, userId) @@id      // idempotent
 ```
 Lớp bị xóa → `classId` NULL nhưng `visibility` vẫn `class` → service coi như `private`.
@@ -318,6 +320,9 @@ DELETE /scratch/projects/:id/collaborators/:userId (chủ gỡ / đồng tác gi
 POST   /scratch/activities/:id/open {classId} (hoạt động `scratch`: bản sao riêng, thành viên + gate) — T11.7
 GET    /scratch/submissions/:id/{project.json,assets/:md5ext} (người nộp / submission.read|grade.write theo lớp)
 PUT    /assignments/:id/submissions/save {classId, scratchProjectId} → đóng băng bản mới nhất (bài `scratch`)
+GET|POST /scratch/projects/:id/comments · PUT …/comments/open {open} (chủ) — T11.8
+DELETE /scratch/comments/:id (tác giả / GV) · POST /scratch/comments/:id/{hide,unhide} (chủ / GV) · POST …/report
+POST   /scratch/moderation/comment-reports/:id/resolve {dismiss|hide|delete} · GET|POST|DELETE …/banned-words (admin)
 WS     /api/scratch/ws — làm chung: auth trong message đầu, join (chủ/đồng tác giả), op, resync, snapshot (collab.gateway.ts)
 ```
 

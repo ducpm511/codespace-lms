@@ -144,6 +144,15 @@ trường quản lý). Không bình luận trên trang `public`.
   phiên bản mới nhất; nộp lại được tới khi GV chấm. GV xem bài nộp qua submission, không qua quyền xem dự án.
 - Gợi ý tiêu chí: 10 tiêu chí cố định (allowlist), chỉ hiện cho GV lúc chấm.
 
+## Quyết định bình luận (người dùng chốt 2026-10-15, T11.8 — chi tiết D8)
+
+- **Ai:** ai xem được dự án thì bình luận được — chỉ khi chia sẻ lớp / trường (kể cả bản công khai, nhưng chỉ trong
+  LMS; trang `/p` không có bình luận). Dự án private không có bình luận.
+- **Từ cấm:** chặn, báo em sửa lại (không nói từ nào). Danh sách mặc định cơ bản; **admin sửa trên web**, có audit.
+- **Chủ dự án:** ẩn / bỏ ẩn bình luận trên dự án mình + bật / tắt bình luận. GV vẫn thấy bình luận đã ẩn; chỉ GV /
+  admin xóa (tác giả tự xóa bài mình được).
+- GV kiểm duyệt = GV của chủ dự án HOẶC của người viết (dự án cả trường có bình luận của em lớp khác) + admin.
+
 ## Open Questions (còn mở)
 
 - **Pháp lý:** nhờ người có chuyên môn xác nhận ranh giới AGPL giữa trình soạn (iframe) và LMS.

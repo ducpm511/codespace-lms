@@ -2,6 +2,37 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## T11.8 Bình luận ✅ (2026-10-15)
+
+Quyết định người dùng chốt: `docs/adr/003-scratch-studio.md §Quyết định bình luận`. Migration
+`20261015120000_p11_scratch_comments`: `scratch_projects.commentsEnabled` (mặc định true), bảng `scratch_comments`
+(ẩn / xóa mềm), `scratch_comment_reports` (1 / người / bình luận), `scratch_banned_words` + 24 từ mặc định.
+
+- **Ai** (`scratch-comments.service.ts`): ai XEM được dự án thì xem + viết được, nhưng chỉ khi dự án chia sẻ lớp /
+  trường (kể cả bản đã công khai — trang `/p` không có bình luận). Private (hoặc lớp đã xóa) ⇒ `available: false`.
+  Bình luận ẩn chỉ chủ dự án + GV nhận. Chủ dự án: ẩn / bỏ ẩn, tắt / bật bình luận MỚI (chủ vẫn viết được),
+  KHÔNG xóa. GV của chủ dự án HOẶC của người viết + admin: ẩn, xóa (mềm). Tác giả tự xóa bài mình.
+- **Lọc** (`word-filter.ts`): khớp từ NGUYÊN VẸN, giữ dấu tiếng Việt (chặn "lồn", không chặn "lon"), cụm từ khớp khi
+  liền nhau, NFC + chữ thường. Bị chặn ⇒ 400 không nói từ nào. Admin (`scratch.moderate`) thêm / bỏ từ ở
+  `/studio/moderation` (có audit); GV không sửa được.
+- **Tần suất** (`rate-limits.ts`, đếm trong DB): 5 bình luận / phút, 30 / giờ mỗi người; báo cáo dự án + bình luận
+  chung 10 / giờ (áp luôn cho báo cáo dự án — việc còn tồn T11.5b). Quá ⇒ 429 với lời nhắn cho trẻ.
+- **Báo cáo bình luận** vào hàng chờ `/studio/moderation` (mục "Báo cáo bình luận", tính vào nút "Kiểm duyệt (N)");
+  GV: không vi phạm / ẩn / xóa (ẩn, xóa đóng mọi báo cáo mở của bình luận). Admin luôn thấy nút Kiểm duyệt.
+- **Audit** cùng transaction: `scratch.comment.{delete,hide,unhide}`, `scratch.comments.{open,close}`,
+  `scratch.comment.report.{dismiss,hide,delete}`, `scratch.bannedword.{add,remove}` — KHÔNG ghi nội dung bình luận.
+
+**Đã kiểm:** unit API 461/461 (mới: 5 lọc từ, 18 bình luận + kiểm duyệt bình luận, 1 hạn mức báo cáo), web 34/34.
+API thật (`scratchpad/live-t118.mjs` 29 ca + `live-t118-admin.mjs` 7 ca): private/lớp/trường, ngoài lớp 404, từ cấm
+(không lộ từ), "lon" không bị chặn nhầm, 429 ở bình luận thứ 6 / phút, ẩn / xóa / tắt đúng quyền, báo cáo → hàng chờ →
+ẩn → 409 khi xử lý lại, GV không sửa từ cấm, admin thêm từ có hiệu lực ngay / bỏ từ, audit không chứa nội dung.
+Bằng mắt: GV (thấy bình luận ẩn, Ẩn/Xóa mọi bình luận, gửi bị chặn hiện lời nhắn, gửi hợp lệ lên đầu; hàng chờ báo cáo
+bình luận), HV chủ dự án (ô "Cho bình luận" bật / tắt, bình luận người khác chỉ Ẩn + Báo cáo).
+**Chưa xem bằng mắt:** khung từ cấm của admin (mật khẩu admin chỉ ở `.env` — đã kiểm qua API).
+
+**Còn lại / giới hạn:** lọc từ không bắt kiểu lách "đ.m", "đmmmm", chữ không dấu thay dấu; chưa có thông báo cho chủ
+dự án khi có bình luận mới; chưa có trả lời lồng nhau; bình luận ẩn thì người viết không còn thấy (không báo lý do).
+
 ## T11.7 Gắn BlockSpace vào LMS ✅ (2026-10-15)
 
 Migration `20261015090000_p11_lms_integration` (sinh bằng `migrate diff --from-schema-datamodel <schema cũ từ git>`

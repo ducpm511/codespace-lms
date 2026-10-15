@@ -31,7 +31,11 @@ chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary)
 - **Schema đổi (T11.7):** migration `p11_lms_integration` — thêm giá trị enum `scratch` (LessonActivityType,
   SubmissionType), 2 cột NULL được (`assignments.scratchChecks`, `submissions.scratchVersionId`), bảng
   `scratch_activity_copies`. Đã áp lên DB dev (backup trước: `scratchpad/db-before-t117.sql`), không lệch schema.
-- Xong: T11.0–T11.7. Còn: T11.8 (bình luận), H6 pháp lý AGPL trước khi phát hành.
+- **Schema đổi (T11.8):** migration `p11_scratch_comments` — cột `scratch_projects.commentsEnabled` (mặc định true),
+  3 bảng (`scratch_comments`, `scratch_comment_reports`, `scratch_banned_words` + 24 từ mặc định). Đã áp lên DB dev
+  (backup trước: `scratchpad/db-before-t118.sql`), không lệch schema.
+- **Code P11 xong T11.0–T11.8.** Trước khi phát hành: H6 pháp lý AGPL, mở PR nhánh P11 vào `main` (PR #5 vẫn chưa
+  phát hành — sẽ lên cùng), deploy kiểm Caddy WebSocket `/api/scratch/ws` + 4 migration P11.
 
 ### P10 · ĐÃ PHÁT HÀNH LÊN PRODUCTION (2026-08-26, ~16:27 giờ VN)
 
