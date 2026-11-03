@@ -14,9 +14,22 @@ import { apiFetch } from '../../lib/api';
 
 // --- Authoring (GV/admin) ---
 
-export const listCodingProblems = (courseId?: string): Promise<Paginated<CodingProblemSummary>> => {
+/**
+ * Nạp ĐỦ bài của khóa, không dừng ở trang đầu: API giới hạn pageSize tối đa 100, và màn GV lọc + nhóm
+ * ở client nên bài thứ 101 trở đi sẽ im lặng biến mất khỏi danh sách lẫn kết quả tìm kiếm.
+ */
+export const listCodingProblems = async (courseId?: string): Promise<Paginated<CodingProblemSummary>> => {
   const q = courseId ? `&courseId=${encodeURIComponent(courseId)}` : '';
-  return apiFetch<Paginated<CodingProblemSummary>>(`/coding-problems?page=1&pageSize=100${q}`);
+  const fetchPage = (page: number) =>
+    apiFetch<Paginated<CodingProblemSummary>>(`/coding-problems?page=${page}&pageSize=100${q}`);
+  const first = await fetchPage(1);
+  const items = [...first.items];
+  for (let page = 2; items.length < first.total; page += 1) {
+    const next = await fetchPage(page);
+    if (next.items.length === 0) break;
+    items.push(...next.items);
+  }
+  return { ...first, items };
 };
 
 export const getCodingProblem = (id: string): Promise<CodingProblemAuthorDetail> =>
