@@ -2,12 +2,26 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-11-02
+Updated: 2026-11-03
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+
+### Bài lập trình: vào lại + danh sách GV (2026-11-03) — nhánh `claude/focused-kapitsa-de036f`, chưa PR/deploy
+
+- **Vào lại bài đã nộp.** Bài nộp, điểm, XP vốn được lưu đúng; thiếu đường đọc lại. Nay `GET attempt` trả `myProgress`
+  (số lần nộp, đã từng đạt, điểm cao nhất, lần nộp gần nhất kèm code), `GET for-class` trả `myStatus`. Không đổi schema.
+- **Vá lộ test ẩn:** `results[].actualStdout` của test ẩn không còn trả cho học viên (`print(input())` in được input ẩn);
+  GV có `coding.result.read` vẫn thấy. Chỉ đổi DTO, UI không dùng trường này.
+- **Danh sách GV** (`pages/teach/codingGroups.ts`): nhóm chương → bài học, tìm không dấu, lọc độ khó, cuộn riêng. Lọc ở client
+  nên `listCodingProblems` nạp đủ mọi trang (trước đây dừng ở 100 bài).
+- **Hành vi đã đo trên API thật (runner stub):** XP `coding_pass` 100 chỉ cộng một lần; sổ điểm lấy điểm cao nhất nhưng chỉ
+  cập nhật khi staff mở sổ (`POST .../gradebook/recompute`). Việc còn hở: `ACTIVE_TASKS.md §Bài lập trình`.
+- **Bẫy worktree:** thiếu `apps/studio/dist` thì `vite-plugin-static-copy` bỏ cả Monaco (`/monaco/vs/loader.js` 404, trình soạn
+  kẹt "Loading…") → chạy `pnpm --filter @lms/studio build` trước khi `dev`. Muốn thử bài pass với runner stub: để
+  `expectedStdout` trùng `stdin`, vì stub chỉ echo stdin.
 
 ### Bug gỡ khóa khỏi lớp (2026-11-02) — nhánh `claude/lms-deleted-course-display-cbcfb2`
 

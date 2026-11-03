@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-11-02
+Updated: 2026-11-03
 
 ## Quy ước đặt tên
 
@@ -86,6 +86,14 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | O7 | 🚨 **Đặt sẵn mật khẩu console cho `deploy`**: user tạo bằng `--disabled-password`, root không có mật khẩu → chỉ vào console được sau khi reset mật khẩu root qua bảng điều khiển TINO. Cất vào trình quản lý mật khẩu. | — |
 | O8 | 👀 **Xem BẰNG MẮT bản vá markdown 04/09**: mở một bài lập trình bằng tài khoản HỌC VIÊN trên production. Bản vá đã phát hành nhưng chưa ai nhìn tận mắt. | — |
 
+### Bài lập trình — việc còn hở (phát hiện 03/11, chưa làm)
+
+| # | Việc | Hệ quả hiện tại |
+|---|---|---|
+| C1 | GV chưa có màn hình xem bài nộp/code của học viên | Chỉ thấy điểm cao nhất ở Sổ điểm; DTO cho GV cũng không có `sourceCode` |
+| C2 | Học viên không thấy điểm lập trình trong sổ điểm của mình cho tới khi staff mở sổ | `my-gradebook` chỉ đọc, `recompute` chỉ do staff gọi |
+| C3 | Pass một bài lập trình tự đánh dấu cả bài học "hoàn thành" và không cộng XP `lesson_complete` | Nút Hoàn thành bị khóa nên mất 50 XP; bài học còn hoạt động khác vẫn thành hoàn thành |
+
 ### Việc cần người quyết (không agent nào làm thay được)
 
 | # | Việc | Chặn cái gì |
@@ -154,17 +162,7 @@ refId null. Chi tiết đầy đủ: `CURRENT_STATE.md §P7`.
 
 ### Phase P6: Polish & Gamification — ✅ HOÀN THÀNH (2026-08-17)
 
-- **T6.1 (In-app Notification)**: Schema + contracts + NotificationsModule + Domain triggers (`gate.opened`, `submission.graded`, `certificate.issued`, `certificate.revoked`, `badge.awarded`) trong cùng `$transaction` + FE `NotificationBell` header dropdown + badge unread + mark read.
-- **T6.2 (Teacher Class Report)**: `GET /classes/:classId/report` tính số lượng học viên, tỷ lệ hoàn thành khóa, điểm trung bình, phân phối điểm và tiến độ từng bài đã mở gate + Tab Báo cáo & Thống kê trong TeachClasses.
-- **T6.3 (Audit Log Viewer)**: `GET /audit` (phân trang + lọc theo actor/action/entity/date) + Tab Nhật ký hệ thống trong AdminHome + Modal xem JSON meta chi tiết.
-- **T6.4 (Teacher Authoring Polish)**: Thêm inline sửa/xóa Section và Lesson trong TeachCourses.
-- **T6.5 (Quiz Publish Switch)**: Thêm trường `Quiz.published` vào Schema/Contracts + toggle `.cx-toggle` trong TeachQuiz.
-- **T6.6 (i18n Parity)**: Đồng bộ 100% bộ key giữa `vi.json` và `en.json` (0 missing keys).
-- **D1 (PDF Certificate Generation & Storage)**: Tích hợp `pdf-lib` sinh PDF chứng chỉ khổ ngang A4 (màu vàng/teal, serial, verification code) + `LocalStorageAdapter` (`uploads/`) + endpoint `GET /certificates/:id/pdf` tải file PDF.
-- **D2 (Verify Certificate Privacy)**: Gỡ bỏ `finalScore` khỏi `PublicVerificationDto` và trang `VerifyCertificate.tsx` (chống lộ điểm số trên QR code công khai).
-- **D3 (Separate Template Permission)**: Thêm quyền `certificate.template.manage` (`CERTIFICATE_TEMPLATE_MANAGE`) tách biệt với quyền cấp phát chứng chỉ.
-- **D4 (Real Gamification ADR 002)**: Schema (`XpEvent`, `UserStreak`, `Badge`, `UserBadge`) + tính Level/XP/Streak pure function + tự động trao huy hiệu + trigger XP khi hoàn thành bài học (50 XP), pass quiz (100 XP), pass coding (100 XP) trong cùng transaction + FE `GreetingHero` và Streak pill hiển thị dữ liệu thật từ `/gamification/me`.
-- **D5 (Lesson Discussion / Comments)**: Schema (`LessonComment`) + CommentsModule (`GET/POST /lessons/:id/comments?classId=`) + FE `LessonCommentsSection` tích hợp trong `LearnHome > LessonDetail`.
+Chi tiết T6.1–T6.6 + D1–D5: [pre-p7-history.md](../../docs/archive/completed_tasks/pre-p7-history.md).
 
 ---
 
