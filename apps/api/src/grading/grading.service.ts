@@ -10,6 +10,21 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { RbacService } from '../rbac/rbac.service';
 
+/** Nguồn tạo cột điểm của một lớp: mọi bài trong các khóa đã gán. */
+const withGradeSources = {
+  courses: {
+    include: {
+      course: {
+        include: {
+          assignments: true,
+          quizzes: { include: { questions: { select: { points: true } } } },
+          codingProblems: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.ClassInclude;
+
 interface ClassWithCourses {
   id: string;
   courses: Array<{
@@ -81,17 +96,7 @@ export class GradingService {
     const cls = await this.prisma.class.findUnique({
       where: { id: classId },
       include: {
-        courses: {
-          include: {
-            course: {
-              include: {
-                assignments: true,
-                quizzes: { include: { questions: { select: { points: true } } } },
-                codingProblems: true,
-              },
-            },
-          },
-        },
+        ...withGradeSources,
         members: {
           where: { status: 'active' },
           include: { user: { select: { id: true, fullName: true, email: true } } },
@@ -119,22 +124,43 @@ export class GradingService {
       throw new ForbiddenException('Bạn không phải học viên active của lớp này');
     }
 
-    // Read-only: học viên xem điểm đã được staff/issue tổng hợp; KHÔNG tự kích hoạt ghi cho cả lớp.
-    const fullGradebook = await this.getClassGradebook(classId);
-    const myRow = fullGradebook.rows.find((r) => r.userId === currentUser.userId);
+    const cls = await this.prisma.class.findUnique({ where: { id: classId }, include: withGradeSources });
+    if (!cls) {
+      throw new NotFoundException('Lớp học không tồn tại');
+    }
 
-    return {
-      classId,
-      items: fullGradebook.items,
-      grades: myRow?.grades || {},
-      totalWeightedScore: myRow?.totalWeightedScore || 0,
-      completionRate: myRow?.completionRate || 0,
-    };
+    // Tính trực tiếp từ bài nộp của CHÍNH học viên, không đọc GradeEntry: bảng đó chỉ cập nhật khi staff mở
+    // sổ, nên em làm xong vẫn thấy "Chưa có điểm". Vẫn chỉ đọc: học viên không kích hoạt ghi cho cả lớp.
+    const sources = collectGradeSources(cls);
+    const saved = await this.prisma.gradeItem.findMany({ where: { classId } });
+    const savedByKey = new Map(saved.map((gi) => [sourceKey(gi), gi]));
+    const items: SyncedGradeItem[] = sources.map((src) => {
+      const gi = savedByKey.get(sourceKey(src));
+      return {
+        // Cột chưa từng được tổng hợp chưa có dòng GradeItem: id tạm chỉ dùng làm khóa trong DTO này.
+        id: gi?.id ?? sourceKey(src),
+        classId,
+        sourceType: src.sourceType,
+        sourceId: src.sourceId,
+        title: src.title,
+        weight: gi?.weight ?? 1,
+        maxScore: Number(src.maxScore),
+      };
+    });
+
+    const best = await this.loadBestScores(classId, sources, [currentUser.userId]);
+    const grades: Record<string, number | null> = {};
+    for (const item of items) {
+      const score = best.get(sourceKey(item))?.get(currentUser.userId);
+      if (score) grades[item.id] = Number(score);
+    }
+
+    return { classId, items: items.map(toGradeItemDto), grades, ...this.calculateSummary(items, grades) };
   }
 
   /** Kiểm quyền đọc sổ điểm lớp: admin/super_admin, grade.read scope lớp, hoặc instructor/ta của lớp. */
   private async assertCanReadGradebook(classId: string, currentUser?: AuthPrincipal): Promise<void> {
-    if (!currentUser) return; // gọi nội bộ (student own / issue) — nơi gọi đã tự kiểm quyền
+    if (!currentUser) return; // gọi nội bộ — nơi gọi đã tự kiểm quyền
 
     // admin/super_admin nhận `grade.read` ở phạm vi GLOBAL nên `hasPermission` đã phủ —
     // không kiểm role thô (AuthPrincipal chỉ có userId).
@@ -184,56 +210,13 @@ export class GradingService {
       };
     });
 
-    const itemDtos: GradeItemDto[] = gradeItems.map((item) => ({
-      id: item.id,
-      classId: item.classId,
-      sourceType: item.sourceType,
-      sourceId: item.sourceId,
-      title: item.title,
-      weight: Number(item.weight),
-      maxScore: Number(item.maxScore),
-    }));
+    const itemDtos: GradeItemDto[] = gradeItems.map(toGradeItemDto);
 
     return { classId, items: itemDtos, rows };
   }
 
   private async syncGradeItemsForClass(cls: ClassWithCourses): Promise<SyncedGradeItem[]> {
-    const itemsToUpsert: Array<{
-      sourceType: 'assignment' | 'quiz' | 'coding';
-      sourceId: string;
-      title: string;
-      maxScore: DecimalSource;
-    }> = [];
-
-    for (const cc of cls.courses) {
-      const c = cc.course;
-      for (const a of c.assignments) {
-        itemsToUpsert.push({
-          sourceType: 'assignment',
-          sourceId: a.id,
-          title: a.title,
-          maxScore: a.maxScore,
-        });
-      }
-      for (const q of c.quizzes) {
-        // Calculate actual maxScore from sum of question points (H2 fix)
-        const qMax = q.questions.reduce((acc, curr) => acc + Number(curr.points), 0);
-        itemsToUpsert.push({
-          sourceType: 'quiz',
-          sourceId: q.id,
-          title: q.title,
-          maxScore: qMax > 0 ? qMax : 100,
-        });
-      }
-      for (const cp of c.codingProblems) {
-        itemsToUpsert.push({
-          sourceType: 'coding',
-          sourceId: cp.id,
-          title: cp.title,
-          maxScore: cp.maxScore,
-        });
-      }
-    }
+    const itemsToUpsert = collectGradeSources(cls);
 
     const syncedItems: SyncedGradeItem[] = [];
     for (const item of itemsToUpsert) {
@@ -273,99 +256,60 @@ export class GradingService {
   ): Promise<void> {
     if (memberIds.length === 0 || gradeItems.length === 0) return;
 
+    const best = await this.loadBestScores(classId, gradeItems, memberIds);
     for (const item of gradeItems) {
-      if (item.sourceType === 'assignment') {
-        const submissions = await this.prisma.submission.findMany({
-          where: {
-            assignmentId: item.sourceId,
-            classId,
-            userId: { in: memberIds },
-            status: 'graded',
-            score: { not: null },
-          },
+      for (const [userId, score] of best.get(sourceKey(item)) ?? []) {
+        await this.prisma.gradeEntry.upsert({
+          where: { gradeItemId_userId: { gradeItemId: item.id, userId } },
+          create: { gradeItemId: item.id, userId, score, computedAt: new Date() },
+          update: { score, computedAt: new Date() },
         });
-        for (const sub of submissions) {
-          if (sub.score !== null) {
-            await this.prisma.gradeEntry.upsert({
-              where: { gradeItemId_userId: { gradeItemId: item.id, userId: sub.userId } },
-              create: {
-                gradeItemId: item.id,
-                userId: sub.userId,
-                score: sub.score,
-                computedAt: new Date(),
-              },
-              update: {
-                score: sub.score,
-                computedAt: new Date(),
-              },
-            });
-          }
-        }
-      } else if (item.sourceType === 'quiz') {
-        const attempts = await this.prisma.quizAttempt.findMany({
-          where: {
-            quizId: item.sourceId,
-            classId,
-            userId: { in: memberIds },
-            status: 'submitted',
-            score: { not: null },
-          },
-          orderBy: { score: 'desc' },
-        });
-        const bestScorePerUser = new Map<string, Prisma.Decimal>();
-        for (const att of attempts) {
-          if (att.score !== null && !bestScorePerUser.has(att.userId)) {
-            bestScorePerUser.set(att.userId, att.score);
-          }
-        }
-        for (const [uId, score] of bestScorePerUser.entries()) {
-          await this.prisma.gradeEntry.upsert({
-            where: { gradeItemId_userId: { gradeItemId: item.id, userId: uId } },
-            create: {
-              gradeItemId: item.id,
-              userId: uId,
-              score,
-              computedAt: new Date(),
-            },
-            update: {
-              score,
-              computedAt: new Date(),
-            },
-          });
-        }
-      } else if (item.sourceType === 'coding') {
-        const codingSubs = await this.prisma.codingSubmission.findMany({
-          where: {
-            problemId: item.sourceId,
-            classId,
-            userId: { in: memberIds },
-            score: { not: null },
-          },
-          orderBy: { score: 'desc' },
-        });
-        const bestScorePerUser = new Map<string, Prisma.Decimal>();
-        for (const cs of codingSubs) {
-          if (cs.score !== null && !bestScorePerUser.has(cs.userId)) {
-            bestScorePerUser.set(cs.userId, cs.score);
-          }
-        }
-        for (const [uId, score] of bestScorePerUser.entries()) {
-          await this.prisma.gradeEntry.upsert({
-            where: { gradeItemId_userId: { gradeItemId: item.id, userId: uId } },
-            create: {
-              gradeItemId: item.id,
-              userId: uId,
-              score,
-              computedAt: new Date(),
-            },
-            update: {
-              score,
-              computedAt: new Date(),
-            },
-          });
-        }
       }
     }
+  }
+
+  /**
+   * Điểm cao nhất của từng người trên từng bài, theo sourceKey. Nguồn sự thật duy nhất cho điểm: bài tập đã
+   * chấm, lượt quiz đã nộp, bài lập trình đã có điểm. Sổ của staff và của học viên đều đi qua đây nên không lệch nhau.
+   */
+  private async loadBestScores(
+    classId: string,
+    sources: Array<Pick<GradeSource, 'sourceType' | 'sourceId'>>,
+    userIds: string[],
+  ): Promise<Map<string, Map<string, Prisma.Decimal>>> {
+    const idsOf = (type: GradeSource['sourceType']) =>
+      sources.filter((s) => s.sourceType === type).map((s) => s.sourceId);
+    const scoped = { classId, userId: { in: userIds }, score: { not: null } };
+
+    const [submissions, attempts, codingSubs] = await Promise.all([
+      this.prisma.submission.findMany({
+        where: { ...scoped, assignmentId: { in: idsOf('assignment') }, status: 'graded' },
+        select: { assignmentId: true, userId: true, score: true },
+      }),
+      this.prisma.quizAttempt.findMany({
+        where: { ...scoped, quizId: { in: idsOf('quiz') }, status: 'submitted' },
+        select: { quizId: true, userId: true, score: true },
+      }),
+      this.prisma.codingSubmission.findMany({
+        where: { ...scoped, problemId: { in: idsOf('coding') } },
+        select: { problemId: true, userId: true, score: true },
+      }),
+    ]);
+
+    const best = new Map<string, Map<string, Prisma.Decimal>>();
+    const record = (sourceType: GradeSource['sourceType'], sourceId: string, userId: string, raw: Prisma.Decimal | null) => {
+      if (raw === null) return;
+      const score = new Prisma.Decimal(raw);
+      const key = sourceKey({ sourceType, sourceId });
+      const perUser = best.get(key) ?? new Map<string, Prisma.Decimal>();
+      const current = perUser.get(userId);
+      if (!current || score.gt(current)) perUser.set(userId, score);
+      best.set(key, perUser);
+    };
+    for (const s of submissions) record('assignment', s.assignmentId, s.userId, s.score);
+    for (const a of attempts) record('quiz', a.quizId, a.userId, a.score);
+    for (const c of codingSubs) record('coding', c.problemId, c.userId, c.score);
+    return best;
   }
 
   private calculateSummary(
@@ -401,3 +345,45 @@ export class GradingService {
 }
 
 type DecimalSource = string | number | Prisma.Decimal;
+
+interface GradeSource {
+  sourceType: 'assignment' | 'quiz' | 'coding';
+  sourceId: string;
+  title: string;
+  maxScore: DecimalSource;
+}
+
+function sourceKey(source: { sourceType: string; sourceId: string }): string {
+  return `${source.sourceType}:${source.sourceId}`;
+}
+
+function collectGradeSources(cls: ClassWithCourses): GradeSource[] {
+  const sources: GradeSource[] = [];
+  for (const cc of cls.courses) {
+    const c = cc.course;
+    for (const a of c.assignments) {
+      sources.push({ sourceType: 'assignment', sourceId: a.id, title: a.title, maxScore: a.maxScore });
+    }
+    for (const q of c.quizzes) {
+      // Calculate actual maxScore from sum of question points (H2 fix)
+      const qMax = q.questions.reduce((acc, curr) => acc + Number(curr.points), 0);
+      sources.push({ sourceType: 'quiz', sourceId: q.id, title: q.title, maxScore: qMax > 0 ? qMax : 100 });
+    }
+    for (const cp of c.codingProblems) {
+      sources.push({ sourceType: 'coding', sourceId: cp.id, title: cp.title, maxScore: cp.maxScore });
+    }
+  }
+  return sources;
+}
+
+function toGradeItemDto(item: SyncedGradeItem): GradeItemDto {
+  return {
+    id: item.id,
+    classId: item.classId,
+    sourceType: item.sourceType,
+    sourceId: item.sourceId,
+    title: item.title,
+    weight: Number(item.weight),
+    maxScore: Number(item.maxScore),
+  };
+}

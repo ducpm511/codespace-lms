@@ -118,5 +118,74 @@ describe('GradingService', () => {
         service.getStudentOwnGradebook('c1', { userId: 'u-ghost' }),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
+
+    describe('regression: không phải đợi giáo viên mở sổ mới thấy điểm', () => {
+      const classWithSources = {
+        id: 'c1',
+        courses: [
+          {
+            course: {
+              assignments: [{ id: 'a1', title: 'BT1', maxScore: '100' }],
+              quizzes: [{ id: 'q1', title: 'Quiz1', questions: [{ points: '50' }, { points: '50' }] }],
+              codingProblems: [{ id: 'cp1', title: 'Code1', maxScore: '100' }],
+            },
+          },
+        ],
+      };
+
+      beforeEach(() => {
+        prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+        prisma.class.findUnique.mockResolvedValue(classWithSources);
+        prisma.submission.findMany.mockResolvedValue([]);
+        prisma.quizAttempt.findMany.mockResolvedValue([]);
+        prisma.codingSubmission.findMany.mockResolvedValue([
+          { problemId: 'cp1', userId: 'u1', score: '50' },
+          { problemId: 'cp1', userId: 'u1', score: '100' },
+        ]);
+      });
+
+      it('lớp chưa từng tổng hợp: đủ mọi cột, điểm lấy lần cao nhất, tổng tính trên cả cột chưa làm', async () => {
+        const res = await service.getStudentOwnGradebook('c1', dummyUser);
+
+        expect(res.items.map((i) => i.sourceId).sort()).toEqual(['a1', 'cp1', 'q1']);
+        const coding = res.items.find((i) => i.sourceType === 'coding');
+        expect(res.grades[coding?.id as string]).toBe(100);
+        expect(res.totalWeightedScore).toBe(33.33);
+        expect(res.completionRate).toBe(33);
+      });
+
+      it('chỉ đọc: học viên không kích hoạt ghi sổ, và chỉ đọc điểm của chính mình', async () => {
+        await service.getStudentOwnGradebook('c1', dummyUser);
+
+        expect(prisma.gradeItem.upsert).not.toHaveBeenCalled();
+        expect(prisma.gradeEntry.upsert).not.toHaveBeenCalled();
+        for (const query of [prisma.submission, prisma.quizAttempt, prisma.codingSubmission]) {
+          expect(query.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+              where: expect.objectContaining({ classId: 'c1', userId: { in: ['u1'] } }),
+            }),
+          );
+        }
+      });
+
+      it('cột đã có trong sổ giữ nguyên id và trọng số giáo viên thấy', async () => {
+        prisma.gradeItem.findMany.mockResolvedValue([
+          { id: 'gi3', classId: 'c1', sourceType: 'coding', sourceId: 'cp1', title: 'Tên cũ', weight: '2', maxScore: '100' },
+        ]);
+
+        const res = await service.getStudentOwnGradebook('c1', dummyUser);
+
+        const coding = res.items.find((i) => i.sourceType === 'coding');
+        expect(coding).toMatchObject({ id: 'gi3', weight: 2, title: 'Code1' });
+        expect(res.grades.gi3).toBe(100);
+        // (100% × 2 + 0 + 0) / (2 + 1 + 1)
+        expect(res.totalWeightedScore).toBe(50);
+      });
+
+      it('404 khi lớp không tồn tại', async () => {
+        prisma.class.findUnique.mockResolvedValue(null);
+        await expect(service.getStudentOwnGradebook('c1', dummyUser)).rejects.toBeInstanceOf(NotFoundException);
+      });
+    });
   });
 });

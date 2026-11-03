@@ -91,7 +91,6 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | # | Việc | Hệ quả hiện tại |
 |---|---|---|
 | C1 | GV chưa có màn hình xem bài nộp/code của học viên | Chỉ thấy điểm cao nhất ở Sổ điểm; DTO cho GV cũng không có `sourceCode` |
-| C2 | Học viên không thấy điểm lập trình trong sổ điểm của mình cho tới khi staff mở sổ | `my-gradebook` chỉ đọc, `recompute` chỉ do staff gọi |
 | C3 | Pass một bài lập trình tự đánh dấu cả bài học "hoàn thành" và không cộng XP `lesson_complete` | Nút Hoàn thành bị khóa nên mất 50 XP; bài học còn hoạt động khác vẫn thành hoàn thành |
 
 ### Việc cần người quyết (không agent nào làm thay được)

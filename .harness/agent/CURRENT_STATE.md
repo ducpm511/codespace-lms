@@ -17,8 +17,11 @@ chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary)
   GV có `coding.result.read` vẫn thấy. Chỉ đổi DTO, UI không dùng trường này.
 - **Danh sách GV** (`pages/teach/codingGroups.ts`): nhóm chương → bài học, tìm không dấu, lọc độ khó, cuộn riêng. Lọc ở client
   nên `listCodingProblems` nạp đủ mọi trang (trước đây dừng ở 100 bài).
-- **Hành vi đã đo trên API thật (runner stub):** XP `coding_pass` 100 chỉ cộng một lần; sổ điểm lấy điểm cao nhất nhưng chỉ
-  cập nhật khi staff mở sổ (`POST .../gradebook/recompute`). Việc còn hở: `ACTIVE_TASKS.md §Bài lập trình`.
+- **Sổ điểm của học viên** (`my-gradebook`) tính trực tiếp từ bài nộp của chính em, vẫn chỉ đọc; không còn chờ staff mở sổ
+  (áp dụng cả bài tập + quiz). `GradeEntry` vẫn chỉ cập nhật ở `recompute`, nên `GET /gradebook` và báo cáo lớp (`getClassReport`)
+  chỉ mới sau khi staff mở sổ. Cột chưa có `GradeItem` trả id tạm `<sourceType>:<sourceId>`, chỉ là khóa trong DTO.
+- **Hành vi đã đo trên API thật (runner stub):** XP `coding_pass` 100 chỉ cộng một lần; sổ điểm lấy điểm cao nhất. Việc còn hở:
+  `ACTIVE_TASKS.md §Bài lập trình`.
 - **Bẫy worktree:** thiếu `apps/studio/dist` thì `vite-plugin-static-copy` bỏ cả Monaco (`/monaco/vs/loader.js` 404, trình soạn
   kẹt "Loading…") → chạy `pnpm --filter @lms/studio build` trước khi `dev`. Muốn thử bài pass với runner stub: để
   `expectedStdout` trùng `stdin`, vì stub chỉ echo stdin.

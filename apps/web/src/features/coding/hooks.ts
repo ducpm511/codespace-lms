@@ -117,6 +117,7 @@ export function useRefreshAfterGraded(problemId: string, classId: string) {
     void qc.invalidateQueries({ queryKey: myLessonsKey(classId) });
     void qc.invalidateQueries({ queryKey: ['gamification', 'me'] });
     void qc.invalidateQueries({ queryKey: ['classes', classId, 'leaderboard'] });
+    void qc.invalidateQueries({ queryKey: ['studentOwnGradebook', classId] });
   };
 }
 
