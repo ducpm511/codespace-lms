@@ -2,12 +2,18 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-10-07
+Updated: 2026-11-02
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+
+### Bug gỡ khóa khỏi lớp (2026-11-02) — nhánh `claude/lms-deleted-course-display-cbcfb2`
+
+- `ClassesService.removeCourse` chỉ xóa `class_courses`, gate vẫn mở nên học viên còn thấy và làm được bài của khóa
+  đã gỡ. Nay đóng gate trong cùng transaction. Gán lại khóa: bài ở trạng thái khóa, GV mở lại; tiến độ/bài nộp giữ nguyên.
+- **Dữ liệu đổi:** migration `close_orphan_lesson_gates` đóng gate mồ côi có sẵn (không đổi schema).
 
 ### P11 · BlockSpace đang làm (2026-10-07) — nhánh `claude/blockspace-scratch-studio-p11-d86c69`
 
