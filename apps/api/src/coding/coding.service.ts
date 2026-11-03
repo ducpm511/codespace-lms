@@ -8,11 +8,14 @@ import {
 import { Prisma } from '@lms/database';
 import {
   PERMISSIONS,
+  type ClassCodingOverviewDto,
+  type ClassCodingProblemSubmissionsDto,
   type CodingProblemAuthorDetail,
   type CodingProblemForClass,
   type CodingProblemStudentDetail,
   type CodingProblemSummary,
   type CodingSubmissionDto,
+  type CodingSubmissionReviewDto,
   type MyCodingProgressDto,
   type MyCodingStatusDto,
   type Paginated,
@@ -35,6 +38,17 @@ const withResults = {
   results: { include: { testCase: { select: { name: true, order: true, kind: true } } } },
 } satisfies Prisma.CodingSubmissionInclude;
 type SubmissionWithResults = Prisma.CodingSubmissionGetPayload<{ include: typeof withResults }>;
+
+/** Chỉ dùng cho màn GV: có stdin/expectedStdout của cả test ẩn. */
+const withReview = {
+  results: {
+    include: {
+      testCase: { select: { name: true, order: true, kind: true, stdin: true, expectedStdout: true } },
+    },
+  },
+  user: { select: { fullName: true } },
+  problem: { select: { title: true, maxScore: true } },
+} satisfies Prisma.CodingSubmissionInclude;
 
 @Injectable()
 export class CodingService {
@@ -347,6 +361,161 @@ export class CodingService {
     throw new ForbiddenException('Bạn không phụ trách lớp này');
   }
 
+  // --- Giáo viên xem bài nộp theo lớp ---
+
+  /** Các bài của lớp kèm số học viên đã nộp/đạt. Tính cả bài chưa mở gate để GV biết vì sao chưa ai nộp. */
+  async getClassCodingOverview(classId: string, userId: string): Promise<ClassCodingOverviewDto> {
+    await this.ensureClassExists(classId);
+    await this.assertCanReviewSubmissions(classId, userId);
+
+    const classCourses = await this.prisma.classCourse.findMany({
+      where: { classId },
+      select: { courseId: true },
+    });
+    const [problems, gates, members, submissions] = await this.prisma.$transaction([
+      this.prisma.codingProblem.findMany({
+        where: { courseId: { in: classCourses.map((c) => c.courseId) } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.lessonGate.findMany({
+        where: { classId, isActive: true },
+        select: { lessonId: true },
+      }),
+      this.prisma.classMember.findMany({
+        where: { classId, roleInClass: 'student' },
+        select: { userId: true, status: true },
+      }),
+      this.prisma.codingSubmission.findMany({
+        where: { classId },
+        select: { problemId: true, userId: true, status: true },
+        distinct: ['problemId', 'userId', 'status'],
+      }),
+    ]);
+
+    const openLessons = new Set(gates.map((g) => g.lessonId));
+    const students = new Set(members.map((m) => m.userId));
+    const submitted = new Map<string, Set<string>>();
+    const passed = new Map<string, Set<string>>();
+    for (const s of submissions) {
+      // Bài GV/TA tự nộp thử không tính vào số liệu của học viên.
+      if (!students.has(s.userId)) continue;
+      addToSet(submitted, s.problemId, s.userId);
+      if (s.status === 'passed') addToSet(passed, s.problemId, s.userId);
+    }
+
+    return {
+      classId,
+      studentCount: members.filter((m) => m.status === 'active').length,
+      problems: problems.map((p) => ({
+        ...toSummary(p),
+        isOpen: p.lessonId === null || openLessons.has(p.lessonId),
+        submittedCount: submitted.get(p.id)?.size ?? 0,
+        passedCount: passed.get(p.id)?.size ?? 0,
+      })),
+    };
+  }
+
+  /** Cả lớp với một bài: ai đã nộp, số lần, điểm cao nhất, lần gần nhất. Không kèm code. */
+  async getClassProblemSubmissions(
+    classId: string,
+    problemId: string,
+    userId: string,
+  ): Promise<ClassCodingProblemSubmissionsDto> {
+    await this.ensureClassExists(classId);
+    await this.assertCanReviewSubmissions(classId, userId);
+
+    const problem = await this.prisma.codingProblem.findUnique({ where: { id: problemId } });
+    const inClass =
+      problem &&
+      (await this.prisma.classCourse.findUnique({
+        where: { classId_courseId: { classId, courseId: problem.courseId } },
+        select: { id: true },
+      }));
+    if (!problem || !inClass) {
+      throw new NotFoundException('Bài lập trình không thuộc lớp này');
+    }
+
+    const [members, submissions] = await this.prisma.$transaction([
+      this.prisma.classMember.findMany({
+        where: { classId, roleInClass: 'student' },
+        select: { userId: true, status: true, user: { select: { fullName: true, email: true } } },
+      }),
+      this.prisma.codingSubmission.findMany({
+        where: { classId, problemId },
+        select: { id: true, userId: true, status: true, score: true, submittedAt: true },
+        orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+      }),
+    ]);
+
+    const byUser = new Map<string, typeof submissions>();
+    for (const s of submissions) {
+      byUser.set(s.userId, [...(byUser.get(s.userId) ?? []), s]);
+    }
+
+    const students = members
+      // Em đã rời lớp mà chưa nộp thì không còn liên quan; đã nộp thì bài vẫn phải xem được.
+      .filter((m) => m.status === 'active' || byUser.has(m.userId))
+      .map((m) => {
+        const rows = byUser.get(m.userId) ?? [];
+        return {
+          userId: m.userId,
+          fullName: m.user.fullName,
+          email: m.user.email,
+          isActiveMember: m.status === 'active',
+          ...(rows.length > 0
+            ? summarizeAttempts(rows)
+            : { attempts: 0, passed: false, bestScore: null, latestStatus: null }),
+          submissions: rows.map((s) => ({
+            id: s.id,
+            status: s.status,
+            score: s.score !== null && s.score !== undefined ? Number(s.score) : null,
+            submittedAt: s.submittedAt.toISOString(),
+          })),
+        };
+      })
+      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi'));
+
+    return { classId, problem: toSummary(problem), students };
+  }
+
+  /**
+   * Một lần nộp cho GV: có code và test ẩn. Lớp lấy từ chính bài nộp, không nhận từ client nên không thể
+   * mượn lớp mình để đọc bài lớp khác. Người xem là chủ bài nộp vẫn phải qua cổng này: DTO có test ẩn.
+   */
+  async getSubmissionReview(id: string, userId: string): Promise<CodingSubmissionReviewDto> {
+    const sub = await this.prisma.codingSubmission.findUnique({ where: { id }, include: withReview });
+    if (!sub) {
+      throw new NotFoundException('Bài nộp không tồn tại');
+    }
+    await this.assertCanReviewSubmissions(sub.classId, userId);
+
+    const reviewById = new Map(sub.results.map((r) => [r.id, r.testCase]));
+    const dto = toSubmissionDto(sub, { revealHiddenOutput: true });
+    return {
+      ...dto,
+      sourceCode: sub.sourceCode,
+      studentName: sub.user.fullName,
+      problemTitle: sub.problem.title,
+      maxScore: Number(sub.problem.maxScore),
+      results: (dto.results ?? []).map((r) => {
+        const testCase = reviewById.get(r.id);
+        return {
+          ...r,
+          kind: testCase?.kind ?? 'hidden',
+          stdin: testCase?.stdin ?? '',
+          expectedStdout: testCase?.expectedStdout ?? '',
+        };
+      }),
+    };
+  }
+
+  private async ensureClassExists(classId: string): Promise<void> {
+    const cls = await this.prisma.class.findUnique({ where: { id: classId }, select: { id: true } });
+    if (!cls) {
+      throw new NotFoundException('Lớp học không tồn tại');
+    }
+  }
+
   private async getSubmissionForOwner(id: string): Promise<CodingSubmissionDto> {
     return toSubmissionDto(await this.loadSubmission(id));
   }
@@ -439,6 +608,12 @@ function summarizeAttempts(rows: { status: string; score: unknown }[]): MyCoding
     bestScore: scores.length > 0 ? Math.max(...scores) : null,
     latestStatus: rows[0].status,
   };
+}
+
+function addToSet(map: Map<string, Set<string>>, key: string, value: string): void {
+  const set = map.get(key) ?? new Set<string>();
+  set.add(value);
+  map.set(key, set);
 }
 
 function toSummary(p: {

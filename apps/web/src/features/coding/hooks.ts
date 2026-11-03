@@ -126,6 +126,39 @@ export function useSubmitCoding(problemId: string) {
   });
 }
 
+// --- Giáo viên xem bài nộp theo lớp ---
+
+export function useClassCodingOverview(classId: string | null) {
+  return useQuery({
+    queryKey: ['classCoding', classId ?? '_none'],
+    queryFn: () => api.getClassCodingOverview(classId as string),
+    enabled: !!classId,
+    // 403 (không phụ trách lớp) là kết quả, không phải lỗi mạng: thử lại chỉ làm giáo viên chờ lâu hơn.
+    retry: false,
+  });
+}
+
+export function useClassProblemSubmissions(classId: string | null, problemId: string | null) {
+  return useQuery({
+    queryKey: ['classCoding', classId ?? '_none', problemId ?? '_none'],
+    queryFn: () => api.getClassProblemSubmissions(classId as string, problemId as string),
+    enabled: !!classId && !!problemId,
+    // Mở lại phải thấy bài vừa nộp, học viên có thể đang làm ngay trong giờ.
+    staleTime: 0,
+    retry: false,
+  });
+}
+
+export function useCodingSubmissionReview(submissionId: string | null) {
+  return useQuery({
+    queryKey: ['codingSubmissionReview', submissionId ?? '_none'],
+    queryFn: () => api.getCodingSubmissionReview(submissionId as string),
+    enabled: !!submissionId,
+    retry: false,
+    refetchInterval: (query) => (query.state.data && !isTerminal(query.state.data.status) ? 1500 : false),
+  });
+}
+
 /**
  * Poll một submission tới khi trạng thái terminal (passed/failed/error). Inline driver trả kết quả
  * ngay; bull driver bắt đầu ở queued/running nên cần polling ~1.5s.
