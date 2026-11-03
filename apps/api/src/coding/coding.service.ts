@@ -303,13 +303,48 @@ export class CodingService {
   async getSubmission(id: string, currentUser: AuthPrincipal): Promise<CodingSubmissionDto> {
     const sub = await this.loadSubmission(id);
     if (sub.userId !== currentUser.userId) {
-      const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
-      if (!this.rbac.hasPermission(eff, PERMISSIONS.CODING_RESULT_READ, sub.classId ?? undefined)) {
-        throw new ForbiddenException('Không có quyền xem kết quả bài nộp này');
-      }
+      await this.assertCanReviewSubmissions(sub.classId, currentUser.userId);
       return toSubmissionDto(sub, { revealHiddenOutput: true });
     }
     return toSubmissionDto(sub);
+  }
+
+  /**
+   * Ai được đọc bài nộp của người khác trong lớp. Chỉ `coding.result.read` là chưa đủ, vì quyền này:
+   * - role `student` cũng có (để xem bài của mình), gán global thì học viên đọc được bài của bạn;
+   * - role `instructor` đang gán GLOBAL (nợ kỹ thuật đã biết), nên GV bất kỳ đọc được lớp người khác.
+   *
+   * `coding.read` (học viên không có) tách staff khỏi học viên. Trong staff, phải có quyền gán riêng cho
+   * lớp này, hoặc là người tạo lớp / instructor, TA đang hoạt động của lớp, hoặc là admin. Admin nhận
+   * `class.delete` global; instructor không có (INVARIANT #3).
+   *
+   * `classId` null = lớp đã bị xóa, không còn ai phụ trách nên chỉ admin đọc được.
+   */
+  private async assertCanReviewSubmissions(classId: string | null, userId: string): Promise<void> {
+    const eff = await this.rbac.getEffectivePermissions(userId);
+    const scope = classId ?? undefined;
+    const isStaff =
+      this.rbac.hasPermission(eff, PERMISSIONS.CODING_RESULT_READ, scope) &&
+      this.rbac.hasPermission(eff, PERMISSIONS.CODING_READ, scope);
+    if (!isStaff) {
+      throw new ForbiddenException('Không có quyền xem bài nộp của lớp này');
+    }
+    if (eff.global.has(PERMISSIONS.CLASS_DELETE)) return;
+    if (classId) {
+      if (eff.byClass.get(classId)?.has(PERMISSIONS.CODING_RESULT_READ)) return;
+      const cls = await this.prisma.class.findUnique({
+        where: { id: classId },
+        select: {
+          createdById: true,
+          members: { where: { userId }, select: { status: true, roleInClass: true } },
+        },
+      });
+      const member = cls?.members[0];
+      const teachesClass =
+        member?.status === 'active' && (member.roleInClass === 'instructor' || member.roleInClass === 'ta');
+      if (cls?.createdById === userId || teachesClass) return;
+    }
+    throw new ForbiddenException('Bạn không phụ trách lớp này');
   }
 
   private async getSubmissionForOwner(id: string): Promise<CodingSubmissionDto> {

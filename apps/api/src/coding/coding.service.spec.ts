@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CodingService } from './coding.service';
 import type { PrismaService } from '../prisma/prisma.service';
-import type { RbacService } from '../rbac/rbac.service';
+import { RbacService } from '../rbac/rbac.service';
 import type { SubmissionQueue } from './queue/submission-queue';
 import type { AuthPrincipal } from '../auth/auth.types';
 
@@ -19,7 +19,8 @@ function makePrisma() {
     codingSubmission: { create: jest.fn(), findUnique: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     course: { findUnique: jest.fn() },
     lesson: { findUnique: jest.fn() },
-    classMember: { findUnique: jest.fn() },
+    class: { findUnique: jest.fn() },
+    classMember: { findUnique: jest.fn(), findMany: jest.fn() },
     classCourse: { findUnique: jest.fn(), findMany: jest.fn() },
     lessonGate: { findUnique: jest.fn(), findMany: jest.fn() },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
@@ -31,6 +32,8 @@ function makeRbac() {
 }
 
 const principal = (userId: string): AuthPrincipal => ({ userId }) as AuthPrincipal;
+
+const INSTRUCTOR_PERMS = ['coding.read', 'coding.result.read'];
 
 const now = new Date('2026-08-13T00:00:00.000Z');
 
@@ -73,6 +76,15 @@ describe('CodingService', () => {
       queue as unknown as SubmissionQueue,
     );
   });
+
+  /** Quyền hiệu lực thật, chấm bằng đúng logic của RbacService: mock trả true/false sẽ che mất lỗi phạm vi. */
+  const grant = (global: string[], byClass: Record<string, string[]> = {}) => {
+    rbac.getEffectivePermissions.mockResolvedValue({
+      global: new Set(global),
+      byClass: new Map(Object.entries(byClass).map(([id, keys]) => [id, new Set(keys)])),
+    });
+    rbac.hasPermission.mockImplementation(RbacService.prototype.hasPermission);
+  };
 
   describe('getAuthorDetail', () => {
     it('GV thấy ĐẦY ĐỦ hidden test + solutionCode', async () => {
@@ -296,11 +308,25 @@ describe('CodingService', () => {
       expect(rbac.hasPermission).toHaveBeenCalledWith(expect.anything(), 'coding.result.read', 'class-1');
     });
 
-    it('GV có coding.result.read theo lớp → xem được', async () => {
+    it('GV phụ trách đúng lớp → xem được', async () => {
       prisma.codingSubmission.findUnique.mockResolvedValue(submissionRow());
-      rbac.hasPermission.mockReturnValue(true);
+      grant(INSTRUCTOR_PERMS);
+      prisma.class.findUnique.mockResolvedValue({ createdById: 'gv-x', members: [] });
       const res = await service.getSubmission('sub1', principal('gv-x'));
       expect(res.userId).toBe('stu-1');
+    });
+
+    it('regression: học viên có role student global (có coding.result.read) KHÔNG đọc được bài của bạn', async () => {
+      prisma.codingSubmission.findUnique.mockResolvedValue(submissionRow());
+      grant(['coding.submit', 'coding.result.read']);
+      await expect(service.getSubmission('sub1', principal('stu-2'))).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('regression: GV role global KHÔNG đọc được bài của lớp người khác', async () => {
+      prisma.codingSubmission.findUnique.mockResolvedValue(submissionRow());
+      grant(INSTRUCTOR_PERMS);
+      prisma.class.findUnique.mockResolvedValue({ createdById: 'gv-khac', members: [] });
+      await expect(service.getSubmission('sub1', principal('gv-x'))).rejects.toBeInstanceOf(ForbiddenException);
     });
 
     it('404 khi submission không tồn tại', async () => {
@@ -336,7 +362,8 @@ describe('CodingService', () => {
 
       it('GV có coding.result.read vẫn thấy output để hỗ trợ học viên', async () => {
         prisma.codingSubmission.findUnique.mockResolvedValue(withHiddenResult());
-        rbac.hasPermission.mockReturnValue(true);
+        grant(INSTRUCTOR_PERMS);
+        prisma.class.findUnique.mockResolvedValue({ createdById: 'gv-x', members: [] });
         const res = await service.getSubmission('sub1', principal('gv-x'));
         expect(res.results?.[1].actualStdout).toBe('10 20');
       });
