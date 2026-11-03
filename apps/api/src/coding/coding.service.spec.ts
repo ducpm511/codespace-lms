@@ -316,6 +316,46 @@ describe('CodingService', () => {
       expect(flat).not.toContain('expectedStdout');
     });
 
+    describe('regression: output của test ẩn (code `print(input())` sẽ in nguyên input ẩn)', () => {
+      const withHiddenResult = () =>
+        submissionRow({
+          results: [
+            { id: 'r1', testCaseId: 't1', status: 'passed', actualStdout: '3', runtimeMs: 5, testCase: { name: 'sample', order: 0, kind: 'sample' } },
+            { id: 'r2', testCaseId: 't2', status: 'passed', actualStdout: '10 20', runtimeMs: 5, testCase: { name: 'hidden', order: 1, kind: 'hidden' } },
+          ],
+        });
+
+      it('chủ bài nộp: thấy trạng thái test ẩn nhưng KHÔNG thấy output; test mẫu vẫn còn output', async () => {
+        prisma.codingSubmission.findUnique.mockResolvedValue(withHiddenResult());
+        const res = await service.getSubmission('sub1', principal('stu-1'));
+        expect(JSON.stringify(res)).not.toContain('10 20');
+        expect(res.results?.[1].status).toBe('passed');
+        expect(res.results?.[1].actualStdout).toBeNull();
+        expect(res.results?.[0].actualStdout).toBe('3');
+      });
+
+      it('GV có coding.result.read vẫn thấy output để hỗ trợ học viên', async () => {
+        prisma.codingSubmission.findUnique.mockResolvedValue(withHiddenResult());
+        rbac.hasPermission.mockReturnValue(true);
+        const res = await service.getSubmission('sub1', principal('gv-x'));
+        expect(res.results?.[1].actualStdout).toBe('10 20');
+      });
+
+      it('trả về ngay khi nộp và khi vào lại bài cũng không lộ', async () => {
+        prisma.codingProblem.findUnique.mockResolvedValue({ ...problemRow(), language: 'python' });
+        prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+        prisma.classCourse.findUnique.mockResolvedValue({ id: 'cc1' });
+        prisma.codingSubmission.create.mockResolvedValue({ id: 'sub1' });
+        prisma.codingSubmission.findUnique.mockResolvedValue(withHiddenResult());
+        prisma.codingSubmission.findMany.mockResolvedValue([{ id: 'sub1', status: 'passed', score: '100' }]);
+
+        const submitted = await service.submit('p1', 'stu-1', { classId: 'class-1', sourceCode: 'x' });
+        expect(JSON.stringify(submitted)).not.toContain('10 20');
+
+        const reopened = await service.getStudentDetail('p1', 'class-1', 'stu-1');
+        expect(JSON.stringify(reopened)).not.toContain('10 20');
+      });
+    });
   });
 
   describe('listForClass (student list — membership + gate)', () => {

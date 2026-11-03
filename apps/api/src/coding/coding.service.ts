@@ -32,7 +32,7 @@ const withTestCases = {
 type ProblemWithTests = Prisma.CodingProblemGetPayload<{ include: typeof withTestCases }>;
 
 const withResults = {
-  results: { include: { testCase: { select: { name: true, order: true } } } },
+  results: { include: { testCase: { select: { name: true, order: true, kind: true } } } },
 } satisfies Prisma.CodingSubmissionInclude;
 type SubmissionWithResults = Prisma.CodingSubmissionGetPayload<{ include: typeof withResults }>;
 
@@ -307,6 +307,7 @@ export class CodingService {
       if (!this.rbac.hasPermission(eff, PERMISSIONS.CODING_RESULT_READ, sub.classId ?? undefined)) {
         throw new ForbiddenException('Không có quyền xem kết quả bài nộp này');
       }
+      return toSubmissionDto(sub, { revealHiddenOutput: true });
     }
     return toSubmissionDto(sub);
   }
@@ -474,8 +475,14 @@ function toStudentDetail(p: ProblemWithTests): Omit<CodingProblemStudentDetail, 
 /**
  * Submission + kết quả cho client. KHÔNG lộ stdin/expectedStdout của testcase (nhất là hidden);
  * chỉ trả output của CHÍNH học viên (actualStdout) + trạng thái/điểm đã chấm server-side.
+ *
+ * Output của test ẩn chỉ dành cho GV: code `print(input())` sẽ in nguyên input ẩn, trả cho học viên là
+ * lộ testcase ẩn (INVARIANT domain). Học viên vẫn thấy test ẩn đạt hay không qua `status`.
  */
-function toSubmissionDto(s: SubmissionWithResults): CodingSubmissionDto {
+function toSubmissionDto(
+  s: SubmissionWithResults,
+  { revealHiddenOutput = false }: { revealHiddenOutput?: boolean } = {},
+): CodingSubmissionDto {
   const results = [...s.results]
     .sort((a, b) => a.testCase.order - b.testCase.order)
     .map((r) => ({
@@ -483,7 +490,7 @@ function toSubmissionDto(s: SubmissionWithResults): CodingSubmissionDto {
       testCaseId: r.testCaseId,
       name: r.testCase.name,
       status: r.status,
-      actualStdout: r.actualStdout,
+      actualStdout: r.testCase.kind === 'hidden' && !revealHiddenOutput ? null : r.actualStdout,
       runtimeMs: r.runtimeMs,
       order: r.testCase.order,
     }));
