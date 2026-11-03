@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-11-02
+Updated: 2026-11-04
 
 ## Quy ước đặt tên
 
@@ -171,6 +171,10 @@ refId null. Chi tiết đầy đủ: `CURRENT_STATE.md §P7`.
 ## Bản vá đã hoàn thành
 
 Ba bản vá phiên P7 → [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md](../../docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md).
+
+- **C3** ✅ **Xong 04/11, chưa mở PR** (nhánh `claude/elastic-dijkstra-28d486`) — pass bài lập trình/trắc nghiệm chỉ đặt
+  `in_progress`, học viên tự bấm Hoàn thành nhận 50 XP; migration `backfill_lesson_complete_xp` bù XP cho dữ liệu cũ.
+  Chi tiết `CURRENT_STATE.md §C3`.
 
 ## Nợ kỹ thuật đã giải quyết (Phase P6 Tech Debt Cleaned)
 

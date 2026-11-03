@@ -2,12 +2,25 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-11-02
+Updated: 2026-11-04
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+
+### C3: pass bài không còn tự hoàn thành bài học (2026-11-04) — nhánh `claude/elastic-dijkstra-28d486`, chưa mở PR
+
+- **Người dùng chọn hướng (a):** nộp bài lập trình/trắc nghiệm, đạt hay không, chỉ đặt `in_progress` và không đụng bài đã
+  `completed`. Học viên tự bấm Hoàn thành mới có `completed` + 50 XP `lesson_complete`. Quiz cùng lỗi nên sửa cùng hướng.
+- **Đánh đổi đã biết:** ai pass mà quên bấm thì bài không tính vào mốc 80% của chứng chỉ và báo cáo lớp.
+- **Dữ liệu đổi:** migration `backfill_lesson_complete_xp` (không đổi schema) bù 50 XP cho bài đã `completed` mà thiếu
+  `lesson_complete`; giữ nguyên trạng thái, `createdAt` = lúc hoàn thành nên không lật bảng xếp hạng tuần này, chạy lại
+  không cộng thêm. Không đụng streak/huy hiệu/thông báo: `first_lesson` sẽ trao ở lần hoàn thành bài kế tiếp.
+- **Hai lỗi FE lộ ra khi thử:** nộp xong không làm mới danh sách bài/XP/bảng xếp hạng (nay `invalidateLearningProgress`);
+  lời chúc mừng ghi cứng +40 XP trong khi cộng 50 (nay lấy từ `XP_REWARDS`).
+- **Đã thử** bằng `p7member` qua API và giao diện, trên DB `lms_c3` tách riêng (bản sao DB dev, đã xóa sau khi thử) với
+  runner stub. **Chưa áp** migration lên DB dev `lms` và production.
 
 ### Bug gỡ khóa khỏi lớp (2026-11-02) — nhánh `claude/lms-deleted-course-display-cbcfb2`
 
