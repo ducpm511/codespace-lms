@@ -2,12 +2,26 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-11-03
+Updated: 2026-11-04
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+
+### GV xem bài nộp (C1, 2026-11-04) — nhánh `claude/magical-bouman-307820`, xếp chồng lên `claude/focused-kapitsa-de036f`, chưa PR
+
+- **API:** `GET /classes/:classId/coding-submissions` (bài của lớp + số em đã nộp/đạt), `.../:problemId` (từng học viên, không
+  kèm code), `GET /coding-submissions/:id/review` (code + đầu vào/mong đợi/output từng test, cả test ẩn). Không đổi schema.
+- **Quyền nằm ở `assertCanReviewSubmissions`:** `coding.result.read` + `coding.read` (học viên không có), và là một trong: quyền
+  gán riêng cho lớp đó, người tạo lớp, instructor/TA active của lớp, admin (`class.delete` global). GV role global lớp khác
+  bị 403: muốn dạy thay thì thêm vào lớp. Bài của lớp đã xóa (`classId` null) chỉ admin đọc được.
+- **Vá IDOR có sẵn:** `GET /coding-submissions/:id` chỉ kiểm `coding.result.read`, mà role `student` global cũng có, nên học viên
+  đọc được bài của bạn kèm output test ẩn (`p7member` có role này trên DB dev). Nay dùng chung cổng trên.
+- **`GET /coding-submissions/:id` vẫn trả output test ẩn cho GV** còn chủ bài thì không; review không dành cho chủ bài là học viên.
+- **FE:** `pages/teach/TeachCodingSubmissions.tsx`; `codingUi.tsx` chứa mảnh dùng chung với phần biên soạn.
+- **Đã kiểm:** `pnpm validate` 18/18 task (api 504 test / 38 suite); API thật: GV lớp 200, học viên cùng lớp/ngoài lớp/GV lớp khác
+  403, id không tồn tại 404; xem bằng mắt tài khoản `p11teacher`. Runner là stub nên chưa thử với Piston. Dữ liệu thử đã dọn khỏi DB dev.
 
 ### Bài lập trình: vào lại + danh sách GV (2026-11-03) — nhánh `claude/focused-kapitsa-de036f`, chưa PR/deploy
 

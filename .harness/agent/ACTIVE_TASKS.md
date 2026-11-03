@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-11-03
+Updated: 2026-11-04
 
 ## Quy ước đặt tên
 
@@ -86,11 +86,11 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | O7 | 🚨 **Đặt sẵn mật khẩu console cho `deploy`**: user tạo bằng `--disabled-password`, root không có mật khẩu → chỉ vào console được sau khi reset mật khẩu root qua bảng điều khiển TINO. Cất vào trình quản lý mật khẩu. | — |
 | O8 | 👀 **Xem BẰNG MẮT bản vá markdown 04/09**: mở một bài lập trình bằng tài khoản HỌC VIÊN trên production. Bản vá đã phát hành nhưng chưa ai nhìn tận mắt. | — |
 
-### Bài lập trình — việc còn hở (phát hiện 03/11, chưa làm)
+### Bài lập trình — việc còn hở (phát hiện 03/11)
 
 | # | Việc | Hệ quả hiện tại |
 |---|---|---|
-| C1 | GV chưa có màn hình xem bài nộp/code của học viên | Chỉ thấy điểm cao nhất ở Sổ điểm; DTO cho GV cũng không có `sourceCode` |
+| C1 | ✅ **Xong 04/11** (chưa PR): tab Bài lập trình → "Bài nộp của học viên". `CURRENT_STATE.md §GV xem bài nộp` | — |
 | C2 | Học viên không thấy điểm lập trình trong sổ điểm của mình cho tới khi staff mở sổ | `my-gradebook` chỉ đọc, `recompute` chỉ do staff gọi |
 | C3 | Pass một bài lập trình tự đánh dấu cả bài học "hoàn thành" và không cộng XP `lesson_complete` | Nút Hoàn thành bị khóa nên mất 50 XP; bài học còn hoạt động khác vẫn thành hoàn thành |
 
