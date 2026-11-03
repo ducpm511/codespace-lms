@@ -84,7 +84,7 @@ export function LearnCodingWorkspace({
   };
 
   const onResetToStarter = async () => {
-    if (await confirm(t('coding.resetConfirm'))) {
+    if (await confirm({ message: t('coding.resetConfirm'), confirmLabel: t('coding.resetToStarter') })) {
       setCode(attempt.data?.starterCode ?? '');
     }
   };
@@ -209,8 +209,9 @@ export function CodingStatusTag({ status }: { status?: MyCodingStatusDto | null 
   const score = status.bestScore ?? 0;
   if (status.passed) {
     return (
-      <span className="tag tag-accent">
-        <i className="ph ph-check-circle" aria-hidden /> {t('coding.tagPassed', { score })}
+      <span className="tag tag-accent gap-1">
+        <i className="ph ph-check-circle" aria-hidden />
+        {t('coding.tagPassed', { score })}
       </span>
     );
   }
