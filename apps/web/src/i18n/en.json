@@ -486,7 +486,7 @@
     "statBadges": "Badges",
     "level": "Level",
     "celebrationTitle": "Awesome! 🎉",
-    "celebrationXp": "+40 XP · You just finished a lesson!",
+    "celebrationXp": "+{{xp}} XP · You just finished a lesson!",
     "dismiss": "Dismiss",
     "continueKicker": "Keep learning",
     "continueCta": "Continue",

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { XP_REWARDS } from '@lms/contracts';
 import type {
   CodingProblemSummary,
   MyLessonDto,
@@ -282,7 +283,7 @@ function CelebrationBanner({ onDismiss }: { onDismiss: () => void }): JSX.Elemen
       <img src="/brand/mascot-hearts.png" alt="" className="cx-bob h-16 w-16 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="cx-display" style={{ fontSize: 17 }}>{t('learn.celebrationTitle')}</p>
-        <p className="text-muted text-sm">{t('learn.celebrationXp')}</p>
+        <p className="text-muted text-sm">{t('learn.celebrationXp', { xp: XP_REWARDS.lesson_complete })}</p>
       </div>
       <button className="btn btn-icon btn-secondary !rounded-full cx-press" onClick={onDismiss} aria-label={t('learn.dismiss')}>
         <i className="ph ph-x" aria-hidden />
