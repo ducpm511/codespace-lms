@@ -337,6 +337,45 @@ describe('QuizService', () => {
       expect(Number(createArg.data.score)).toBe(0);
     });
 
+    describe('tiến độ bài học khi đạt (C3)', () => {
+      const passAttempt = async () => {
+        prisma.quiz.findUnique.mockResolvedValue(gradableQuiz({ lessonId: 'l1' }));
+        okMembership();
+        prisma.lessonGate.findUnique.mockResolvedValue({ isActive: true });
+        prisma.quizAttempt.count.mockResolvedValue(0);
+        prisma.quizAttempt.create.mockResolvedValue({ id: 'att3' });
+        prisma.quizAttempt.findUnique.mockResolvedValue({
+          id: 'att3', quizId: 'q1', userId: 'stu-1', classId: 'class-1', status: 'submitted',
+          score: '5', startedAt: now, submittedAt: now,
+          quiz: { questions: [{ points: '2' }, { points: '3' }] }, answers: [],
+        });
+        await service.submitAttempt('q1', 'stu-1', {
+          classId: 'class-1',
+          answers: [
+            { questionId: 'qn1', selectedOptionIds: ['o2'] },
+            { questionId: 'qn2', textAnswer: 'Hà Nội' },
+          ],
+        });
+      };
+
+      it('đạt chỉ đặt in_progress, học viên tự bấm Hoàn thành', async () => {
+        prisma.lessonProgress.findUnique.mockResolvedValue(null);
+        await passAttempt();
+        expect(prisma.lessonProgress.upsert).not.toHaveBeenCalled();
+        expect(prisma.lessonProgress.create).toHaveBeenCalledWith({
+          data: { userId: 'stu-1', lessonId: 'l1', classId: 'class-1', status: 'in_progress' },
+        });
+      });
+
+      it('không hạ cấp hay đóng dấu lại bài đã completed', async () => {
+        prisma.lessonProgress.findUnique.mockResolvedValue({ status: 'completed' });
+        await passAttempt();
+        expect(prisma.lessonProgress.upsert).not.toHaveBeenCalled();
+        expect(prisma.lessonProgress.create).not.toHaveBeenCalled();
+        expect(prisma.lessonProgress.update).not.toHaveBeenCalled();
+      });
+    });
+
     it('403 khi hết lượt (attemptsAllowed)', async () => {
       prisma.quiz.findUnique.mockResolvedValue(gradableQuiz({ attemptsAllowed: 1 }));
       okMembership();
