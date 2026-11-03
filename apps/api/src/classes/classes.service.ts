@@ -142,12 +142,23 @@ export class ClassesService {
     return this.findOne(classId);
   }
 
+  /**
+   * Gỡ khóa khỏi lớp + đóng gate các bài của khóa đó (cùng transaction). Mọi luồng học viên chỉ
+   * kiểm gate (INVARIANT #3), nên gate còn mở thì bài của khóa đã gỡ vẫn hiện và vẫn làm được.
+   * Giữ tiến độ/bài nộp; gán lại khóa thì giáo viên mở lại gate.
+   */
   async removeCourse(classId: string, courseId: string): Promise<ClassDetail> {
     await this.ensureClass(classId);
-    const res = await this.prisma.classCourse.deleteMany({ where: { classId, courseId } });
-    if (res.count === 0) {
-      throw new NotFoundException('Khóa học chưa được gán cho lớp này');
-    }
+    await this.prisma.$transaction(async (tx) => {
+      const res = await tx.classCourse.deleteMany({ where: { classId, courseId } });
+      if (res.count === 0) {
+        throw new NotFoundException('Khóa học chưa được gán cho lớp này');
+      }
+      await tx.lessonGate.updateMany({
+        where: { classId, isActive: true, lesson: { section: { courseId } } },
+        data: { isActive: false, activatedAt: null, activatedById: null },
+      });
+    });
     return this.findOne(classId);
   }
 

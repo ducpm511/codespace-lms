@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-08-26
+Updated: 2026-11-02
 
 ## Quy ước đặt tên
 

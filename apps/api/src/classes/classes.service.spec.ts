@@ -25,7 +25,7 @@ function makePrisma() {
     course: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
     lesson: { findUnique: jest.fn() },
-    lessonGate: { findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn() },
+    lessonGate: { findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn(), updateMany: jest.fn() },
     lessonProgress: { findMany: jest.fn(), upsert: jest.fn() },
     notification: { create: jest.fn() },
   };
@@ -49,7 +49,7 @@ function makePrisma() {
     course: { findUnique: jest.Mock };
     user: { findUnique: jest.Mock };
     lesson: { findUnique: jest.Mock };
-    lessonGate: { findUnique: jest.Mock; findMany: jest.Mock; upsert: jest.Mock };
+    lessonGate: { findUnique: jest.Mock; findMany: jest.Mock; upsert: jest.Mock; updateMany: jest.Mock };
     lessonProgress: { findMany: jest.Mock; upsert: jest.Mock };
     notification: { create: jest.Mock };
     $transaction: jest.Mock;
@@ -127,6 +127,35 @@ describe('ClassesService', () => {
       await expect(service.assignCourse('cl1', { courseId: 'ghost' })).rejects.toBeInstanceOf(
         NotFoundException,
       );
+    });
+  });
+
+  describe('removeCourse (gỡ khóa phải đóng gate của khóa đó)', () => {
+    it('đóng gate đúng lớp + đúng khóa, trong cùng transaction với việc gỡ', async () => {
+      prisma.class.findUnique
+        .mockResolvedValueOnce({ id: 'cl1' })
+        .mockResolvedValueOnce(classRow());
+      prisma.classCourse.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.lessonGate.updateMany.mockResolvedValue({ count: 2 });
+
+      await service.removeCourse('cl1', 'c1');
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.classCourse.deleteMany).toHaveBeenCalledWith({
+        where: { classId: 'cl1', courseId: 'c1' },
+      });
+      expect(prisma.lessonGate.updateMany).toHaveBeenCalledWith({
+        where: { classId: 'cl1', isActive: true, lesson: { section: { courseId: 'c1' } } },
+        data: { isActive: false, activatedAt: null, activatedById: null },
+      });
+    });
+
+    it('404 khi khóa chưa gán, không đụng gate', async () => {
+      prisma.class.findUnique.mockResolvedValue({ id: 'cl1' });
+      prisma.classCourse.deleteMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.removeCourse('cl1', 'ghost')).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.lessonGate.updateMany).not.toHaveBeenCalled();
     });
   });
 
