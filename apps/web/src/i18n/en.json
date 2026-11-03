@@ -395,7 +395,15 @@
     "solutionCode": "Solution (teachers only)",
     "solutionCodeHint": "Never sent to students",
     "timeLimit": "Time limit (ms)",
-    "memoryLimit": "Memory limit (MB)"
+    "memoryLimit": "Memory limit (MB)",
+    "tagPassed": "Passed · {{score}} pts",
+    "tagSubmitted": "Submitted · {{score}} pts",
+    "bestScore": "Best score: {{score}}/{{max}}",
+    "attempts": "Submitted {{count}} times",
+    "resubmitHint": "The editor holds your latest submission. Feel free to retry: the gradebook keeps your best score and XP is only awarded once.",
+    "submittedAt": "Latest submission: {{time}}",
+    "resetToStarter": "Back to starter code",
+    "resetConfirm": "Replace the code in the editor with the original starter code? Your submissions are kept."
   },
   "assignments": {
     "heading": "Assignments",

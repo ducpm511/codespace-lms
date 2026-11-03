@@ -16,7 +16,7 @@ function makePrisma() {
       delete: jest.fn(),
     },
     testCase: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), aggregate: jest.fn() },
-    codingSubmission: { create: jest.fn(), findUnique: jest.fn() },
+    codingSubmission: { create: jest.fn(), findUnique: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     course: { findUnique: jest.fn() },
     lesson: { findUnique: jest.fn() },
     classMember: { findUnique: jest.fn() },
@@ -315,6 +315,7 @@ describe('CodingService', () => {
       expect(flat).not.toContain('stdin');
       expect(flat).not.toContain('expectedStdout');
     });
+
   });
 
   describe('listForClass (student list — membership + gate)', () => {
@@ -351,6 +352,76 @@ describe('CodingService', () => {
       expect(flat).not.toContain('testCases');
       expect(flat).not.toContain('10 20');
       expect(flat).not.toContain('print(sum');
+    });
+
+    it('regression: danh sách cho biết học viên đã nộp/đã pass bài nào', async () => {
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.classCourse.findMany.mockResolvedValue([{ courseId: 'c1' }]);
+      prisma.codingProblem.findMany.mockResolvedValue([problemRow({ id: 'done' }), problemRow({ id: 'new' })]);
+      prisma.lessonGate.findMany.mockResolvedValue([]);
+      prisma.codingSubmission.findMany.mockResolvedValue([
+        { problemId: 'done', status: 'failed', score: '40', submittedAt: now },
+        { problemId: 'done', status: 'passed', score: '100', submittedAt: new Date(now.getTime() - 1000) },
+      ]);
+
+      const res = await service.listForClass('class-1', 'stu-1');
+
+      expect(prisma.codingSubmission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ userId: 'stu-1', classId: 'class-1' }) }),
+      );
+      const byId = new Map(res.map((p) => [p.id, p.myStatus]));
+      expect(byId.get('done')).toEqual({ attempts: 2, passed: true, bestScore: 100, latestStatus: 'failed' });
+      expect(byId.get('new')).toBeNull();
+    });
+  });
+
+  describe('getStudentDetail — vào lại bài đã nộp (regression)', () => {
+    const open = () => {
+      prisma.codingProblem.findUnique.mockResolvedValue(problemRow());
+      prisma.classMember.findUnique.mockResolvedValue({ status: 'active' });
+      prisma.classCourse.findUnique.mockResolvedValue({ id: 'cc1' });
+    };
+
+    it('chưa nộp lần nào → myProgress rỗng, vẫn dùng code mẫu', async () => {
+      open();
+      const res = await service.getStudentDetail('p1', 'class-1', 'stu-1');
+      expect(res.myProgress).toEqual({ attempts: 0, passed: false, bestScore: null, latestStatus: null, latest: null });
+    });
+
+    it('đã nộp → trả trạng thái, điểm và code của lần nộp GẦN NHẤT; passed/bestScore giữ theo lần tốt nhất', async () => {
+      open();
+      prisma.codingSubmission.findMany.mockResolvedValue([
+        { id: 'sub2', problemId: 'p1', status: 'failed', score: '40', submittedAt: now },
+        { id: 'sub1', problemId: 'p1', status: 'passed', score: '100', submittedAt: new Date(now.getTime() - 1000) },
+      ]);
+      prisma.codingSubmission.findUnique.mockResolvedValue(
+        submissionRow({ id: 'sub2', status: 'failed', score: '40', sourceCode: 'print("lan 2")' }),
+      );
+
+      const res = await service.getStudentDetail('p1', 'class-1', 'stu-1');
+
+      // Chỉ đọc bài của CHÍNH học viên trong đúng lớp này.
+      expect(prisma.codingSubmission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { problemId: 'p1', userId: 'stu-1', classId: 'class-1' } }),
+      );
+      expect(prisma.codingSubmission.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'sub2' } }),
+      );
+      expect(res.myProgress.attempts).toBe(2);
+      expect(res.myProgress.passed).toBe(true);
+      expect(res.myProgress.bestScore).toBe(100);
+      expect(res.myProgress.latest?.id).toBe('sub2');
+      expect(res.myProgress.latest?.status).toBe('failed');
+      expect(res.myProgress.latest?.score).toBe(40);
+      expect(res.myProgress.latest?.sourceCode).toBe('print("lan 2")');
+    });
+
+    it('trước gate vẫn 403, không đọc bài nộp', async () => {
+      open();
+      prisma.codingProblem.findUnique.mockResolvedValue(problemRow({ lessonId: 'l1' }));
+      prisma.lessonGate.findUnique.mockResolvedValue({ isActive: false });
+      await expect(service.getStudentDetail('p1', 'class-1', 'stu-1')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.codingSubmission.findMany).not.toHaveBeenCalled();
     });
   });
 });

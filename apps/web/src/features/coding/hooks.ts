@@ -6,6 +6,7 @@ import type {
   UpdateCodingProblemRequest,
   UpsertTestCaseRequest,
 } from '@lms/contracts';
+import { myLessonsKey } from '../classes/hooks';
 import * as api from './api';
 
 const TERMINAL_STATUSES = new Set(['passed', 'failed', 'error']);
@@ -102,7 +103,21 @@ export function useCodingAttempt(problemId: string | null, classId: string | nul
     queryKey: codingAttemptKey(problemId ?? '_none', classId ?? '_none'),
     queryFn: () => api.getCodingAttempt(problemId as string, classId as string),
     enabled: !!problemId && !!classId,
+    // Luôn đọc lại khi mở bài: code và kết quả có thể vừa được nộp từ máy khác.
+    staleTime: 0,
   });
+}
+
+/** Chấm xong là trạng thái bài, tiến độ bài học, XP và bảng xếp hạng đều đổi; không làm mới thì vào lại vẫn thấy cũ. */
+export function useRefreshAfterGraded(problemId: string, classId: string) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: codingAttemptKey(problemId, classId) });
+    void qc.invalidateQueries({ queryKey: codingForClassKey(classId) });
+    void qc.invalidateQueries({ queryKey: myLessonsKey(classId) });
+    void qc.invalidateQueries({ queryKey: ['gamification', 'me'] });
+    void qc.invalidateQueries({ queryKey: ['classes', classId, 'leaderboard'] });
+  };
 }
 
 export function useSubmitCoding(problemId: string) {

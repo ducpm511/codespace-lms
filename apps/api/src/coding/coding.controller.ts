@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query
 import { PERMISSIONS } from '@lms/contracts';
 import type {
   CodingProblemAuthorDetail,
+  CodingProblemForClass,
   CodingProblemStudentDetail,
   CodingProblemSummary,
   CodingSubmissionDto,
@@ -68,7 +69,7 @@ export class CodingController {
   listForClass(
     @Param('classId') classId: string,
     @CurrentUser() user: AuthPrincipal,
-  ): Promise<CodingProblemSummary[]> {
+  ): Promise<CodingProblemForClass[]> {
     return this.coding.listForClass(classId, user.userId);
   }
 

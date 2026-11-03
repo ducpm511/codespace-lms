@@ -9,9 +9,12 @@ import { Prisma } from '@lms/database';
 import {
   PERMISSIONS,
   type CodingProblemAuthorDetail,
+  type CodingProblemForClass,
   type CodingProblemStudentDetail,
   type CodingProblemSummary,
   type CodingSubmissionDto,
+  type MyCodingProgressDto,
+  type MyCodingStatusDto,
   type Paginated,
 } from '@lms/contracts';
 import type { AuthPrincipal } from '../auth/auth.types';
@@ -183,7 +186,24 @@ export class CodingService {
     if (problem.lessonId) {
       await this.ensureLessonGateActive(classId, problem.lessonId);
     }
-    return toStudentDetail(problem);
+    return { ...toStudentDetail(problem), myProgress: await this.loadMyProgress(id, classId, userId) };
+  }
+
+  /** Bài nộp của chính học viên trong đúng lớp này, để vào lại vẫn thấy trạng thái, điểm và code. */
+  private async loadMyProgress(problemId: string, classId: string, userId: string): Promise<MyCodingProgressDto> {
+    const rows = await this.prisma.codingSubmission.findMany({
+      where: { problemId, userId, classId },
+      select: { id: true, status: true, score: true },
+      orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+    });
+    if (rows.length === 0) {
+      return { attempts: 0, passed: false, bestScore: null, latestStatus: null, latest: null };
+    }
+    const latest = await this.loadSubmission(rows[0].id);
+    return {
+      ...summarizeAttempts(rows),
+      latest: { ...toSubmissionDto(latest), sourceCode: latest.sourceCode },
+    };
   }
 
   /**
@@ -191,7 +211,7 @@ export class CodingService {
    * (không gắn lesson HOẶC lesson đã mở gate isActive). Chỉ summary — KHÔNG hidden test/solution.
    * Không @RequirePermission ở route: quyền = học viên active của lớp (kiểm ở đây).
    */
-  async listForClass(classId: string, userId: string): Promise<CodingProblemSummary[]> {
+  async listForClass(classId: string, userId: string): Promise<CodingProblemForClass[]> {
     await this.ensureActiveMember(classId, userId);
 
     const classCourses = await this.prisma.classCourse.findMany({
@@ -203,7 +223,7 @@ export class CodingService {
       return [];
     }
 
-    const [problems, gates] = await this.prisma.$transaction([
+    const [problems, gates, submissions] = await this.prisma.$transaction([
       this.prisma.codingProblem.findMany({
         where: { courseId: { in: courseIds } },
         orderBy: { createdAt: 'desc' },
@@ -212,12 +232,25 @@ export class CodingService {
         where: { classId, isActive: true },
         select: { lessonId: true },
       }),
+      this.prisma.codingSubmission.findMany({
+        where: { userId, classId },
+        select: { problemId: true, status: true, score: true },
+        orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+      }),
     ]);
+
+    const byProblem = new Map<string, typeof submissions>();
+    for (const s of submissions) {
+      byProblem.set(s.problemId, [...(byProblem.get(s.problemId) ?? []), s]);
+    }
 
     const openLessons = new Set(gates.map((g) => g.lessonId));
     return problems
       .filter((p) => p.lessonId === null || openLessons.has(p.lessonId))
-      .map(toSummary);
+      .map((p) => {
+        const rows = byProblem.get(p.id);
+        return { ...toSummary(p), myStatus: rows ? summarizeAttempts(rows) : null };
+      });
   }
 
   // --- Submission (nộp chính thức + xem kết quả) ---
@@ -361,6 +394,17 @@ export class CodingService {
 
 // --- mappers ---
 
+/** `rows` đã xếp mới nhất trước và không rỗng. bestScore lấy lần cao nhất, cùng cách tính với sổ điểm. */
+function summarizeAttempts(rows: { status: string; score: unknown }[]): MyCodingStatusDto {
+  const scores = rows.filter((r) => r.score !== null && r.score !== undefined).map((r) => Number(r.score));
+  return {
+    attempts: rows.length,
+    passed: rows.some((r) => r.status === 'passed'),
+    bestScore: scores.length > 0 ? Math.max(...scores) : null,
+    latestStatus: rows[0].status,
+  };
+}
+
 function toSummary(p: {
   id: string;
   courseId: string;
@@ -410,7 +454,7 @@ function toAuthorDetail(p: ProblemWithTests): CodingProblemAuthorDetail {
  * Student: CHỈ sample tests, KHÔNG solutionCode, KHÔNG hidden test.
  * Đây là ranh giới bảo mật cốt lõi của P3 — đừng thêm field hidden/solution vào đây.
  */
-function toStudentDetail(p: ProblemWithTests): CodingProblemStudentDetail {
+function toStudentDetail(p: ProblemWithTests): Omit<CodingProblemStudentDetail, 'myProgress'> {
   return {
     ...toSummary(p),
     statementMd: p.statementMd,

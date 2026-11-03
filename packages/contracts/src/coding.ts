@@ -33,11 +33,28 @@ export interface CodingProblemSummary {
   createdAt: string;
 }
 
+/**
+ * Tình hình làm bài của CHÍNH học viên trong một lớp. `bestScore` khớp cách sổ điểm tính (lấy lần cao
+ * nhất), `passed` là đã từng đạt: nộp lại mà sai không làm mất hai giá trị này.
+ */
+export interface MyCodingStatusDto {
+  attempts: number;
+  passed: boolean;
+  bestScore: number | null;
+  latestStatus: string | null;
+}
+
+/** Danh sách bài cho học viên trong lớp; `myStatus` null = chưa nộp lần nào. */
+export interface CodingProblemForClass extends CodingProblemSummary {
+  myStatus: MyCodingStatusDto | null;
+}
+
 /** Student-facing problem detail: sample tests only, no hidden test metadata or solution code. */
 export interface CodingProblemStudentDetail extends CodingProblemSummary {
   statementMd: string;
   starterCode?: string | null;
   sampleTests: SampleTestCaseDto[];
+  myProgress: MyCodingProgressDto;
 }
 
 /** Teacher/admin authoring detail: may include hidden tests and solution code. Never return this to students. */
@@ -112,4 +129,13 @@ export interface CodingSubmissionDto {
   memoryKb?: number | null;
   submittedAt: string;
   results?: TestCaseResultDto[];
+}
+
+/** Bài nộp của chính học viên, kèm code để vào lại làm tiếp. Chỉ trả cho chủ bài nộp. */
+export interface MyCodingSubmissionDto extends CodingSubmissionDto {
+  sourceCode: string;
+}
+
+export interface MyCodingProgressDto extends MyCodingStatusDto {
+  latest: MyCodingSubmissionDto | null;
 }

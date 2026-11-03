@@ -395,7 +395,15 @@
     "solutionCode": "Lời giải (chỉ giáo viên xem)",
     "solutionCodeHint": "Không gửi cho học viên",
     "timeLimit": "Giới hạn thời gian (ms)",
-    "memoryLimit": "Giới hạn bộ nhớ (MB)"
+    "memoryLimit": "Giới hạn bộ nhớ (MB)",
+    "tagPassed": "Đã đạt · {{score}} điểm",
+    "tagSubmitted": "Đã nộp · {{score}} điểm",
+    "bestScore": "Điểm cao nhất: {{score}}/{{max}}",
+    "attempts": "Đã nộp {{count}} lần",
+    "resubmitHint": "Trong khung soạn là code bạn nộp gần nhất. Cứ thử lại thoải mái: sổ điểm lấy lần cao nhất, XP chỉ cộng một lần.",
+    "submittedAt": "Lần nộp gần nhất: {{time}}",
+    "resetToStarter": "Về code mẫu",
+    "resetConfirm": "Thay code trong khung soạn bằng code mẫu ban đầu? Bài đã nộp vẫn được giữ nguyên."
   },
   "assignments": {
     "heading": "Bài tập",

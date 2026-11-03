@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
-  CodingProblemSummary,
+  CodingProblemForClass,
+  MyCodingStatusDto,
   MyLessonDto,
   QuizSummary,
   StudentLessonActivityDto,
@@ -19,7 +20,7 @@ import { MarkdownBlock, PdfBlock, VideoBlock } from '../features/lesson-activiti
 import { activityMeta } from '../features/lesson-activities/activityMeta';
 import { ScratchActivityBlock } from '../features/studio/ScratchActivityBlock';
 import { LearnQuizWorkspace } from './learn/LearnQuiz';
-import { LearnCodingWorkspace } from './learn/LearnCoding';
+import { CodingStatusTag, LearnCodingWorkspace } from './learn/LearnCoding';
 import { StudentGradebookSection } from './learn/StudentGradebookSection';
 
 /* ── Lesson type → icon + category color ─────────────────────────────────── */
@@ -36,7 +37,7 @@ const lessonMeta = (type: string) => LESSON_META[type] ?? { icon: 'ph-book-bookm
 /* ── Merged exercise model (quiz + coding) ───────────────────────────────── */
 type Exercise =
   | { kind: 'quiz'; id: string; title: string; lessonId?: string | null; questionCount: number; maxScore: number }
-  | { kind: 'coding'; id: string; title: string; lessonId?: string | null; difficulty: string; maxScore: number };
+  | { kind: 'coding'; id: string; title: string; lessonId?: string | null; difficulty: string; maxScore: number; myStatus: MyCodingStatusDto | null };
 
 type LearnView = 'list' | 'lesson' | 'quiz' | 'coding';
 
@@ -96,8 +97,8 @@ export function LearnHome(): JSX.Element {
     const q: Exercise[] = (quizzes.data ?? []).map((x: QuizSummary) => ({
       kind: 'quiz', id: x.id, title: x.title, lessonId: x.lessonId, questionCount: x.questionCount, maxScore: x.maxScore,
     }));
-    const c: Exercise[] = (coding.data ?? []).map((x: CodingProblemSummary) => ({
-      kind: 'coding', id: x.id, title: x.title, lessonId: x.lessonId, difficulty: x.difficulty, maxScore: x.maxScore,
+    const c: Exercise[] = (coding.data ?? []).map((x: CodingProblemForClass) => ({
+      kind: 'coding', id: x.id, title: x.title, lessonId: x.lessonId, difficulty: x.difficulty, maxScore: x.maxScore, myStatus: x.myStatus,
     }));
     return [...q, ...c];
   }, [quizzes.data, coding.data]);
@@ -528,6 +529,7 @@ function ExerciseCard({
       <div className="min-w-0 flex-1" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="flex flex-wrap items-center gap-2">
           <span className="tag tag-outline">{kindLabel}</span>
+          {exercise.kind === 'coding' && <CodingStatusTag status={exercise.myStatus} />}
         </div>
         <p className="card-title cx-display" style={{ width: '100%' }}>{exercise.title}</p>
         <p className="card-meta"><i className="ph ph-book-bookmark" aria-hidden /> {lessonLabel}</p>
@@ -612,6 +614,7 @@ function LessonDetail({
                   <div className="min-w-0">
                     <div className="mb-1 flex items-center gap-2">
                       <span className="tag tag-outline">{isQuiz ? t('learn.exKindQuiz') : t('learn.exKindCoding')}</span>
+                      {e.kind === 'coding' && <CodingStatusTag status={e.myStatus} />}
                     </div>
                     <p className="card-title truncate" style={{ fontSize: 15 }}>{e.title}</p>
                     <p className="card-meta">
@@ -621,7 +624,7 @@ function LessonDetail({
                     </p>
                   </div>
                   <button className="btn btn-secondary !rounded-full cx-press shrink-0" onClick={() => (isQuiz ? onOpenQuiz(e.id) : onOpenCoding(e.id))}>
-                    {t('learn.doExercise')} <i className="ph ph-arrow-right" aria-hidden />
+                    {t(e.kind === 'coding' && e.myStatus ? 'learn.lessonReview' : 'learn.doExercise')} <i className="ph ph-arrow-right" aria-hidden />
                   </button>
                 </li>
               );
@@ -686,6 +689,9 @@ function ActivityBody({
   onOpenCoding: (id: string) => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  // Dùng chung cache với danh sách bài tập; hoạt động khác không gọi API này.
+  const codingList = useCodingProblemsForClass(activity.type === 'coding' ? classId : null);
+  const codingStatus = codingList.data?.find((p) => p.id === activity.refId)?.myStatus;
 
   if (activity.type === 'markdown') {
     return activity.contentMd ? <MarkdownBlock content={activity.contentMd} /> : <Empty />;
@@ -715,12 +721,15 @@ function ActivityBody({
   }
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <p className="card-meta truncate">{activity.refTitle}</p>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <p className="card-meta truncate">{activity.refTitle}</p>
+        <CodingStatusTag status={codingStatus} />
+      </div>
       <button
         className="btn btn-primary !rounded-full cx-press shrink-0"
         onClick={() => (activity.type === 'quiz' ? onOpenQuiz(activity.refId as string) : onOpenCoding(activity.refId as string))}
       >
-        {t('learn.doExercise')} <i className="ph ph-arrow-right" aria-hidden />
+        {t(codingStatus ? 'learn.lessonReview' : 'learn.doExercise')} <i className="ph ph-arrow-right" aria-hidden />
       </button>
     </div>
   );

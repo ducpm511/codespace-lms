@@ -1,5 +1,6 @@
 import type {
   CodingProblemAuthorDetail,
+  CodingProblemForClass,
   CodingProblemStudentDetail,
   CodingProblemSummary,
   CodingSubmissionDto,
@@ -58,8 +59,8 @@ export const deleteTestCase = (
 
 // --- Student (làm bài) — chỉ sample test, submit + xem kết quả ---
 
-export const listCodingProblemsForClass = (classId: string): Promise<CodingProblemSummary[]> =>
-  apiFetch<CodingProblemSummary[]>(`/coding-problems/for-class/${encodeURIComponent(classId)}`);
+export const listCodingProblemsForClass = (classId: string): Promise<CodingProblemForClass[]> =>
+  apiFetch<CodingProblemForClass[]>(`/coding-problems/for-class/${encodeURIComponent(classId)}`);
 
 export const getCodingAttempt = (
   id: string,
