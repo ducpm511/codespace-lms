@@ -9,11 +9,30 @@ Updated: 2026-11-04
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
 
+### Vá IDOR bài làm theo lớp (2026-11-04) — nhánh `claude/affectionate-archimedes-33c346`, xếp chồng lên `claude/magical-bouman-307820`, chưa PR
+Không đổi schema.
+
+- **Luật chung nằm ở `RbacService.isClassStaff(userId, classId, permissions, mode)`**, thay cho `assertCanReviewSubmissions`.
+  Có permission trong phạm vi lớp chưa đủ, vì `instructor` gán global và `student` cũng có `*.result.read`. Phải thêm một trong:
+  role gán riêng cho lớp, người tạo lớp, instructor/TA active của lớp, admin (`class.delete` global). Role gán theo lớp phải tự đủ
+  quyền: GV lớp khác mang thêm role `student` ở lớp này vẫn 403 (bản coding cũ để lọt ca này).
+- **Đã đi qua luật này:** đọc `quiz-attempts/:id`, `submissions/:id`, danh sách bài nộp của bài tập, `scratch/submissions/:id/*`,
+  `certificates/:id/pdf`; ghi `submissions/:id/grade`, `certificates/issue`, `certificates/:id/revoke`.
+- **Đổi hành vi:** GV không phụ trách lớp nay 403 ở các route trên, muốn dạy thay thì thêm vào lớp. Chứng chỉ của lớp đã xóa chỉ admin
+  đọc/thu hồi được. `revoke` kiểm quyền trước trạng thái thu hồi.
+- **Test phạm vi lớp dùng `rbac/testing/real-rbac.ts`** (RbacService thật trên DB giả), vì mock `hasPermission` che mất loại lỗi này.
+- **Đã kiểm:** `pnpm validate` 18/18 task (api 557 test / 38 suite). API thật trên DB bản sao `lms_idor` (đã xóa, DB dev không đổi), 10 vai:
+  trước khi vá, HV ngoài lớp, bạn cùng lớp và GV lớp khác đều đọc được quiz (200); sau khi vá đều 403, chủ bài/GV tạo lớp/TA/admin 200,
+  id không tồn tại 404. Riêng `scratch/.../assets` chỉ kiểm bằng unit test: DB dev không có asset nên API thật chỉ thử `project.json`.
+- **CÒN HỞ, chờ người quyết (ACTIVE_TASKS C4):** GV lớp khác vẫn 200 ở `classes/:id`, `classes/:id/report`, `classes/:id/gradebook`,
+  `certificates/class/:id`. Chưa thử trên API thật: `gradebook/recompute`, `teach/overview` (đọc mọi lớp), `files/:id`
+  (`course.update` global đọc được cả file PDF chứng chỉ nếu biết id).
+
 ### GV xem bài nộp (C1, 2026-11-04) — nhánh `claude/magical-bouman-307820`, xếp chồng lên `claude/focused-kapitsa-de036f`, chưa PR
 
 - **API:** `GET /classes/:classId/coding-submissions` (bài của lớp + số em đã nộp/đạt), `.../:problemId` (từng học viên, không
   kèm code), `GET /coding-submissions/:id/review` (code + đầu vào/mong đợi/output từng test, cả test ẩn). Không đổi schema.
-- **Quyền nằm ở `assertCanReviewSubmissions`:** `coding.result.read` + `coding.read` (học viên không có), và là một trong: quyền
+- **Quyền nằm ở `assertCanReviewSubmissions` (nay gọi `RbacService.isClassStaff`):** `coding.result.read` + `coding.read` (học viên không có), và là một trong: quyền
   gán riêng cho lớp đó, người tạo lớp, instructor/TA active của lớp, admin (`class.delete` global). GV role global lớp khác
   bị 403: muốn dạy thay thì thêm vào lớp. Bài của lớp đã xóa (`classId` null) chỉ admin đọc được.
 - **Vá IDOR có sẵn:** `GET /coding-submissions/:id` chỉ kiểm `coding.result.read`, mà role `student` global cũng có, nên học viên
