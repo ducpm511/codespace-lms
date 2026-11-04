@@ -411,10 +411,7 @@ export class CertificatesService {
     }
 
     if (cert.userId !== currentUser.userId) {
-      const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
-      const canRead = cert.classId
-        ? this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ, cert.classId)
-        : this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_READ);
+      const canRead = await this.rbac.isClassStaff(currentUser.userId, cert.classId, [PERMISSIONS.CERTIFICATE_READ]);
       if (!canRead) {
         throw new ForbiddenException('Không có quyền tải chứng chỉ này');
       }

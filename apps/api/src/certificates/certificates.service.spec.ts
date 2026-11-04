@@ -3,6 +3,7 @@ import type { AuthPrincipal } from '../auth/auth.types';
 import { CertificatesService } from './certificates.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
+import { realRbac, type RealRbacScenario } from '../rbac/testing/real-rbac';
 import type { GradingService } from '../grading/grading.service';
 
 const dummyAdmin: AuthPrincipal = { userId: 'admin1' };
@@ -190,20 +191,34 @@ describe('CertificatesService', () => {
   });
 
   describe('getPdfBuffer (IDOR)', () => {
-    it('403 khi không phải chủ sở hữu và không có certificate.read', async () => {
-      prisma.certificate.findUnique.mockResolvedValue({
-        id: 'cert-1',
-        userId: 'chu-so-huu',
-        classId: 'class-3',
-        user: { fullName: 'A' },
-        course: { title: 'Python' },
-      });
-      rbac.hasPermission.mockReturnValue(false);
+    const certRow = (classId: string | null = 'class-3') => ({
+      id: 'cert-1',
+      userId: 'chu-so-huu',
+      classId,
+      user: { fullName: 'A' },
+      course: { title: 'Python' },
+    });
+    const asActor = (scenario: RealRbacScenario) =>
+      new CertificatesService(
+        prisma as unknown as PrismaService,
+        realRbac(scenario),
+        grading as unknown as GradingService,
+      );
 
-      await expect(service.getPdfBuffer('cert-1', { userId: 'ke-tro-mo' })).rejects.toBeInstanceOf(
+    it.each<[string, RealRbacScenario, string | null]>([
+      ['học viên khác', { role: 'student' }, 'class-3'],
+      ['GV lớp khác (instructor global)', { role: 'instructor' }, 'class-3'],
+      ['GV khi lớp đã xóa', { role: 'instructor' }, null],
+    ])('%s → 403', async (_name, scenario, classId) => {
+      prisma.certificate.findUnique.mockResolvedValue(certRow(classId));
+      await expect(asActor(scenario).getPdfBuffer('cert-1', { userId: 'actor' })).rejects.toBeInstanceOf(
         ForbiddenException,
       );
-      expect(rbac.getEffectivePermissions).toHaveBeenCalledWith('ke-tro-mo');
+    });
+
+    it('không tồn tại → 404', async () => {
+      prisma.certificate.findUnique.mockResolvedValue(null);
+      await expect(service.getPdfBuffer('ghost', { userId: 'actor' })).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

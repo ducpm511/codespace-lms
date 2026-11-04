@@ -1,7 +1,8 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { QuizService } from './quiz.service';
 import type { PrismaService } from '../prisma/prisma.service';
-import { RbacService } from '../rbac/rbac.service';
+import type { RbacService } from '../rbac/rbac.service';
+import { realRbac, type RealRbacScenario } from '../rbac/testing/real-rbac';
 import type { AuthPrincipal } from '../auth/auth.types';
 
 function makePrisma() {
@@ -365,33 +366,10 @@ describe('QuizService', () => {
       answers: [{ questionId: 'qn1', selectedOptionIds: ['o2'], textAnswer: null, awardedPoints: '2', isCorrect: true }],
     };
 
-    /** Quyền chấm bằng RbacService THẬT: mock trả true/false sẽ che mất lỗi phạm vi (INVARIANT #3). */
-    const STUDENT = ['quiz.submit', 'quiz.result.read', 'notification.read'];
-    const INSTRUCTOR = ['quiz.read', 'quiz.result.read'];
-    const ADMIN = [...INSTRUCTOR, 'class.delete'];
-
-    function realRbac(
-      roles: { classId: string | null; keys: string[] }[],
-      cls: { createdById: string; members: { status: string; roleInClass: string }[] } = {
-        createdById: 'gv-lop-nay',
-        members: [],
-      },
-    ) {
-      const db = {
-        userRole: {
-          findMany: jest.fn().mockResolvedValue(
-            roles.map((r) => ({
-              classId: r.classId,
-              role: { permissions: r.keys.map((key) => ({ permission: { key } })) },
-            })),
-          ),
-        },
-        class: { findUnique: jest.fn().mockResolvedValue(cls) },
-      };
+    const asActor = (scenario: RealRbacScenario) => {
       prisma.quizAttempt.findUnique.mockResolvedValue(attemptRow);
-      return new QuizService(prisma as unknown as PrismaService, new RbacService(db as unknown as PrismaService));
-    }
-    const globalRole = (keys: string[]) => ({ classId: null, keys });
+      return new QuizService(prisma as unknown as PrismaService, realRbac(scenario));
+    };
 
     it('chủ bài xem được, không cần permission', async () => {
       prisma.quizAttempt.findUnique.mockResolvedValue(attemptRow);
@@ -400,45 +378,23 @@ describe('QuizService', () => {
       expect(rbac.getEffectivePermissions).not.toHaveBeenCalled();
     });
 
-    it('GV tạo đúng lớp xem được', async () => {
-      const svc = realRbac([globalRole(INSTRUCTOR)]);
-      await expect(svc.getAttempt('att1', principal('gv-lop-nay'))).resolves.toMatchObject({ id: 'att1' });
+    it.each<[string, RealRbacScenario]>([
+      ['GV tạo lớp', { role: 'instructor', createdById: 'actor' }],
+      ['TA là thành viên lớp', { role: 'instructor', member: { status: 'active', roleInClass: 'ta' } }],
+      ['role gán riêng cho đúng lớp', { scoped: { 'class-1': 'instructor' } }],
+      ['admin', { role: 'admin' }],
+    ])('%s xem được', async (_name, scenario) => {
+      await expect(asActor(scenario).getAttempt('att1', principal('actor'))).resolves.toMatchObject({ id: 'att1' });
     });
 
-    it('TA đúng lớp (thành viên active) xem được', async () => {
-      const svc = realRbac([globalRole(INSTRUCTOR)], {
-        createdById: 'gv-lop-nay',
-        members: [{ status: 'active', roleInClass: 'ta' }],
-      });
-      await expect(svc.getAttempt('att1', principal('ta-1'))).resolves.toMatchObject({ id: 'att1' });
-    });
-
-    it('TA role gán riêng cho đúng lớp xem được', async () => {
-      const svc = realRbac([{ classId: 'class-1', keys: INSTRUCTOR }]);
-      await expect(svc.getAttempt('att1', principal('ta-2'))).resolves.toMatchObject({ id: 'att1' });
-    });
-
-    it('admin xem được', async () => {
-      const svc = realRbac([globalRole(ADMIN)]);
-      await expect(svc.getAttempt('att1', principal('admin'))).resolves.toMatchObject({ id: 'att1' });
-    });
-
-    it('học viên khác có role student global → 403 (quiz.result.read không đủ)', async () => {
-      const svc = realRbac([globalRole(STUDENT)]);
-      await expect(svc.getAttempt('att1', principal('stu-2'))).rejects.toBeInstanceOf(ForbiddenException);
-    });
-
-    it('bạn cùng lớp → 403', async () => {
-      const svc = realRbac([globalRole(STUDENT)], {
-        createdById: 'gv-lop-nay',
-        members: [{ status: 'active', roleInClass: 'student' }],
-      });
-      await expect(svc.getAttempt('att1', principal('stu-3'))).rejects.toBeInstanceOf(ForbiddenException);
-    });
-
-    it('GV lớp khác (instructor global) → 403', async () => {
-      const svc = realRbac([globalRole(INSTRUCTOR)]);
-      await expect(svc.getAttempt('att1', principal('gv-lop-khac'))).rejects.toBeInstanceOf(ForbiddenException);
+    it.each<[string, RealRbacScenario]>([
+      ['học viên khác có role student global', { role: 'student' }],
+      ['bạn cùng lớp', { role: 'student', member: { status: 'active', roleInClass: 'student' } }],
+      ['GV lớp khác (instructor global)', { role: 'instructor' }],
+      ['GV đã rời lớp', { role: 'instructor', member: { status: 'removed', roleInClass: 'instructor' } }],
+      ['role gán riêng cho lớp khác', { scoped: { 'class-2': 'instructor' } }],
+    ])('%s → 403', async (_name, scenario) => {
+      await expect(asActor(scenario).getAttempt('att1', principal('actor'))).rejects.toBeInstanceOf(ForbiddenException);
     });
 
     it('attempt không tồn tại → 404, không tra quyền', async () => {

@@ -151,7 +151,10 @@ export class SubmissionsService {
     classId: string,
     assignmentId: string,
     query: QuerySubmissionsDto,
+    currentUser: AuthPrincipal,
   ): Promise<Paginated<SubmissionDto>> {
+    await this.assertCanReadClassSubmissions(classId, currentUser.userId);
+
     const assignment = await this.prisma.assignment.findUnique({
       where: { id: assignmentId },
       select: { id: true },
@@ -185,6 +188,19 @@ export class SubmissionsService {
     };
   }
 
+  /** `@RequirePermission` chỉ lọc thô vì role `instructor` gán global; chỗ chặn thật theo lớp nằm ở đây. */
+  private async assertCanReadClassSubmissions(classId: string, userId: string): Promise<void> {
+    const allowed = await this.rbac.isClassStaff(
+      userId,
+      classId,
+      [PERMISSIONS.SUBMISSION_READ, PERMISSIONS.GRADE_WRITE],
+      'any',
+    );
+    if (!allowed) {
+      throw new ForbiddenException('Không có quyền xem bài nộp này');
+    }
+  }
+
   async findOne(id: string, currentUser: AuthPrincipal): Promise<SubmissionDto> {
     const sub = await this.prisma.submission.findUnique({
       where: { id },
@@ -195,13 +211,7 @@ export class SubmissionsService {
     }
 
     if (sub.userId !== currentUser.userId) {
-      const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
-      const canRead =
-        this.rbac.hasPermission(eff, PERMISSIONS.SUBMISSION_READ, sub.classId) ||
-        this.rbac.hasPermission(eff, PERMISSIONS.GRADE_WRITE, sub.classId);
-      if (!canRead) {
-        throw new ForbiddenException('Không có quyền xem bài nộp này');
-      }
+      await this.assertCanReadClassSubmissions(sub.classId, currentUser.userId);
     }
 
     return toSubmissionDto(sub);

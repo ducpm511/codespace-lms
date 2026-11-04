@@ -4,6 +4,7 @@ import { ScratchLmsService } from './scratch-lms.service';
 import type { ScratchAccessService } from './scratch-access.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
+import { realRbac, type RealRbacScenario } from '../rbac/testing/real-rbac';
 import type { StorageAdapter } from '../common/storage/storage.interface';
 
 const A = `${'a'.repeat(32)}.png`;
@@ -161,12 +162,42 @@ describe('ScratchLmsService', () => {
       scratchVersion: { projectId: 'p1', projectJson: { targets: [{ costumes: [{ md5ext: A }] }] } },
     };
 
-    it('học viên nộp bài xem được; GV có quyền theo lớp xem được; người khác 403', async () => {
+    const asActor = (scenario: RealRbacScenario) =>
+      new ScratchLmsService(
+        prisma as unknown as PrismaService,
+        access as unknown as ScratchAccessService,
+        realRbac(scenario),
+        storage as unknown as StorageAdapter,
+      );
+
+    it('học viên nộp bài xem được', async () => {
       prisma.submission.findUnique.mockResolvedValue(sub);
       await expect(service.submissionJson('s1', 'stu')).resolves.toEqual(sub.scratchVersion.projectJson);
-      await expect(service.submissionJson('s1', 'stranger')).rejects.toBeInstanceOf(ForbiddenException);
-      rbac.hasPermission.mockImplementation((_e, _p, scope) => scope === 'class-1');
-      await expect(service.submissionJson('s1', 'teacher')).resolves.toBeDefined();
+    });
+
+    it.each<[string, RealRbacScenario]>([
+      ['GV tạo lớp', { role: 'instructor', createdById: 'actor' }],
+      ['TA là thành viên lớp', { role: 'instructor', member: { status: 'active', roleInClass: 'ta' } }],
+      ['role gán riêng cho đúng lớp', { scoped: { 'class-1': 'instructor' } }],
+      ['admin', { role: 'admin' }],
+    ])('%s xem được', async (_name, scenario) => {
+      prisma.submission.findUnique.mockResolvedValue(sub);
+      await expect(asActor(scenario).submissionJson('s1', 'actor')).resolves.toBeDefined();
+    });
+
+    it.each<[string, RealRbacScenario]>([
+      ['học viên khác', { role: 'student' }],
+      ['GV lớp khác (instructor global)', { role: 'instructor' }],
+    ])('%s → 403, cả project.json lẫn asset', async (_name, scenario) => {
+      prisma.submission.findUnique.mockResolvedValue(sub);
+      const svc = asActor(scenario);
+      await expect(svc.submissionJson('s1', 'actor')).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(svc.submissionAsset('s1', A, 'actor')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('bài nộp không tồn tại ⇒ 404', async () => {
+      prisma.submission.findUnique.mockResolvedValue(null);
+      await expect(service.submissionJson('ghost', 'actor')).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('chỉ phục vụ asset mà PHIÊN BẢN đã nộp dùng (asset thêm sau khi nộp ⇒ 404)', async () => {
