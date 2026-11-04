@@ -69,6 +69,7 @@ describe('CodingService', () => {
   beforeEach(() => {
     prisma = makePrisma();
     rbac = makeRbac();
+    Object.assign(rbac, { prisma, isClassStaff: RbacService.prototype.isClassStaff });
     queue = { enqueue: jest.fn().mockResolvedValue(undefined) };
     service = new CodingService(
       prisma as unknown as PrismaService,

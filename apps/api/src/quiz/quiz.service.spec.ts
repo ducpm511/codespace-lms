@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { QuizService } from './quiz.service';
 import type { PrismaService } from '../prisma/prisma.service';
-import type { RbacService } from '../rbac/rbac.service';
+import { RbacService } from '../rbac/rbac.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 
 function makePrisma() {
@@ -365,18 +365,86 @@ describe('QuizService', () => {
       answers: [{ questionId: 'qn1', selectedOptionIds: ['o2'], textAnswer: null, awardedPoints: '2', isCorrect: true }],
     };
 
-    it('chủ sở hữu xem được, không cần permission', async () => {
+    /** Quyền chấm bằng RbacService THẬT: mock trả true/false sẽ che mất lỗi phạm vi (INVARIANT #3). */
+    const STUDENT = ['quiz.submit', 'quiz.result.read', 'notification.read'];
+    const INSTRUCTOR = ['quiz.read', 'quiz.result.read'];
+    const ADMIN = [...INSTRUCTOR, 'class.delete'];
+
+    function realRbac(
+      roles: { classId: string | null; keys: string[] }[],
+      cls: { createdById: string; members: { status: string; roleInClass: string }[] } = {
+        createdById: 'gv-lop-nay',
+        members: [],
+      },
+    ) {
+      const db = {
+        userRole: {
+          findMany: jest.fn().mockResolvedValue(
+            roles.map((r) => ({
+              classId: r.classId,
+              role: { permissions: r.keys.map((key) => ({ permission: { key } })) },
+            })),
+          ),
+        },
+        class: { findUnique: jest.fn().mockResolvedValue(cls) },
+      };
+      prisma.quizAttempt.findUnique.mockResolvedValue(attemptRow);
+      return new QuizService(prisma as unknown as PrismaService, new RbacService(db as unknown as PrismaService));
+    }
+    const globalRole = (keys: string[]) => ({ classId: null, keys });
+
+    it('chủ bài xem được, không cần permission', async () => {
       prisma.quizAttempt.findUnique.mockResolvedValue(attemptRow);
       const res = await service.getAttempt('att1', principal('stu-1'));
       expect(res.id).toBe('att1');
-      expect(rbac.hasPermission).not.toHaveBeenCalled();
+      expect(rbac.getEffectivePermissions).not.toHaveBeenCalled();
     });
 
-    it('người khác không có quiz.result.read theo lớp → 403', async () => {
-      prisma.quizAttempt.findUnique.mockResolvedValue(attemptRow);
-      rbac.hasPermission.mockReturnValue(false);
-      await expect(service.getAttempt('att1', principal('gv-x'))).rejects.toBeInstanceOf(ForbiddenException);
-      expect(rbac.hasPermission).toHaveBeenCalledWith(expect.anything(), 'quiz.result.read', 'class-1');
+    it('GV tạo đúng lớp xem được', async () => {
+      const svc = realRbac([globalRole(INSTRUCTOR)]);
+      await expect(svc.getAttempt('att1', principal('gv-lop-nay'))).resolves.toMatchObject({ id: 'att1' });
+    });
+
+    it('TA đúng lớp (thành viên active) xem được', async () => {
+      const svc = realRbac([globalRole(INSTRUCTOR)], {
+        createdById: 'gv-lop-nay',
+        members: [{ status: 'active', roleInClass: 'ta' }],
+      });
+      await expect(svc.getAttempt('att1', principal('ta-1'))).resolves.toMatchObject({ id: 'att1' });
+    });
+
+    it('TA role gán riêng cho đúng lớp xem được', async () => {
+      const svc = realRbac([{ classId: 'class-1', keys: INSTRUCTOR }]);
+      await expect(svc.getAttempt('att1', principal('ta-2'))).resolves.toMatchObject({ id: 'att1' });
+    });
+
+    it('admin xem được', async () => {
+      const svc = realRbac([globalRole(ADMIN)]);
+      await expect(svc.getAttempt('att1', principal('admin'))).resolves.toMatchObject({ id: 'att1' });
+    });
+
+    it('học viên khác có role student global → 403 (quiz.result.read không đủ)', async () => {
+      const svc = realRbac([globalRole(STUDENT)]);
+      await expect(svc.getAttempt('att1', principal('stu-2'))).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('bạn cùng lớp → 403', async () => {
+      const svc = realRbac([globalRole(STUDENT)], {
+        createdById: 'gv-lop-nay',
+        members: [{ status: 'active', roleInClass: 'student' }],
+      });
+      await expect(svc.getAttempt('att1', principal('stu-3'))).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('GV lớp khác (instructor global) → 403', async () => {
+      const svc = realRbac([globalRole(INSTRUCTOR)]);
+      await expect(svc.getAttempt('att1', principal('gv-lop-khac'))).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('attempt không tồn tại → 404, không tra quyền', async () => {
+      prisma.quizAttempt.findUnique.mockResolvedValue(null);
+      await expect(service.getAttempt('ghost', principal('stu-1'))).rejects.toBeInstanceOf(NotFoundException);
+      expect(rbac.getEffectivePermissions).not.toHaveBeenCalled();
     });
   });
 
