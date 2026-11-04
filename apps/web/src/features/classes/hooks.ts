@@ -32,6 +32,15 @@ export function useClass(id: string | null) {
   });
 }
 
+/** GV xem được mọi lớp nhưng chỉ ghi ở lớp mình phụ trách. */
+export function useClassAccess(id: string | null) {
+  return useQuery({
+    queryKey: ['classes', id ?? '_none', 'my-access'],
+    queryFn: () => api.getClassAccess(id as string),
+    enabled: !!id,
+  });
+}
+
 export function useCreateClass() {
   const qc = useQueryClient();
   return useMutation({

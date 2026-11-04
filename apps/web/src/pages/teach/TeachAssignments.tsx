@@ -597,6 +597,11 @@ function SubmissionsGradingPanel({
 
   if (submissions.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
 
+  // GV xem được mọi lớp nhưng bài nộp từng em chỉ dành cho người phụ trách. 403 khác với "chưa có bài nộp".
+  if (submissions.error instanceof ApiError && submissions.error.status === 403) {
+    return <EmptyHint icon="ph-lock-key">{t('assignments.submissionsNotYourClass')}</EmptyHint>;
+  }
+
   const items = submissions.data?.items ?? [];
   const selected = items.find((s) => s.id === selectedId) ?? null;
 

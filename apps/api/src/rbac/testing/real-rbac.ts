@@ -2,10 +2,21 @@ import { PERMISSIONS } from '@lms/contracts';
 import type { PrismaService } from '../../prisma/prisma.service';
 import { RbacService } from '../rbac.service';
 
-/** Quyền của từng role, trích từ `seed.cjs` phần liên quan tới bài làm của học viên. */
+/** Quyền của từng role, trích từ `seed.cjs` phần liên quan tới bài làm của học viên và quản lý lớp. */
 export const ROLE_KEYS = {
   student: [PERMISSIONS.CODING_RESULT_READ, PERMISSIONS.QUIZ_SUBMIT, PERMISSIONS.QUIZ_RESULT_READ],
+  teaching_assistant: [
+    PERMISSIONS.SUBMISSION_READ,
+    PERMISSIONS.GRADE_READ,
+    PERMISSIONS.GRADE_WRITE,
+    PERMISSIONS.CERTIFICATE_READ,
+  ],
   instructor: [
+    PERMISSIONS.COURSE_UPDATE,
+    PERMISSIONS.CLASS_READ,
+    PERMISSIONS.CLASS_UPDATE,
+    PERMISSIONS.CLASS_MANAGE,
+    PERMISSIONS.GRADE_READ,
     PERMISSIONS.SUBMISSION_READ,
     PERMISSIONS.GRADE_WRITE,
     PERMISSIONS.QUIZ_READ,
@@ -15,6 +26,10 @@ export const ROLE_KEYS = {
     PERMISSIONS.CERTIFICATE_REVOKE,
   ],
   admin: [
+    PERMISSIONS.CLASS_READ,
+    PERMISSIONS.CLASS_UPDATE,
+    PERMISSIONS.CLASS_MANAGE,
+    PERMISSIONS.GRADE_READ,
     PERMISSIONS.SUBMISSION_READ,
     PERMISSIONS.GRADE_WRITE,
     PERMISSIONS.QUIZ_READ,

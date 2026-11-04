@@ -1,5 +1,6 @@
 import type {
   AssignCourseRequest,
+  ClassAccessDto,
   ClassDetail,
   ClassSummary,
   CreateClassRequest,
@@ -20,6 +21,9 @@ export const listClasses = (): Promise<Paginated<ClassSummary>> =>
 export const listMyClasses = (): Promise<ClassSummary[]> => apiFetch<ClassSummary[]>('/classes/mine');
 
 export const getClass = (id: string): Promise<ClassDetail> => apiFetch<ClassDetail>(`/classes/${id}`);
+
+export const getClassAccess = (id: string): Promise<ClassAccessDto> =>
+  apiFetch<ClassAccessDto>(`/classes/${id}/my-access`);
 
 export const createClass = (body: CreateClassRequest): Promise<ClassDetail> =>
   apiFetch<ClassDetail>('/classes', { method: 'POST', body: JSON.stringify(body) });

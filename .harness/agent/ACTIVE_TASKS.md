@@ -92,7 +92,7 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 |---|---|---|
 | C1 | ✅ **Xong 04/11** (chưa PR): tab Bài lập trình → "Bài nộp của học viên". `CURRENT_STATE.md §GV xem bài nộp` | — |
 | C3 | ✅ **Xong 04/11** (chưa PR): pass bài chỉ đặt `in_progress`, học viên tự bấm Hoàn thành. `CURRENT_STATE.md §C3` | Migration bù XP chưa áp lên production |
-| C4 | Route cấp lớp chưa chặn GV lớp khác: chi tiết lớp, báo cáo, sổ điểm, DS chứng chỉ, `teach/overview`. **Cần người chốt:** GV có được thấy lớp người khác không? `CURRENT_STATE.md §Vá IDOR` | GV bất kỳ đọc được điểm cả lớp |
+| C4 | ✅ **Xong 04/11** (chưa PR). Người dùng chốt: GV xem được mọi lớp, chỉ ghi ở lớp phụ trách. `CURRENT_STATE.md §Phạm vi GV` | — |
 
 ### Việc cần người quyết (không agent nào làm thay được)
 

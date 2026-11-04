@@ -8,6 +8,7 @@ import {
 } from './files.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
+import { realRbac, type RealRbacScenario } from '../rbac/testing/real-rbac';
 import type { StorageAdapter } from '../common/storage/storage.interface';
 
 function pdfBuffer(body = 'hello'): Buffer {
@@ -28,6 +29,7 @@ function makeFile(overrides: Partial<UploadedFileLike> = {}): UploadedFileLike {
 describe('FilesService', () => {
   let prisma: {
     file: { create: jest.Mock; findUnique: jest.Mock };
+    certificate: { findFirst: jest.Mock };
     lessonActivity: { findMany: jest.Mock };
     classMember: { findFirst: jest.Mock };
   };
@@ -43,6 +45,7 @@ describe('FilesService', () => {
         ),
         findUnique: jest.fn(),
       },
+      certificate: { findFirst: jest.fn().mockResolvedValue(null) },
       lessonActivity: { findMany: jest.fn().mockResolvedValue([]) },
       classMember: { findFirst: jest.fn().mockResolvedValue(null) },
     };
@@ -126,6 +129,28 @@ describe('FilesService', () => {
       prisma.file.findUnique.mockResolvedValue(file);
       rbac.hasPermission.mockReturnValue(true);
       await expect(service.download('file1', 'other')).resolves.toMatchObject({ mime: 'application/pdf' });
+    });
+
+    describe('file PDF chứng chỉ (RbacService thật)', () => {
+      const withRbac = (scenario: RealRbacScenario) =>
+        new FilesService(prisma as unknown as PrismaService, realRbac(scenario), storage as unknown as StorageAdapter);
+
+      beforeEach(() => {
+        prisma.file.findUnique.mockResolvedValue(file);
+        prisma.certificate.findFirst.mockResolvedValue({ userId: 'hoc-vien', classId: 'c1' });
+      });
+
+      it('GV lớp khác có course.update global vẫn 403', async () => {
+        await expect(withRbac({ role: 'instructor' }).download('file1', 'gv-khac')).rejects.toBeInstanceOf(
+          ForbiddenException,
+        );
+      });
+
+      it('chủ chứng chỉ, GV tạo lớp, admin đọc được', async () => {
+        await expect(withRbac({}).download('file1', 'hoc-vien')).resolves.toBeDefined();
+        await expect(withRbac({ role: 'instructor', createdById: 'gv' }).download('file1', 'gv')).resolves.toBeDefined();
+        await expect(withRbac({ role: 'admin' }).download('file1', 'admin')).resolves.toBeDefined();
+      });
     });
 
     it('403 khi file chưa gắn vào activity nào (không rò rỉ file lạ)', async () => {

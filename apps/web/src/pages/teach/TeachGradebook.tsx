@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassSummary } from '@lms/contracts';
-import { useClasses, useClass } from '../../features/classes/hooks';
+import { useClasses, useClass, useClassAccess } from '../../features/classes/hooks';
 import { useClassGradebook } from '../../features/gradebook/hooks';
 import {
   useClassCertificates,
@@ -30,7 +30,11 @@ export function TeachGradebook(): JSX.Element {
   const activeClassId = selectedClassId || (classes.length > 0 ? classes[0].id : null);
 
   const { data: classDetail } = useClass(activeClassId);
-  const { data: gradebook, isLoading: loadingGradebook } = useClassGradebook(activeClassId);
+  const access = useClassAccess(activeClassId);
+  // Lỗi tải quyền = coi như chỉ đọc, vẫn xem được sổ qua GET.
+  const canRecompute = access.isError ? false : access.data?.canRecomputeGradebook;
+  const canCertify = access.data?.canManageCertificates ?? false;
+  const { data: gradebook, isLoading: loadingGradebook } = useClassGradebook(activeClassId, canRecompute);
   const { data: certificates, isLoading: loadingCertificates } = useClassCertificates(activeClassId);
   const { data: templates } = useCertificateTemplates();
 
@@ -102,7 +106,13 @@ export function TeachGradebook(): JSX.Element {
         }
       />
 
-      {loadingGradebook ? (
+      {access.data && !canCertify && (
+        <p className="text-muted m-0 text-xs">
+          <i className="ph ph-eye" aria-hidden /> {t('gradebook.readOnlyNotice')}
+        </p>
+      )}
+
+      {loadingGradebook || access.isLoading ? (
         <p className="text-muted text-sm">{t('gradebook.loading')}</p>
       ) : !gradebook ? (
         <EmptyHint icon="ph-table">{t('gradebook.pickClassHint')}</EmptyHint>
@@ -210,6 +220,8 @@ export function TeachGradebook(): JSX.Element {
                                 <span className="tag tag-accent">
                                   <i className="ph-fill ph-seal-check" aria-hidden /> {t('gradebook.issued')}
                                 </span>
+                              ) : !canCertify ? (
+                                <span className="text-muted">—</span>
                               ) : (
                                 <PillButton
                                   icon="ph-certificate"
@@ -294,7 +306,7 @@ export function TeachGradebook(): JSX.Element {
                             >
                               <i className="ph ph-arrow-square-out" aria-hidden /> {t('gradebook.verify')}
                             </a>
-                            {!cert.revokedAt && (
+                            {canCertify && !cert.revokedAt && (
                               <button
                                 type="button"
                                 onClick={() => {
