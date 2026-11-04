@@ -162,11 +162,13 @@ export class ScratchLmsService {
     });
     if (!sub) throw new NotFoundException('Bài nộp không tồn tại');
     if (sub.userId !== userId) {
-      // Cùng luật với SubmissionsService.findOne: quyền đọc / chấm bài nộp THEO LỚP của bài nộp.
-      const eff = await this.rbac.getEffectivePermissions(userId);
-      const canRead =
-        this.rbac.hasPermission(eff, PERMISSIONS.SUBMISSION_READ, sub.classId) ||
-        this.rbac.hasPermission(eff, PERMISSIONS.GRADE_WRITE, sub.classId);
+      // Cùng luật với SubmissionsService.findOne: staff phụ trách đúng lớp của bài nộp.
+      const canRead = await this.rbac.isClassStaff(
+        userId,
+        sub.classId,
+        [PERMISSIONS.SUBMISSION_READ, PERMISSIONS.GRADE_WRITE],
+        'any',
+      );
       if (!canRead) throw new ForbiddenException('Không có quyền xem bài nộp này');
     }
     if (!sub.scratchVersion) throw new NotFoundException('Bài nộp không có dự án BlockSpace');

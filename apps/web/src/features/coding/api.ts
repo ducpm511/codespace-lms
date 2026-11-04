@@ -1,9 +1,12 @@
 import type {
+  ClassCodingOverviewDto,
+  ClassCodingProblemSubmissionsDto,
   CodingProblemAuthorDetail,
   CodingProblemForClass,
   CodingProblemStudentDetail,
   CodingProblemSummary,
   CodingSubmissionDto,
+  CodingSubmissionReviewDto,
   CreateCodingProblemRequest,
   Paginated,
   SubmitCodingRequest,
@@ -94,3 +97,19 @@ export const submitCoding = (
 
 export const getCodingSubmission = (id: string): Promise<CodingSubmissionDto> =>
   apiFetch<CodingSubmissionDto>(`/coding-submissions/${encodeURIComponent(id)}`);
+
+// --- Giáo viên xem bài nộp theo lớp ---
+
+export const getClassCodingOverview = (classId: string): Promise<ClassCodingOverviewDto> =>
+  apiFetch<ClassCodingOverviewDto>(`/classes/${encodeURIComponent(classId)}/coding-submissions`);
+
+export const getClassProblemSubmissions = (
+  classId: string,
+  problemId: string,
+): Promise<ClassCodingProblemSubmissionsDto> =>
+  apiFetch<ClassCodingProblemSubmissionsDto>(
+    `/classes/${encodeURIComponent(classId)}/coding-submissions/${encodeURIComponent(problemId)}`,
+  );
+
+export const getCodingSubmissionReview = (id: string): Promise<CodingSubmissionReviewDto> =>
+  apiFetch<CodingSubmissionReviewDto>(`/coding-submissions/${encodeURIComponent(id)}/review`);

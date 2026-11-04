@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PERMISSIONS } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -57,5 +58,47 @@ export class RbacService {
     if (eff.global.has(key)) return true;
     if (classId) return eff.byClass.get(classId)?.has(key) ?? false;
     return false;
+  }
+
+  /**
+   * Người này có được đụng vào bài làm của học viên khác trong lớp không (đọc bài, chấm, cấp chứng chỉ).
+   * `hasPermission` KHÔNG đủ để trả lời câu này, vì role `instructor` đang gán GLOBAL (nợ kỹ thuật đã biết):
+   * GV bất kỳ có quyền ở mọi lớp. Vì vậy phải qua hai cổng (INVARIANT #3):
+   *
+   * 1. Có `permissions` trong phạm vi lớp. Cổng này tách staff khỏi học viên, nên `permissions` phải gồm
+   *    ít nhất một quyền role `student` không có. Vd `quiz.result.read` học viên cũng có, phải kèm `quiz.read`.
+   * 2. Thật sự phụ trách lớp: role gán riêng cho lớp này, hoặc người tạo lớp, hoặc instructor/TA đang
+   *    hoạt động của lớp, hoặc admin. Admin nhận `class.delete` global; instructor không có.
+   *
+   * `classId` null = lớp đã bị xóa, không còn ai phụ trách nên chỉ admin qua được.
+   */
+  async isClassStaff(
+    userId: string,
+    classId: string | null,
+    permissions: readonly string[],
+    mode: 'all' | 'any' = 'all',
+  ): Promise<boolean> {
+    const matches = (has: (key: string) => boolean) =>
+      mode === 'all' ? permissions.every(has) : permissions.some(has);
+
+    const eff = await this.getEffectivePermissions(userId);
+    if (!matches((key) => this.hasPermission(eff, key, classId ?? undefined))) return false;
+    if (eff.global.has(PERMISSIONS.CLASS_DELETE)) return true;
+    if (!classId) return false;
+
+    // Role gán theo lớp phải tự đủ quyền. GV lớp khác mang thêm role `student` ở lớp này vẫn là học viên ở đây.
+    const scoped = eff.byClass.get(classId);
+    if (scoped && matches((key) => scoped.has(key))) return true;
+
+    const cls = await this.prisma.class.findUnique({
+      where: { id: classId },
+      select: {
+        createdById: true,
+        members: { where: { userId }, select: { status: true, roleInClass: true } },
+      },
+    });
+    if (cls?.createdById === userId) return true;
+    const member = cls?.members[0];
+    return member?.status === 'active' && (member.roleInClass === 'instructor' || member.roleInClass === 'ta');
   }
 }

@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { SubmissionsService } from './submissions.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
+import { realRbac, type RealRbacScenario } from '../rbac/testing/real-rbac';
 import type { ScratchLmsService } from '../scratch/scratch-lms.service';
 
 function makePrisma() {
@@ -41,6 +42,7 @@ function makeRbac() {
   return {
     getEffectivePermissions: jest.fn(),
     hasPermission: jest.fn(),
+    isClassStaff: jest.fn(),
   };
 }
 
@@ -79,6 +81,69 @@ describe('SubmissionsService', () => {
       rbac as unknown as RbacService,
       (scratch = { freezeLatest: jest.fn().mockResolvedValue('ver-7') }) as unknown as ScratchLmsService,
     );
+  });
+
+  describe('đọc bài nộp (ownership + phạm vi lớp)', () => {
+    const asActor = (scenario: RealRbacScenario) =>
+      new SubmissionsService(
+        prisma as unknown as PrismaService,
+        realRbac(scenario),
+        scratch as unknown as ScratchLmsService,
+      );
+    const STAFF: [string, RealRbacScenario][] = [
+      ['GV tạo lớp', { role: 'instructor', createdById: 'actor' }],
+      ['TA là thành viên lớp', { role: 'instructor', member: { status: 'active', roleInClass: 'ta' } }],
+      ['role gán riêng cho đúng lớp', { scoped: { 'class-1': 'instructor' } }],
+      ['admin', { role: 'admin' }],
+    ];
+    const OUTSIDERS: [string, RealRbacScenario][] = [
+      ['học viên khác có role student global', { role: 'student' }],
+      ['bạn cùng lớp', { role: 'student', member: { status: 'active', roleInClass: 'student' } }],
+      ['GV lớp khác (instructor global)', { role: 'instructor' }],
+      ['GV đã rời lớp', { role: 'instructor', member: { status: 'removed', roleInClass: 'instructor' } }],
+    ];
+
+    describe('findOne', () => {
+      beforeEach(() => prisma.submission.findUnique.mockResolvedValue(sampleSubmission()));
+
+      it('chủ bài xem được, không cần permission', async () => {
+        await expect(service.findOne('sub-1', { userId: 'student-1' })).resolves.toMatchObject({ id: 'sub-1' });
+        expect(rbac.getEffectivePermissions).not.toHaveBeenCalled();
+      });
+
+      it.each(STAFF)('%s xem được', async (_name, scenario) => {
+        await expect(asActor(scenario).findOne('sub-1', { userId: 'actor' })).resolves.toMatchObject({ id: 'sub-1' });
+      });
+
+      it.each(OUTSIDERS)('%s → 403', async (_name, scenario) => {
+        await expect(asActor(scenario).findOne('sub-1', { userId: 'actor' })).rejects.toBeInstanceOf(ForbiddenException);
+      });
+
+      it('không tồn tại → 404', async () => {
+        prisma.submission.findUnique.mockResolvedValue(null);
+        await expect(service.findOne('ghost', { userId: 'actor' })).rejects.toBeInstanceOf(NotFoundException);
+      });
+    });
+
+    describe('listForClassAssignment', () => {
+      const list = (svc: SubmissionsService) =>
+        svc.listForClassAssignment('class-1', 'a1', { page: 1, pageSize: 20 } as never, { userId: 'actor' });
+
+      beforeEach(() => {
+        prisma.assignment.findUnique.mockResolvedValue({ id: 'a1' });
+        prisma.submission.findMany.mockResolvedValue([]);
+        prisma.submission.count.mockResolvedValue(0);
+      });
+
+      it.each(STAFF)('%s xem được', async (_name, scenario) => {
+        await expect(list(asActor(scenario))).resolves.toMatchObject({ total: 0 });
+      });
+
+      it.each(OUTSIDERS)('%s → 403, không đọc bài nộp', async (_name, scenario) => {
+        await expect(list(asActor(scenario))).rejects.toBeInstanceOf(ForbiddenException);
+        expect(prisma.submission.findMany).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('BlockSpace (T11.7)', () => {
@@ -253,20 +318,32 @@ describe('SubmissionsService', () => {
 
     it('403 khi GV không có grade.write permission cho lớp', async () => {
       prisma.submission.findUnique.mockResolvedValue(sampleSubmission());
-      rbac.getEffectivePermissions.mockResolvedValue([]);
-      rbac.hasPermission.mockReturnValue(false);
+      rbac.isClassStaff.mockResolvedValue(false);
 
       await expect(
         service.grade('sub-1', { score: 90 }, { userId: 't1' }),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(rbac.isClassStaff).toHaveBeenCalledWith('t1', 'class-1', ['grade.write']);
+      expect(prisma.submission.update).not.toHaveBeenCalled();
+    });
+
+    it('GV lớp khác có grade.write global → 403 (RbacService thật)', async () => {
+      prisma.submission.findUnique.mockResolvedValue(sampleSubmission());
+      const svc = new SubmissionsService(
+        prisma as unknown as PrismaService,
+        realRbac({ role: 'instructor' }),
+        scratch as unknown as ScratchLmsService,
+      );
+
+      await expect(svc.grade('sub-1', { score: 90 }, { userId: 'gv-khac' })).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.submission.update).not.toHaveBeenCalled();
     });
 
     it('400 khi điểm chấm vượt quá điểm tối đa', async () => {
       prisma.submission.findUnique.mockResolvedValue(
         sampleSubmission({ assignment: { maxScore: '100' } }),
       );
-      rbac.getEffectivePermissions.mockResolvedValue(['grade.write']);
-      rbac.hasPermission.mockReturnValue(true);
+      rbac.isClassStaff.mockResolvedValue(true);
 
       await expect(
         service.grade('sub-1', { score: 105 }, { userId: 't1' }),
@@ -277,8 +354,7 @@ describe('SubmissionsService', () => {
       prisma.submission.findUnique.mockResolvedValue(
         sampleSubmission({ assignment: { maxScore: '100' } }),
       );
-      rbac.getEffectivePermissions.mockResolvedValue(['grade.write']);
-      rbac.hasPermission.mockReturnValue(true);
+      rbac.isClassStaff.mockResolvedValue(true);
       prisma.submission.update.mockResolvedValue(
         sampleSubmission({ status: 'graded', score: '95.5', gradedAt: now }),
       );

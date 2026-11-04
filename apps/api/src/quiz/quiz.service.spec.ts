@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { QuizService } from './quiz.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
+import { realRbac, type RealRbacScenario } from '../rbac/testing/real-rbac';
 import type { AuthPrincipal } from '../auth/auth.types';
 
 function makePrisma() {
@@ -365,18 +366,41 @@ describe('QuizService', () => {
       answers: [{ questionId: 'qn1', selectedOptionIds: ['o2'], textAnswer: null, awardedPoints: '2', isCorrect: true }],
     };
 
-    it('chủ sở hữu xem được, không cần permission', async () => {
+    const asActor = (scenario: RealRbacScenario) => {
+      prisma.quizAttempt.findUnique.mockResolvedValue(attemptRow);
+      return new QuizService(prisma as unknown as PrismaService, realRbac(scenario));
+    };
+
+    it('chủ bài xem được, không cần permission', async () => {
       prisma.quizAttempt.findUnique.mockResolvedValue(attemptRow);
       const res = await service.getAttempt('att1', principal('stu-1'));
       expect(res.id).toBe('att1');
-      expect(rbac.hasPermission).not.toHaveBeenCalled();
+      expect(rbac.getEffectivePermissions).not.toHaveBeenCalled();
     });
 
-    it('người khác không có quiz.result.read theo lớp → 403', async () => {
-      prisma.quizAttempt.findUnique.mockResolvedValue(attemptRow);
-      rbac.hasPermission.mockReturnValue(false);
-      await expect(service.getAttempt('att1', principal('gv-x'))).rejects.toBeInstanceOf(ForbiddenException);
-      expect(rbac.hasPermission).toHaveBeenCalledWith(expect.anything(), 'quiz.result.read', 'class-1');
+    it.each<[string, RealRbacScenario]>([
+      ['GV tạo lớp', { role: 'instructor', createdById: 'actor' }],
+      ['TA là thành viên lớp', { role: 'instructor', member: { status: 'active', roleInClass: 'ta' } }],
+      ['role gán riêng cho đúng lớp', { scoped: { 'class-1': 'instructor' } }],
+      ['admin', { role: 'admin' }],
+    ])('%s xem được', async (_name, scenario) => {
+      await expect(asActor(scenario).getAttempt('att1', principal('actor'))).resolves.toMatchObject({ id: 'att1' });
+    });
+
+    it.each<[string, RealRbacScenario]>([
+      ['học viên khác có role student global', { role: 'student' }],
+      ['bạn cùng lớp', { role: 'student', member: { status: 'active', roleInClass: 'student' } }],
+      ['GV lớp khác (instructor global)', { role: 'instructor' }],
+      ['GV đã rời lớp', { role: 'instructor', member: { status: 'removed', roleInClass: 'instructor' } }],
+      ['role gán riêng cho lớp khác', { scoped: { 'class-2': 'instructor' } }],
+    ])('%s → 403', async (_name, scenario) => {
+      await expect(asActor(scenario).getAttempt('att1', principal('actor'))).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('attempt không tồn tại → 404, không tra quyền', async () => {
+      prisma.quizAttempt.findUnique.mockResolvedValue(null);
+      await expect(service.getAttempt('ghost', principal('stu-1'))).rejects.toBeInstanceOf(NotFoundException);
+      expect(rbac.getEffectivePermissions).not.toHaveBeenCalled();
     });
   });
 
