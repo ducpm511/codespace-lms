@@ -40,6 +40,16 @@ export interface ClassDetail extends ClassSummary {
   members: ClassMemberDto[];
 }
 
+/**
+ * Người đang xem được làm gì ở lớp này. GV xem được mọi lớp nhưng chỉ ghi ở lớp mình phụ trách;
+ * FE dùng để ẩn nút ghi và chọn GET thay cho POST recompute. Cổng thật vẫn nằm ở API.
+ */
+export interface ClassAccessDto {
+  canManage: boolean;
+  canRecomputeGradebook: boolean;
+  canManageCertificates: boolean;
+}
+
 export interface CreateClassRequest {
   name: string;
   code: string;

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type {
   AssignCourseRequest,
   CreateClassRequest,
@@ -28,6 +28,15 @@ export function useClass(id: string | null) {
   return useQuery({
     queryKey: classKey(id ?? '_none'),
     queryFn: () => api.getClass(id as string),
+    enabled: !!id,
+  });
+}
+
+/** GV xem được mọi lớp nhưng chỉ ghi ở lớp mình phụ trách. */
+export function useClassAccess(id: string | null) {
+  return useQuery({
+    queryKey: ['classes', id ?? '_none', 'my-access'],
+    queryFn: () => api.getClassAccess(id as string),
     enabled: !!id,
   });
 }
@@ -118,17 +127,22 @@ export function useMyLessons(classId: string | null) {
   });
 }
 
+/**
+ * Hoàn thành bài hoặc nộp bài lập trình/trắc nghiệm đều đổi tiến độ và có thể cộng XP → danh sách bài,
+ * hero cấp độ và bảng xếp hạng tuần phải đổi theo ngay, nếu không học viên thấy điểm đứng yên và tưởng
+ * hệ thống không ghi nhận.
+ */
+export function invalidateLearningProgress(qc: QueryClient, classId: string): void {
+  void qc.invalidateQueries({ queryKey: myLessonsKey(classId) });
+  void qc.invalidateQueries({ queryKey: ['gamification', 'me'] });
+  void qc.invalidateQueries({ queryKey: ['classes', classId, 'leaderboard'] });
+}
+
 export function useUpdateProgress(classId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { lessonId: string; status: ProgressStatusValue }) =>
       api.updateProgress(classId, vars.lessonId, { status: vars.status }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: myLessonsKey(classId) });
-      // Hoàn thành bài là cộng XP → hero cấp độ và bảng xếp hạng tuần phải đổi theo ngay,
-      // nếu không học viên thấy điểm đứng yên và tưởng hệ thống không ghi nhận.
-      void qc.invalidateQueries({ queryKey: ['gamification', 'me'] });
-      void qc.invalidateQueries({ queryKey: ['classes', classId, 'leaderboard'] });
-    },
+    onSuccess: () => invalidateLearningProgress(qc, classId),
   });
 }

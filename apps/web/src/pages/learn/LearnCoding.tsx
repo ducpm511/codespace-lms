@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { MarkdownBlock } from '../../features/lesson-activities/ActivityBlocks';
 import Editor from '@monaco-editor/react';
-import type { CodingSubmissionDto } from '@lms/contracts';
+import type { CodingSubmissionDto, MyCodingProgressDto, MyCodingStatusDto } from '@lms/contracts';
 import '../../lib/monaco-setup';
-import { useCodingAttempt, useCodingSubmission, useSubmitCoding } from '../../features/coding/hooks';
+import { useConfirm } from '../../components/useConfirm';
+import {
+  codingSubmissionKey,
+  useCodingAttempt,
+  useCodingSubmission,
+  useRefreshAfterGraded,
+  useSubmitCoding,
+} from '../../features/coding/hooks';
 import { useSampleRunner, type SampleRunResult } from '../../features/coding/useSampleRunner';
 
 const TERMINAL = new Set(['passed', 'failed', 'error']);
@@ -20,9 +28,12 @@ export function LearnCodingWorkspace({
   onBack: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const confirm = useConfirm();
+  const qc = useQueryClient();
   const attempt = useCodingAttempt(problemId, classId);
   const { run, running } = useSampleRunner();
   const submit = useSubmitCoding(problemId);
+  const refreshAfterGraded = useRefreshAfterGraded(problemId, classId);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const submission = useCodingSubmission(submissionId);
 
@@ -30,13 +41,32 @@ export function LearnCodingWorkspace({
   const [seeded, setSeeded] = useState(false);
   const [sampleResults, setSampleResults] = useState<SampleRunResult[] | null>(null);
   const [runnerError, setRunnerError] = useState(false);
+  const refreshedFor = useRef<string | null>(null);
 
+  // Vào lại bài đã nộp: khôi phục code và kết quả lần gần nhất. Đợi đọc xong để không nạp nhầm bản cache cũ
+  // vào trình soạn; chỉ nạp một lần để lần đọc lại sau đó không đè lên code học viên đang gõ.
   useEffect(() => {
-    if (attempt.data && !seeded) {
-      setCode(attempt.data.starterCode ?? '');
+    if (attempt.data && !attempt.isFetching && !seeded) {
+      const latest = attempt.data.myProgress.latest;
+      setCode(latest?.sourceCode ?? attempt.data.starterCode ?? '');
+      if (latest) {
+        qc.setQueryData(codingSubmissionKey(latest.id), latest);
+        setSubmissionId(latest.id);
+      }
       setSeeded(true);
     }
-  }, [attempt.data, seeded]);
+  }, [attempt.data, attempt.isFetching, seeded, qc]);
+
+  const sub = submission.data;
+  const knownLatest = attempt.data?.myProgress.latest;
+
+  // Bài vừa chấm xong mà màn hình chưa biết (kể cả bài đang chấm dở lúc vào lại) thì làm mới một lần.
+  useEffect(() => {
+    if (!sub || !TERMINAL.has(sub.status) || refreshedFor.current === sub.id) return;
+    if (knownLatest?.id === sub.id && knownLatest.status === sub.status) return;
+    refreshedFor.current = sub.id;
+    refreshAfterGraded();
+  }, [sub, knownLatest, refreshAfterGraded]);
 
   const onRun = async () => {
     setRunnerError(false);
@@ -53,7 +83,12 @@ export function LearnCodingWorkspace({
     submit.mutate({ classId, sourceCode: code }, { onSuccess: (dto) => setSubmissionId(dto.id) });
   };
 
-  const sub = submission.data;
+  const onResetToStarter = async () => {
+    if (await confirm({ message: t('coding.resetConfirm'), confirmLabel: t('coding.resetToStarter') })) {
+      setCode(attempt.data?.starterCode ?? '');
+    }
+  };
+
   const isGrading = submit.isPending || (!!submissionId && (!sub || !TERMINAL.has(sub.status)));
   const samplePassed = sampleResults?.filter((r) => r.passed).length ?? 0;
 
@@ -78,6 +113,8 @@ export function LearnCodingWorkspace({
                 <MarkdownBlock content={attempt.data.statementMd} />
               </div>
             </div>
+
+            <MyProgressCard progress={attempt.data.myProgress} maxScore={attempt.data.maxScore} />
 
             {attempt.data.sampleTests.length > 0 && (
               <div className="card" style={{ borderRadius: 'var(--radius-lg)' }}>
@@ -145,15 +182,65 @@ export function LearnCodingWorkspace({
                 <i className="ph ph-play" aria-hidden />
                 {running ? t('coding.running') : t('coding.run')}
               </button>
-              <button onClick={onSubmit} disabled={submit.isPending || isGrading} className="btn btn-primary cx-press">
+              <button onClick={onSubmit} disabled={!seeded || submit.isPending || isGrading} className="btn btn-primary cx-press">
                 <i className="ph ph-check-circle" aria-hidden />
                 {submit.isPending ? t('coding.submitting') : t('coding.submit')}
               </button>
+              {/* Trình soạn giờ mở ra với code đã nộp, nên phải còn đường quay về code mẫu của giáo viên. */}
+              {attempt.data.myProgress.attempts > 0 && !!attempt.data.starterCode && (
+                <button onClick={() => void onResetToStarter()} className="btn btn-ghost cx-press">
+                  <i className="ph ph-arrow-counter-clockwise" aria-hidden />
+                  {t('coding.resetToStarter')}
+                </button>
+              )}
             </div>
             <p className="text-muted text-xs">{t('coding.previewNote')}</p>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Nhãn trạng thái bài lập trình trong danh sách; chưa nộp lần nào thì không hiện gì. */
+export function CodingStatusTag({ status }: { status?: MyCodingStatusDto | null }): JSX.Element | null {
+  const { t } = useTranslation();
+  if (!status) return null;
+  const score = status.bestScore ?? 0;
+  if (status.passed) {
+    return (
+      <span className="tag tag-accent gap-1">
+        <i className="ph ph-check-circle" aria-hidden />
+        {t('coding.tagPassed', { score })}
+      </span>
+    );
+  }
+  if (status.latestStatus === 'queued' || status.latestStatus === 'running') {
+    return <span className="tag tag-neutral">{t('coding.grading')}</span>;
+  }
+  return <span className="tag tag-outline">{t('coding.tagSubmitted', { score })}</span>;
+}
+
+/** Tổng kết các lần nộp: điểm cao nhất mới là điểm vào sổ, lần nộp sau sai cũng không làm mất. */
+function MyProgressCard({
+  progress,
+  maxScore,
+}: {
+  progress: MyCodingProgressDto;
+  maxScore: number;
+}): JSX.Element | null {
+  const { t } = useTranslation();
+  if (progress.attempts === 0) return null;
+  return (
+    <div className="card gap-2" style={{ borderRadius: 'var(--radius-lg)' }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <CodingStatusTag status={progress} />
+        <span className="text-sm">
+          {t('coding.bestScore', { score: progress.bestScore ?? 0, max: maxScore })} ·{' '}
+          {t('coding.attempts', { count: progress.attempts })}
+        </span>
+      </div>
+      <p className="text-muted m-0 text-xs">{t('coding.resubmitHint')}</p>
     </div>
   );
 }
@@ -231,7 +318,7 @@ function SubmissionResult({
   isGrading: boolean;
   submission?: CodingSubmissionDto;
 }): JSX.Element | null {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (!isGrading && !submission) return null;
   const passed = submission?.status === 'passed';
   return (
@@ -267,6 +354,9 @@ function SubmissionResult({
             )}
             {isGrading && <span className="text-xs" style={{ color: 'var(--color-accent-300)' }}>{t('coding.grading')}</span>}
           </div>
+          <p className="text-muted m-0 text-xs">
+            {t('coding.submittedAt', { time: new Date(submission.submittedAt).toLocaleString(i18n.language) })}
+          </p>
           {submission.results && submission.results.length > 0 && (
             <ul className="space-y-1">
               {submission.results.map((r) => (

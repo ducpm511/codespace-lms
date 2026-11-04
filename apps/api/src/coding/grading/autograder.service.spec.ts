@@ -1,5 +1,6 @@
 import { Prisma } from '@lms/database';
 import { ConfigService } from '@nestjs/config';
+import { XP_REWARDS } from '@lms/contracts';
 import { AutograderService, computeScore } from './autograder.service';
 import { mapTestCaseStatus, normalizeOutput } from './autograder.types';
 import type { RunnerInput, RunnerOutput, RunnerService } from '../runner/runner.types';
@@ -38,7 +39,12 @@ function makeTx() {
   };
 }
 
-function makeService(runnerRun: RunnerService['run'], submission: unknown, tx: ReturnType<typeof makeTx>) {
+function makeService(
+  runnerRun: RunnerService['run'],
+  submission: unknown,
+  tx: ReturnType<typeof makeTx>,
+  gamification?: { recordLearningActivityInTx: jest.Mock },
+) {
   const prisma = {
     codingSubmission: { findUnique: jest.fn().mockResolvedValue(submission), update: jest.fn() },
     $transaction: jest.fn(async (cb: (t: unknown) => Promise<unknown>) => cb(tx)),
@@ -46,7 +52,7 @@ function makeService(runnerRun: RunnerService['run'], submission: unknown, tx: R
   const runner: RunnerService = { run: runnerRun };
   const config = { get: jest.fn().mockReturnValue(undefined) } as unknown as ConfigService;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new AutograderService(prisma as any, runner, config);
+  const service = new AutograderService(prisma as any, runner, config, gamification as any);
   return { service, prisma };
 }
 
@@ -64,12 +70,47 @@ describe('AutograderService.grade', () => {
     const finalUpdate = tx.codingSubmission.update.mock.calls[0][0];
     expect(finalUpdate.data.status).toBe('passed');
     expect((finalUpdate.data.score as Prisma.Decimal).toString()).toBe('100');
-    // passed -> lesson marked completed via upsert
-    expect(tx.lessonProgress.upsert).toHaveBeenCalledTimes(1);
-    expect(tx.lessonProgress.upsert.mock.calls[0][0].create.status).toBe('completed');
+    // C3: a lesson can hold other activities, so a pass only starts it; the student completes it.
+    expect(tx.lessonProgress.upsert).not.toHaveBeenCalled();
+    expect(tx.lessonProgress.create).toHaveBeenCalledTimes(1);
+    expect(tx.lessonProgress.create.mock.calls[0][0].data.status).toBe('in_progress');
+    expect(tx.lessonProgress.create.mock.calls[0][0].data.completedAt).toBeUndefined();
   });
 
-  it('marks failed with weighted score and does not complete the lesson on partial pass', async () => {
+  it('never downgrades or re-stamps an already-completed lesson on a later pass', async () => {
+    const submission = { id: 's5', userId: 'u1', classId: 'c1', language: 'python', sourceCode: 'x', problem: makeProblem() };
+    const tx = makeTx();
+    tx.lessonProgress.findUnique.mockResolvedValue({ status: 'completed' });
+    const { service } = makeService(async (i: RunnerInput) => okOutput(i.stdin), submission, tx);
+
+    await service.grade('s5');
+
+    expect(tx.lessonProgress.upsert).not.toHaveBeenCalled();
+    expect(tx.lessonProgress.create).not.toHaveBeenCalled();
+    expect(tx.lessonProgress.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps the coding_pass XP key on a pass and leaves lesson_complete to the student', async () => {
+    const submission = { id: 's6', userId: 'u1', classId: 'c1', language: 'python', sourceCode: 'x', problem: makeProblem() };
+    const tx = makeTx();
+    const recordLearningActivityInTx = jest.fn();
+    const { service } = makeService(async (i: RunnerInput) => okOutput(i.stdin), submission, tx, {
+      recordLearningActivityInTx,
+    });
+
+    await service.grade('s6');
+
+    expect(recordLearningActivityInTx).toHaveBeenCalledTimes(1);
+    expect(recordLearningActivityInTx).toHaveBeenCalledWith(tx, {
+      userId: 'u1',
+      source: 'coding_pass',
+      sourceId: 'p1',
+      xpAmount: XP_REWARDS.coding_pass,
+      classId: 'c1',
+    });
+  });
+
+  it('marks failed with weighted score and leaves the lesson in progress on partial pass', async () => {
     const problem = makeProblem();
     problem.testCases[1].expectedStdout = '99'; // t2 (weight 3) will fail; t1 (weight 1) passes
     const submission = { id: 's2', userId: 'u1', classId: 'c1', language: 'python', sourceCode: 'x', problem };

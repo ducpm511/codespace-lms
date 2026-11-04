@@ -1,8 +1,12 @@
 import type {
+  ClassCodingOverviewDto,
+  ClassCodingProblemSubmissionsDto,
   CodingProblemAuthorDetail,
+  CodingProblemForClass,
   CodingProblemStudentDetail,
   CodingProblemSummary,
   CodingSubmissionDto,
+  CodingSubmissionReviewDto,
   CreateCodingProblemRequest,
   Paginated,
   SubmitCodingRequest,
@@ -13,9 +17,22 @@ import { apiFetch } from '../../lib/api';
 
 // --- Authoring (GV/admin) ---
 
-export const listCodingProblems = (courseId?: string): Promise<Paginated<CodingProblemSummary>> => {
+/**
+ * Nạp ĐỦ bài của khóa, không dừng ở trang đầu: API giới hạn pageSize tối đa 100, và màn GV lọc + nhóm
+ * ở client nên bài thứ 101 trở đi sẽ im lặng biến mất khỏi danh sách lẫn kết quả tìm kiếm.
+ */
+export const listCodingProblems = async (courseId?: string): Promise<Paginated<CodingProblemSummary>> => {
   const q = courseId ? `&courseId=${encodeURIComponent(courseId)}` : '';
-  return apiFetch<Paginated<CodingProblemSummary>>(`/coding-problems?page=1&pageSize=100${q}`);
+  const fetchPage = (page: number) =>
+    apiFetch<Paginated<CodingProblemSummary>>(`/coding-problems?page=${page}&pageSize=100${q}`);
+  const first = await fetchPage(1);
+  const items = [...first.items];
+  for (let page = 2; items.length < first.total; page += 1) {
+    const next = await fetchPage(page);
+    if (next.items.length === 0) break;
+    items.push(...next.items);
+  }
+  return { ...first, items };
 };
 
 export const getCodingProblem = (id: string): Promise<CodingProblemAuthorDetail> =>
@@ -58,8 +75,8 @@ export const deleteTestCase = (
 
 // --- Student (làm bài) — chỉ sample test, submit + xem kết quả ---
 
-export const listCodingProblemsForClass = (classId: string): Promise<CodingProblemSummary[]> =>
-  apiFetch<CodingProblemSummary[]>(`/coding-problems/for-class/${encodeURIComponent(classId)}`);
+export const listCodingProblemsForClass = (classId: string): Promise<CodingProblemForClass[]> =>
+  apiFetch<CodingProblemForClass[]>(`/coding-problems/for-class/${encodeURIComponent(classId)}`);
 
 export const getCodingAttempt = (
   id: string,
@@ -80,3 +97,19 @@ export const submitCoding = (
 
 export const getCodingSubmission = (id: string): Promise<CodingSubmissionDto> =>
   apiFetch<CodingSubmissionDto>(`/coding-submissions/${encodeURIComponent(id)}`);
+
+// --- Giáo viên xem bài nộp theo lớp ---
+
+export const getClassCodingOverview = (classId: string): Promise<ClassCodingOverviewDto> =>
+  apiFetch<ClassCodingOverviewDto>(`/classes/${encodeURIComponent(classId)}/coding-submissions`);
+
+export const getClassProblemSubmissions = (
+  classId: string,
+  problemId: string,
+): Promise<ClassCodingProblemSubmissionsDto> =>
+  apiFetch<ClassCodingProblemSubmissionsDto>(
+    `/classes/${encodeURIComponent(classId)}/coding-submissions/${encodeURIComponent(problemId)}`,
+  );
+
+export const getCodingSubmissionReview = (id: string): Promise<CodingSubmissionReviewDto> =>
+  apiFetch<CodingSubmissionReviewDto>(`/coding-submissions/${encodeURIComponent(id)}/review`);

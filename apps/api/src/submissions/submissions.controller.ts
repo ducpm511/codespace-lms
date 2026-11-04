@@ -49,8 +49,9 @@ export class SubmissionsController {
     @Param('classId') classId: string,
     @Param('assignmentId') assignmentId: string,
     @Query() query: QuerySubmissionsDto,
+    @CurrentUser() user: AuthPrincipal,
   ): Promise<Paginated<SubmissionDto>> {
-    return this.submissionsService.listForClassAssignment(classId, assignmentId, query);
+    return this.submissionsService.listForClassAssignment(classId, assignmentId, query, user);
   }
 
   @Get('submissions/:id')

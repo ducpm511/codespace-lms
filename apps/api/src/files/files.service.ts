@@ -94,12 +94,27 @@ export class FilesService {
   /**
    * Guard đọc file (chống rò rỉ chéo lớp):
    * 1. chủ sở hữu;
-   * 2. người có `course.update` global (surface soạn bài);
+   * 2. người có `course.update` global (surface soạn bài), TRỪ file PDF chứng chỉ: file đó theo đúng luật
+   *    của `GET /certificates/:id/pdf` (chủ chứng chỉ hoặc staff của lớp), nếu không đây là đường vòng;
    * 3. thành viên active của lớp có LessonGate ĐANG MỞ trên bài dùng file (INVARIANT #3);
    * 4. instructor/TA active của lớp đã được gán khóa chứa bài đó (xem trước khi mở gate).
    */
   private async ensureCanRead(fileId: string, ownerId: string | null, userId: string): Promise<void> {
     if (ownerId && ownerId === userId) {
+      return;
+    }
+
+    const cert = await this.prisma.certificate.findFirst({
+      where: { pdfFileId: fileId },
+      select: { userId: true, classId: true },
+    });
+    if (cert) {
+      const allowed =
+        cert.userId === userId ||
+        (await this.rbac.isClassStaff(userId, cert.classId, [PERMISSIONS.CERTIFICATE_READ]));
+      if (!allowed) {
+        throw new ForbiddenException('Bạn không có quyền truy cập file này');
+      }
       return;
     }
 

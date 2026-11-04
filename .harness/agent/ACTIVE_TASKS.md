@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-11-02
+Updated: 2026-11-04
 
 ## Quy ước đặt tên
 
@@ -86,6 +86,14 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | O7 | 🚨 **Đặt sẵn mật khẩu console cho `deploy`**: user tạo bằng `--disabled-password`, root không có mật khẩu → chỉ vào console được sau khi reset mật khẩu root qua bảng điều khiển TINO. Cất vào trình quản lý mật khẩu. | — |
 | O8 | 👀 **Xem BẰNG MẮT bản vá markdown 04/09**: mở một bài lập trình bằng tài khoản HỌC VIÊN trên production. Bản vá đã phát hành nhưng chưa ai nhìn tận mắt. | — |
 
+### Bài lập trình — việc còn hở (phát hiện 03/11)
+
+| # | Việc | Hệ quả hiện tại |
+|---|---|---|
+| C1 | ✅ **Xong 04/11** (chưa PR): tab Bài lập trình → "Bài nộp của học viên". `CURRENT_STATE.md §GV xem bài nộp` | — |
+| C3 | ✅ **Xong 04/11** (chưa PR): pass bài chỉ đặt `in_progress`, học viên tự bấm Hoàn thành. `CURRENT_STATE.md §C3` | Migration bù XP chưa áp lên production |
+| C4 | ✅ **Xong 04/11** (chưa PR). Người dùng chốt: GV xem được mọi lớp, chỉ ghi ở lớp phụ trách. `CURRENT_STATE.md §Phạm vi GV` | — |
+
 ### Việc cần người quyết (không agent nào làm thay được)
 
 | # | Việc | Chặn cái gì |
@@ -141,36 +149,23 @@ và tên file PDF mojibake (vá lúc upload ở P8 + script dọn dữ liệu c�
 
 ### Phase P7: Lesson Activities — ✅ HOÀN THÀNH (2026-08-19)
 
-Bài học = **container activity có thứ tự** (markdown/pdf/video/quiz/coding/assignment). T7.0 contracts ·
-T7.1 migration `p7_lesson_activities` (+ backfill) · T7.2 module `files` (PDF: allowlist mime + magic bytes
-+ 20MB, storageKey server sinh, guard owner/`course.update`/member lớp có gate mở) · T7.3
-`lesson-activities.service` (CRUD + reorder 2 pha, IDOR course→section→lesson) · T7.4 `LessonActivityBuilder`
-· T7.5 render activity trong `LessonDetail` · bonus `GET /assignments/for-class/:classId`.
-INVARIANT verify (live): XSS markdown render thành TEXT; video ngoài allowlist → 400; upload PNG / PDF giả
-mime → 400; trước gate `my-lessons` rỗng + file 403; ngoài lớp 403; HV POST activity/files 403; quiz draft →
-refId null. Chi tiết đầy đủ: `CURRENT_STATE.md §P7`.
+Chi tiết: `CURRENT_STATE.md §P7`.
 
 ---
 
 ### Phase P6: Polish & Gamification — ✅ HOÀN THÀNH (2026-08-17)
 
-- **T6.1 (In-app Notification)**: Schema + contracts + NotificationsModule + Domain triggers (`gate.opened`, `submission.graded`, `certificate.issued`, `certificate.revoked`, `badge.awarded`) trong cùng `$transaction` + FE `NotificationBell` header dropdown + badge unread + mark read.
-- **T6.2 (Teacher Class Report)**: `GET /classes/:classId/report` tính số lượng học viên, tỷ lệ hoàn thành khóa, điểm trung bình, phân phối điểm và tiến độ từng bài đã mở gate + Tab Báo cáo & Thống kê trong TeachClasses.
-- **T6.3 (Audit Log Viewer)**: `GET /audit` (phân trang + lọc theo actor/action/entity/date) + Tab Nhật ký hệ thống trong AdminHome + Modal xem JSON meta chi tiết.
-- **T6.4 (Teacher Authoring Polish)**: Thêm inline sửa/xóa Section và Lesson trong TeachCourses.
-- **T6.5 (Quiz Publish Switch)**: Thêm trường `Quiz.published` vào Schema/Contracts + toggle `.cx-toggle` trong TeachQuiz.
-- **T6.6 (i18n Parity)**: Đồng bộ 100% bộ key giữa `vi.json` và `en.json` (0 missing keys).
-- **D1 (PDF Certificate Generation & Storage)**: Tích hợp `pdf-lib` sinh PDF chứng chỉ khổ ngang A4 (màu vàng/teal, serial, verification code) + `LocalStorageAdapter` (`uploads/`) + endpoint `GET /certificates/:id/pdf` tải file PDF.
-- **D2 (Verify Certificate Privacy)**: Gỡ bỏ `finalScore` khỏi `PublicVerificationDto` và trang `VerifyCertificate.tsx` (chống lộ điểm số trên QR code công khai).
-- **D3 (Separate Template Permission)**: Thêm quyền `certificate.template.manage` (`CERTIFICATE_TEMPLATE_MANAGE`) tách biệt với quyền cấp phát chứng chỉ.
-- **D4 (Real Gamification ADR 002)**: Schema (`XpEvent`, `UserStreak`, `Badge`, `UserBadge`) + tính Level/XP/Streak pure function + tự động trao huy hiệu + trigger XP khi hoàn thành bài học (50 XP), pass quiz (100 XP), pass coding (100 XP) trong cùng transaction + FE `GreetingHero` và Streak pill hiển thị dữ liệu thật từ `/gamification/me`.
-- **D5 (Lesson Discussion / Comments)**: Schema (`LessonComment`) + CommentsModule (`GET/POST /lessons/:id/comments?classId=`) + FE `LessonCommentsSection` tích hợp trong `LearnHome > LessonDetail`.
+Chi tiết T6.1–T6.6 + D1–D5: [pre-p7-history.md](../../docs/archive/completed_tasks/pre-p7-history.md).
 
 ---
 
 ## Bản vá đã hoàn thành
 
 Ba bản vá phiên P7 → [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md](../../docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md).
+
+- **C3** ✅ **Xong 04/11, chưa mở PR** (nhánh `claude/elastic-dijkstra-28d486`) — pass bài lập trình/trắc nghiệm chỉ đặt
+  `in_progress`, học viên tự bấm Hoàn thành nhận 50 XP; migration `backfill_lesson_complete_xp` bù XP cho dữ liệu cũ.
+  Chi tiết `CURRENT_STATE.md §C3`.
 
 ## Nợ kỹ thuật đã giải quyết (Phase P6 Tech Debt Cleaned)
 

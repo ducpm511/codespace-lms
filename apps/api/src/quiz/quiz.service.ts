@@ -308,7 +308,7 @@ export class QuizService {
         });
       }
       if (quiz.lessonId) {
-        await this.reflectLessonProgress(tx, userId, quiz.lessonId, dto.classId, passed);
+        await this.reflectLessonProgress(tx, userId, quiz.lessonId, dto.classId);
       }
       if (passed && this.gamificationService) {
         await this.gamificationService.recordLearningActivityInTx(tx, {
@@ -326,14 +326,17 @@ export class QuizService {
   }
 
   /**
-   * Xem 1 attempt: chủ sở hữu, hoặc GV/TA có quiz.result.read theo lớp của attempt. Route không có
-   * :classId nên scope kiểm ở đây theo attempt.classId (giống coding.getSubmission).
+   * Xem 1 attempt: chủ sở hữu, hoặc staff phụ trách lớp của attempt. Route không có :classId nên kiểm ở đây.
+   * Role `student` cũng có `quiz.result.read` (để xem bài của mình), nên phải kèm `quiz.read`.
    */
   async getAttempt(id: string, currentUser: AuthPrincipal): Promise<QuizAttemptDto> {
     const attempt = await this.loadAttempt(id);
     if (attempt.userId !== currentUser.userId) {
-      const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
-      if (!this.rbac.hasPermission(eff, PERMISSIONS.QUIZ_RESULT_READ, attempt.classId ?? undefined)) {
+      const allowed = await this.rbac.isClassStaff(currentUser.userId, attempt.classId, [
+        PERMISSIONS.QUIZ_RESULT_READ,
+        PERMISSIONS.QUIZ_READ,
+      ]);
+      if (!allowed) {
         throw new ForbiddenException('Không có quyền xem bài làm này');
       }
     }
@@ -352,28 +355,22 @@ export class QuizService {
     return attempt;
   }
 
-  /** LessonProgress: đạt → completed (không hạ cấp bài đã completed); chưa đạt → in_progress nếu chưa có. */
+  /**
+   * LessonProgress: nộp bài chỉ đặt in_progress, đạt hay chưa đạt đều vậy (không hạ cấp bài đã completed).
+   * Bài học có thể còn hoạt động khác nên việc hoàn thành (kèm XP lesson_complete) do học viên tự bấm.
+   */
   private async reflectLessonProgress(
     tx: Prisma.TransactionClient,
     userId: string,
     lessonId: string,
     classId: string,
-    passed: boolean,
   ): Promise<void> {
     const key = { userId_lessonId_classId: { userId, lessonId, classId } };
-    if (passed) {
-      await tx.lessonProgress.upsert({
-        where: key,
-        create: { userId, lessonId, classId, status: 'completed', completedAt: new Date() },
-        update: { status: 'completed', completedAt: new Date() },
-      });
-    } else {
-      const existing = await tx.lessonProgress.findUnique({ where: key, select: { status: true } });
-      if (!existing) {
-        await tx.lessonProgress.create({ data: { userId, lessonId, classId, status: 'in_progress' } });
-      } else if (existing.status === 'not_started') {
-        await tx.lessonProgress.update({ where: key, data: { status: 'in_progress' } });
-      }
+    const existing = await tx.lessonProgress.findUnique({ where: key, select: { status: true } });
+    if (!existing) {
+      await tx.lessonProgress.create({ data: { userId, lessonId, classId, status: 'in_progress' } });
+    } else if (existing.status === 'not_started') {
+      await tx.lessonProgress.update({ where: key, data: { status: 'in_progress' } });
     }
   }
 

@@ -3,6 +3,7 @@ import type { AuthPrincipal } from '../auth/auth.types';
 import { CertificatesService } from './certificates.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { RbacService } from '../rbac/rbac.service';
+import { realRbac, type RealRbacScenario } from '../rbac/testing/real-rbac';
 import type { GradingService } from '../grading/grading.service';
 
 const dummyAdmin: AuthPrincipal = { userId: 'admin1' };
@@ -25,6 +26,7 @@ function makeRbac() {
   return {
     getEffectivePermissions: jest.fn().mockResolvedValue([]),
     hasPermission: jest.fn().mockReturnValue(true),
+    isClassStaff: jest.fn().mockResolvedValue(true),
   };
 }
 
@@ -63,6 +65,19 @@ describe('CertificatesService', () => {
       await expect(
         service.issue({ userId: 'ghost', courseId: 'cr1', classId: 'c1', templateId: 't1' }, dummyAdmin),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('GV lớp khác có certificate.issue global → 403 (RbacService thật)', async () => {
+      const svc = new CertificatesService(
+        prisma as unknown as PrismaService,
+        realRbac({ role: 'instructor' }),
+        grading as unknown as GradingService,
+      );
+
+      await expect(
+        svc.issue({ userId: 'u1', courseId: 'cr1', classId: 'c1', templateId: 't1' }, { userId: 'gv-khac' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
     it('409 khi học viên đã được cấp chứng chỉ cho khóa', async () => {
@@ -164,15 +179,28 @@ describe('CertificatesService', () => {
 
     it('403 khi không có quyền revoke (scope theo cert.classId)', async () => {
       prisma.certificate.findUnique.mockResolvedValue({ id: 'cert-100', classId: 'class-9', revokedAt: null });
-      rbac.hasPermission.mockReturnValue(false);
+      rbac.isClassStaff.mockResolvedValue(false);
 
       await expect(
         service.revoke('cert-100', { reason: 'Gian lận' }, { userId: 'nguoi-la' }),
       ).rejects.toBeInstanceOf(ForbiddenException);
 
       // Hồi quy: phải tra quyền bằng userId THẬT, không phải undefined
-      expect(rbac.getEffectivePermissions).toHaveBeenCalledWith('nguoi-la');
-      expect(rbac.hasPermission).toHaveBeenCalledWith(expect.anything(), 'certificate.revoke', 'class-9');
+      expect(rbac.isClassStaff).toHaveBeenCalledWith('nguoi-la', 'class-9', ['certificate.revoke']);
+      expect(prisma.certificate.update).not.toHaveBeenCalled();
+    });
+
+    it('GV lớp khác có certificate.revoke global → 403 (RbacService thật)', async () => {
+      prisma.certificate.findUnique.mockResolvedValue({ id: 'cert-100', classId: 'class-9', revokedAt: null });
+      const svc = new CertificatesService(
+        prisma as unknown as PrismaService,
+        realRbac({ role: 'instructor' }),
+        grading as unknown as GradingService,
+      );
+
+      await expect(svc.revoke('cert-100', { reason: 'Gian lận' }, { userId: 'gv-khac' })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
       expect(prisma.certificate.update).not.toHaveBeenCalled();
     });
   });
@@ -190,20 +218,34 @@ describe('CertificatesService', () => {
   });
 
   describe('getPdfBuffer (IDOR)', () => {
-    it('403 khi không phải chủ sở hữu và không có certificate.read', async () => {
-      prisma.certificate.findUnique.mockResolvedValue({
-        id: 'cert-1',
-        userId: 'chu-so-huu',
-        classId: 'class-3',
-        user: { fullName: 'A' },
-        course: { title: 'Python' },
-      });
-      rbac.hasPermission.mockReturnValue(false);
+    const certRow = (classId: string | null = 'class-3') => ({
+      id: 'cert-1',
+      userId: 'chu-so-huu',
+      classId,
+      user: { fullName: 'A' },
+      course: { title: 'Python' },
+    });
+    const asActor = (scenario: RealRbacScenario) =>
+      new CertificatesService(
+        prisma as unknown as PrismaService,
+        realRbac(scenario),
+        grading as unknown as GradingService,
+      );
 
-      await expect(service.getPdfBuffer('cert-1', { userId: 'ke-tro-mo' })).rejects.toBeInstanceOf(
+    it.each<[string, RealRbacScenario, string | null]>([
+      ['học viên khác', { role: 'student' }, 'class-3'],
+      ['GV lớp khác (instructor global)', { role: 'instructor' }, 'class-3'],
+      ['GV khi lớp đã xóa', { role: 'instructor' }, null],
+    ])('%s → 403', async (_name, scenario, classId) => {
+      prisma.certificate.findUnique.mockResolvedValue(certRow(classId));
+      await expect(asActor(scenario).getPdfBuffer('cert-1', { userId: 'actor' })).rejects.toBeInstanceOf(
         ForbiddenException,
       );
-      expect(rbac.getEffectivePermissions).toHaveBeenCalledWith('ke-tro-mo');
+    });
+
+    it('không tồn tại → 404', async () => {
+      prisma.certificate.findUnique.mockResolvedValue(null);
+      await expect(service.getPdfBuffer('ghost', { userId: 'actor' })).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

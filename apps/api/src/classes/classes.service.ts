@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@lms/database';
 import { PERMISSIONS, XP_REWARDS } from '@lms/contracts';
 import type {
+  ClassAccessDto,
   ClassDetail,
   ClassLeaderboardDto,
   ClassReportDto,
@@ -479,6 +480,17 @@ export class ClassesService {
   }
 
   // --- helpers ---
+
+  async getMyAccess(classId: string, userId: string): Promise<ClassAccessDto> {
+    await this.ensureClass(classId);
+    const can = async (keys: string[]) => (await this.rbac?.isClassStaff(userId, classId, keys)) ?? false;
+    const [canManage, canRecomputeGradebook, canManageCertificates] = await Promise.all([
+      can([PERMISSIONS.CLASS_MANAGE, PERMISSIONS.CLASS_UPDATE]),
+      can([PERMISSIONS.GRADE_READ]),
+      can([PERMISSIONS.CERTIFICATE_ISSUE, PERMISSIONS.CERTIFICATE_REVOKE]),
+    ]);
+    return { canManage, canRecomputeGradebook, canManageCertificates };
+  }
 
   private async ensureClass(classId: string): Promise<void> {
     const cls = await this.prisma.class.findUnique({ where: { id: classId }, select: { id: true } });

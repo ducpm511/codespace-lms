@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { PERMISSIONS } from '@lms/contracts';
 import type {
+  ClassAccessDto,
   ClassDetail,
   ClassLeaderboardDto,
   ClassSummary,
@@ -24,6 +25,7 @@ import type {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthPrincipal } from '../auth/auth.types';
+import { ClassStaffGuard } from '../rbac/guards/class-staff.guard';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
@@ -37,6 +39,7 @@ import { UpdateProgressDto } from './dto/update-progress.dto';
 import { LeaderboardQueryDto } from './dto/leaderboard-query.dto';
 
 // Param scope là ':classId' → PermissionsGuard trích classId để chấm quyền theo phạm vi lớp.
+// GV xem được mọi lớp; route GHI phải qua thêm ClassStaffGuard (chỉ lớp mình phụ trách).
 @Controller('classes')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ClassesController {
@@ -72,6 +75,16 @@ export class ClassesController {
     return this.classes.getClassReport(classId);
   }
 
+  // FE dùng để biết hiện nút ghi hay để chỉ đọc. Không phải cổng bảo mật, cổng thật là ClassStaffGuard.
+  @Get(':classId/my-access')
+  @RequirePermission(PERMISSIONS.CLASS_READ)
+  getMyAccess(
+    @Param('classId') classId: string,
+    @CurrentUser() user: AuthPrincipal,
+  ): Promise<ClassAccessDto> {
+    return this.classes.getMyAccess(classId, user.userId);
+  }
+
   // Bảng xếp hạng tuần của lớp — học viên PHẢI xem được nên KHÔNG gắn @RequirePermission
   // (`class.read` là quyền của GV/admin). Quyền xem kiểm theo membership trong service.
   @Get(':classId/leaderboard')
@@ -85,6 +98,7 @@ export class ClassesController {
 
   @Patch(':classId')
   @RequirePermission(PERMISSIONS.CLASS_UPDATE)
+  @UseGuards(ClassStaffGuard)
   update(@Param('classId') classId: string, @Body() dto: UpdateClassDto): Promise<ClassDetail> {
     return this.classes.update(classId, dto);
   }
@@ -100,12 +114,14 @@ export class ClassesController {
 
   @Post(':classId/courses')
   @RequirePermission(PERMISSIONS.CLASS_MANAGE)
+  @UseGuards(ClassStaffGuard)
   assignCourse(@Param('classId') classId: string, @Body() dto: AssignCourseDto): Promise<ClassDetail> {
     return this.classes.assignCourse(classId, dto);
   }
 
   @Delete(':classId/courses/:courseId')
   @RequirePermission(PERMISSIONS.CLASS_MANAGE)
+  @UseGuards(ClassStaffGuard)
   removeCourse(
     @Param('classId') classId: string,
     @Param('courseId') courseId: string,
@@ -117,12 +133,14 @@ export class ClassesController {
 
   @Post(':classId/members')
   @RequirePermission(PERMISSIONS.CLASS_MANAGE)
+  @UseGuards(ClassStaffGuard)
   enrollMember(@Param('classId') classId: string, @Body() dto: EnrollMemberDto): Promise<ClassDetail> {
     return this.classes.enrollMember(classId, dto);
   }
 
   @Delete(':classId/members/:userId')
   @RequirePermission(PERMISSIONS.CLASS_MANAGE)
+  @UseGuards(ClassStaffGuard)
   removeMember(
     @Param('classId') classId: string,
     @Param('userId') userId: string,
@@ -140,6 +158,7 @@ export class ClassesController {
 
   @Put(':classId/gates')
   @RequirePermission(PERMISSIONS.CLASS_MANAGE)
+  @UseGuards(ClassStaffGuard)
   setGate(
     @Param('classId') classId: string,
     @Body() dto: SetLessonGateDto,

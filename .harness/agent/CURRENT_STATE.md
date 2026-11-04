@@ -2,12 +2,92 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-11-02
+Updated: 2026-11-04
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+
+### Bản ghép chờ PR (2026-11-04) — nhánh `claude/focused-kapitsa-de036f`, chưa push/PR/deploy
+
+Đã ghép việc bài lập trình + C1 + vá IDOR + C3 + C4. `pnpm validate` đạt 18/18 task (api 596 test / 39 suite), i18n 832/832; 41 ca đầu cuối
+trên API thật (DB tạm, đã xóa) đều đạt, với runner stub. Xem bằng mắt GV phụ trách + GV lớp khác trên bản đủ C4; HV xem trên bản trước C4. Migration `backfill_lesson_complete_xp` đã thử trên một ca
+tự tạo: cộng 50 XP theo ngày cũ, chạy lại không cộng thêm. DB dev `lms` chưa áp 2 migration mới nhất (`close_orphan_lesson_gates`, backfill).
+
+### Phạm vi GV theo lớp (C4, 2026-11-04) — nhánh `claude/hungry-mendel-e230df`, xếp chồng lên nhánh vá IDOR bên dưới, chưa PR
+Không đổi schema. **Người dùng chốt: GV được xem mọi lớp, chỉ ghi ở lớp mình phụ trách.**
+
+- **`rbac/guards/class-staff.guard.ts`** đặt sau PermissionsGuard, dùng lại quyền của `@RequirePermission`: `PATCH classes/:id`, gán/gỡ khóa,
+  thêm/gỡ thành viên, `PUT gates`, `POST gradebook/recompute`. GV lớp khác 403; lớp không tồn tại GV 403, admin 404.
+- **Đọc vẫn mở cho mọi GV:** `GET /classes`, `teach/overview`, chi tiết lớp, báo cáo, gate, sổ điểm, danh sách chứng chỉ, leaderboard.
+  Bài làm từng em (quiz, bài nộp, code, PDF chứng chỉ) vẫn chỉ người phụ trách, theo bản vá bên dưới.
+- **Bẫy:** tab Sổ điểm mở sổ bằng `POST recompute`. `GET /classes/:id/my-access` (mới) cho FE biết để dùng GET và ẩn nút ghi; GV lớp khác thấy
+  điểm tới lần tổng hợp gần nhất.
+- **Vá `files/:id`:** `course.update` global không còn đọc được PDF chứng chỉ, file đó theo luật của `certificates/:id/pdf`.
+- **Đã kiểm:** `pnpm validate` 18/18 task (api 588 test / 39 suite). API thật trên DB bản sao `lms_c4` (đã xóa, DB dev không đổi), 6 vai, 16 route đều
+  đúng. Xem bằng mắt: GV lớp khác chỉ đọc, không 403 trên console; GV tạo lớp đủ nút ghi.
+
+### C3: pass bài không còn tự hoàn thành bài học (2026-11-04) — nhánh `claude/elastic-dijkstra-28d486`, chưa mở PR
+
+- **Người dùng chọn hướng (a):** nộp bài lập trình/trắc nghiệm, đạt hay không, chỉ đặt `in_progress` và không đụng bài đã
+  `completed`. Học viên tự bấm Hoàn thành mới có `completed` + 50 XP `lesson_complete`. Quiz cùng lỗi nên sửa cùng hướng.
+- **Đánh đổi đã biết:** ai pass mà quên bấm thì bài không tính vào mốc 80% của chứng chỉ và báo cáo lớp.
+- **Dữ liệu đổi:** migration `backfill_lesson_complete_xp` (không đổi schema) bù 50 XP cho bài đã `completed` mà thiếu
+  `lesson_complete`; giữ nguyên trạng thái, `createdAt` = lúc hoàn thành nên không lật bảng xếp hạng tuần này, chạy lại
+  không cộng thêm. Không đụng streak/huy hiệu/thông báo: `first_lesson` sẽ trao ở lần hoàn thành bài kế tiếp.
+- **Hai lỗi FE lộ ra khi thử:** nộp xong không làm mới danh sách bài/XP/bảng xếp hạng (nay `invalidateLearningProgress`);
+  lời chúc mừng ghi cứng +40 XP trong khi cộng 50 (nay lấy từ `XP_REWARDS`).
+- **Đã thử** bằng `p7member` qua API và giao diện, trên DB `lms_c3` tách riêng (bản sao DB dev, đã xóa sau khi thử) với
+  runner stub. **Chưa áp** migration lên DB dev `lms` và production.
+
+### Vá IDOR bài làm theo lớp (2026-11-04) — nhánh `claude/affectionate-archimedes-33c346`, xếp chồng lên `claude/magical-bouman-307820`, chưa PR
+Không đổi schema.
+
+- **Luật chung nằm ở `RbacService.isClassStaff(userId, classId, permissions, mode)`**, thay cho `assertCanReviewSubmissions`.
+  Có permission trong phạm vi lớp chưa đủ, vì `instructor` gán global và `student` cũng có `*.result.read`. Phải thêm một trong:
+  role gán riêng cho lớp, người tạo lớp, instructor/TA active của lớp, admin (`class.delete` global). Role gán theo lớp phải tự đủ
+  quyền: GV lớp khác mang thêm role `student` ở lớp này vẫn 403 (bản coding cũ để lọt ca này).
+- **Đã đi qua luật này:** đọc `quiz-attempts/:id`, `submissions/:id`, danh sách bài nộp của bài tập, `scratch/submissions/:id/*`,
+  `certificates/:id/pdf`; ghi `submissions/:id/grade`, `certificates/issue`, `certificates/:id/revoke`.
+- **Đổi hành vi:** GV không phụ trách lớp nay 403 ở các route trên, muốn dạy thay thì thêm vào lớp. Chứng chỉ của lớp đã xóa chỉ admin
+  đọc/thu hồi được. `revoke` kiểm quyền trước trạng thái thu hồi.
+- **Test phạm vi lớp dùng `rbac/testing/real-rbac.ts`** (RbacService thật trên DB giả), vì mock `hasPermission` che mất loại lỗi này.
+- **Đã kiểm:** `pnpm validate` 18/18 task (api 557 test / 38 suite). API thật trên DB bản sao `lms_idor` (đã xóa, DB dev không đổi), 10 vai:
+  trước khi vá, HV ngoài lớp, bạn cùng lớp và GV lớp khác đều đọc được quiz (200); sau khi vá đều 403, chủ bài/GV tạo lớp/TA/admin 200,
+  id không tồn tại 404. Riêng `scratch/.../assets` chỉ kiểm bằng unit test: DB dev không có asset nên API thật chỉ thử `project.json`.
+- Phần cấp lớp còn lại: xem mục C4 ở trên.
+
+### GV xem bài nộp (C1, 2026-11-04) — nhánh `claude/magical-bouman-307820`, xếp chồng lên `claude/focused-kapitsa-de036f`, chưa PR
+
+- **API:** `GET /classes/:classId/coding-submissions` (bài của lớp + số em đã nộp/đạt), `.../:problemId` (từng học viên, không
+  kèm code), `GET /coding-submissions/:id/review` (code + đầu vào/mong đợi/output từng test, cả test ẩn). Không đổi schema.
+- **Quyền nằm ở `assertCanReviewSubmissions` (nay gọi `RbacService.isClassStaff`):** `coding.result.read` + `coding.read` (học viên không có), và là một trong: quyền
+  gán riêng cho lớp đó, người tạo lớp, instructor/TA active của lớp, admin (`class.delete` global). GV role global lớp khác
+  bị 403: muốn dạy thay thì thêm vào lớp. Bài của lớp đã xóa (`classId` null) chỉ admin đọc được.
+- **Vá IDOR có sẵn:** `GET /coding-submissions/:id` chỉ kiểm `coding.result.read`, mà role `student` global cũng có, nên học viên
+  đọc được bài của bạn kèm output test ẩn (`p7member` có role này trên DB dev). Nay dùng chung cổng trên.
+- **`GET /coding-submissions/:id` vẫn trả output test ẩn cho GV** còn chủ bài thì không; review không dành cho chủ bài là học viên.
+- **FE:** `pages/teach/TeachCodingSubmissions.tsx`; `codingUi.tsx` chứa mảnh dùng chung với phần biên soạn.
+- **Đã kiểm:** `pnpm validate` 18/18 task (api 504 test / 38 suite); API thật: GV lớp 200, học viên cùng lớp/ngoài lớp/GV lớp khác
+  403, id không tồn tại 404; xem bằng mắt tài khoản `p11teacher`. Runner là stub nên chưa thử với Piston. Dữ liệu thử đã dọn khỏi DB dev.
+
+### Bài lập trình: vào lại + danh sách GV (2026-11-03) — nhánh `claude/focused-kapitsa-de036f`, chưa PR/deploy
+
+- **Vào lại bài đã nộp.** Bài nộp, điểm, XP vốn được lưu đúng; thiếu đường đọc lại. Nay `GET attempt` trả `myProgress`
+  (số lần nộp, đã từng đạt, điểm cao nhất, lần nộp gần nhất kèm code), `GET for-class` trả `myStatus`. Không đổi schema.
+- **Vá lộ test ẩn:** `results[].actualStdout` của test ẩn không còn trả cho học viên (`print(input())` in được input ẩn);
+  GV có `coding.result.read` vẫn thấy. Chỉ đổi DTO, UI không dùng trường này.
+- **Danh sách GV** (`pages/teach/codingGroups.ts`): nhóm chương → bài học, tìm không dấu, lọc độ khó, cuộn riêng. Lọc ở client
+  nên `listCodingProblems` nạp đủ mọi trang (trước đây dừng ở 100 bài).
+- **Sổ điểm của học viên** (`my-gradebook`) tính trực tiếp từ bài nộp của chính em, vẫn chỉ đọc; không còn chờ staff mở sổ
+  (áp dụng cả bài tập + quiz). `GradeEntry` vẫn chỉ cập nhật ở `recompute`, nên `GET /gradebook` và báo cáo lớp (`getClassReport`)
+  chỉ mới sau khi staff mở sổ. Cột chưa có `GradeItem` trả id tạm `<sourceType>:<sourceId>`, chỉ là khóa trong DTO.
+- **Hành vi đã đo trên API thật (runner stub):** XP `coding_pass` 100 chỉ cộng một lần; sổ điểm lấy điểm cao nhất. Việc còn hở:
+  `ACTIVE_TASKS.md §Bài lập trình`.
+- **Bẫy worktree:** thiếu `apps/studio/dist` thì `vite-plugin-static-copy` bỏ cả Monaco (`/monaco/vs/loader.js` 404, trình soạn
+  kẹt "Loading…") → chạy `pnpm --filter @lms/studio build` trước khi `dev`. Muốn thử bài pass với runner stub: để
+  `expectedStdout` trùng `stdin`, vì stub chỉ echo stdin.
 
 ### Bug gỡ khóa khỏi lớp (2026-11-02) — nhánh `claude/lms-deleted-course-display-cbcfb2`
 
@@ -111,69 +191,9 @@ vì đó là điều kiện của `assertCanAwardInClass`.
 
 `pnpm validate` 16/16 (api **320 test / 28 suite**), i18n parity **563/563**.
 
-### P10 · T10.5 Redesign khu Quản trị (2026-08-26)
+### P10 · T10.1, T10.3, T10.5 — đã tách ra
 
-- **Nhật ký viết thành câu, KHÔNG tra tên người bị tác động** (quyết định của người dùng, HANDOFF §T10.5).
-  Đánh đổi PII biến mất: `audit_logs` giữ nguyên hình dạng, không join thêm, không snapshot tên.
-  Tên người THỰC HIỆN vốn đã có sẵn (`AuditLogDto.actorName`, backend join từ P6) nên vẫn hiện.
-- **Không có nhóm `login`** — đã chốt không ghi audit đăng nhập. Có test khẳng định `auth.login`
-  (nếu ai đó thêm sau này) rơi vào nhóm mặc định chứ không được cấp màu riêng.
-- Thêm nhóm **`award`** cho `gamification.award` của T10.3 — thiết kế gốc chưa biết tới action này.
-- **Chi tiết dựng thành CHIP RỜI, không ghép chuỗi.** Ghép chuỗi kiểu "Tạo tài khoản {{role}} với
-  trạng thái {{status}}" thì bản dịch gãy ở ngôn ngữ có trật tự từ khác.
-- `metaJson` mở rộng **tại chỗ** thay cho modal JSON: xem chi tiết một dòng không nên che các dòng quanh nó.
-- **`GET /admin/overview`** (module `admin` mới, quyền `user.read` — `instructor` KHÔNG có quyền này):
-  GV+TA / học viên / lớp `active` / khóa `published`. Ba query cố định, loại tài khoản `suspended`
-  (GV bị khoá thì không còn dạy), người giữ cả instructor lẫn TA chỉ đếm một lần.
-- `adminUi.ts` để **thuần logic, không JSX** — trộn hằng số với component làm eslint
-  `react-refresh/only-export-components` kêu 9 cảnh báo; `MetaChip`/`StatTile` nằm trong `AdminHome.tsx`.
-- `pnpm validate` 16/16 (api **314 test / 28 suite**, web **15 test / 3 file**), i18n parity **562/562**.
-  **Chưa xem được trên giao diện thật** — worktree không có DB/Docker.
-
-### P10 · T10.3 Giáo viên trao thưởng thủ công (2026-08-26)
-
-- **Chỗ chặn thật KHÔNG phải permission mà là thành viên lớp.** `assertCanAwardInClass` đòi CẢ
-  `grade.write` LẪN đang là `instructor`/`ta` active của chính lớp đó. Chỉ kiểm `grade.write` là hở:
-  role `instructor` hiện gán ở phạm vi GLOBAL (nợ kỹ thuật đã biết) nên GV bất kỳ sẽ trao được cho
-  học viên lớp người khác — đúng thứ INVARIANT #3 cấm. Có test cho đúng ca này.
-- **Endpoint `POST /gamification/students/:studentId/awards`** — khác bản nháp `/users/:id/badges`:
-  một lượt trao lo cả huy hiệu lẫn XP nên đặt tên theo việc nó làm. Route không có `:classId` nên
-  `@RequirePermission` chỉ lọc thô; phạm vi lớp kiểm trong service theo `body.classId`.
-- **XP thưởng tay có trần `MANUAL_XP_MIN..MAX` = 5..200** (contracts, dùng chung FE/BE). Vì XP thưởng
-  tay được tính vào bảng xếp hạng tuần: không có trần thì một lượt thưởng lật ngược cả bảng.
-- **`sourceId` của `manual_award` là `randomUUID()` từng lượt**, không phải id bài — khoá
-  `(userId, source, sourceId)` vốn dùng để chống farm điểm sẽ chặn luôn việc khen lần thứ hai.
-- Huy hiệu vẫn `@@unique([userId, badgeId])`: mỗi huy hiệu giữ MỘT lần, trao lại trả **409**. Muốn
-  khen lại thì thưởng XP kèm lời nhắn (không giới hạn số lần).
-- Không trao tay được huy hiệu tự động (`isManual = false` → 400), và không tự thưởng cho mình (403).
-- **Audit `gamification.award` không chứa tên người lẫn nguyên văn lời nhắn** — chỉ
-  `{classId, badgeCode, xpAmount, hasNote}` (INVARIANT #5, có test khẳng định).
-- `BadgeDto.note` mới: lời khen của cô giáo hiện lại trên huy hiệu của học viên, không trôi mất
-  trong thông báo.
-- `pnpm validate` 16/16 (api **311 test / 27 suite**), i18n parity **541/541**.
-  **Chưa chạy migration `20260826120000_p10_manual_awards` trên DB thật.**
-
-### P10 · T10.1 Bảng xếp hạng lớp theo tuần (2026-08-26)
-
-- **`XpEvent.classId` nullable + FK `SetNull` + index `(classId, createdAt)`.** Chọn thêm cột thay vì suy
-  từ `sourceId` lúc đọc: suy lúc đọc phải join 3 bảng khác nhau cho 3 nguồn XP và vẫn sai khi học viên
-  học cùng bài ở nhiều lớp. Migration `20260826090000_p10_xp_class_scope` backfill từ chính sự kiện domain
-  (`lesson_progress` / `quiz_attempts` / `coding_submissions`), chọn bản ghi gần thời điểm cộng XP nhất;
-  suy không ra thì để NULL và bảng xếp hạng bỏ qua — **không đoán bừa**.
-- **Khoá `(userId, source, sourceId)` giữ nguyên**, nên học lại cùng bài ở lớp khác KHÔNG cộng XP lần hai
-  và `classId` giữ lớp đầu tiên. Cố ý: nới ra là mở đường farm điểm (HANDOFF_P10 §Cảnh báo).
-- **`GET /classes/:classId/leaderboard?week=current|previous`.** KHÔNG gắn `@RequirePermission` — `class.read`
-  là quyền của GV/admin, gắn vào thì chính học viên không xem được bảng của lớp mình. Quyền kiểm ở service
-  (`ensureCanViewClass`): thành viên `active`, HOẶC `class.read` **scope đúng lớp đó** (INVARIANT #3).
-- **Mốc tuần = thứ Hai 00:00 giờ VN = CN 17:00 UTC** (`weekWindowVn`, dùng chung `APP_TZ_OFFSET_MS` với streak).
-  Reset hằng tuần là chủ ý: bảng tích luỹ vĩnh viễn thì em vào sau không bao giờ đuổi kịp.
-- Chỉ xếp hạng `roleInClass = student` đang `active` (GV/TA đứng ngoài). Học viên 0 điểm vẫn có mặt để tự
-  thấy hạng của mình. Đồng điểm → đồng hạng (1, 1, 3). Chỉ số hiển thị là **số bài hoàn thành**, không phải
-  điểm/tốc độ. FE `pages/learn/ClassLeaderboard.tsx` mặc định chỉ hiện tốp 10 + dòng của chính mình.
-- `useUpdateProgress` giờ invalidate cả `gamification/me` và leaderboard — trước đó hero XP đứng yên tới 60 s
-  sau khi hoàn thành bài.
-- `pnpm validate` 16/16 (api **299 test / 27 suite**), i18n parity **533/533**.
-  **Chưa chạy migration trên DB thật** (worktree không có Postgres/Docker) và chưa thử qua giao diện.
+Quyết định và số đo: [p10-t10-1-3-5-notes.md](../../docs/archive/completed_tasks/p10-t10-1-3-5-notes.md).
 
 ### P9 Production readiness (2026-08-21) — branch `claude/p9-single-vps-deployment-882cf5`, chưa merge main
 

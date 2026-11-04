@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useConfirm } from '../../components/useConfirm';
@@ -31,26 +31,73 @@ import {
   SidebarCard,
   TeachShell,
 } from './teachUi';
+import { chapterKeyOfLesson, filterProblems, groupProblems } from './codingGroups';
+import { ChapterBlock, DifficultyTag, IoPanel, diffColor } from './codingUi';
+import { TeachCodingSubmissions } from './TeachCodingSubmissions';
 
 const ERROR_COLOR = '#f4a3a3';
 
-/** Màu category theo độ khó. */
-const DIFF_COLOR: Record<string, string> = {
-  easy: 'var(--cx-teal)',
-  medium: 'var(--cx-amber)',
-  hard: 'var(--cx-coral)',
-};
-const diffColor = (d: string) => DIFF_COLOR[d] ?? 'var(--cx-purple)';
-
 export function TeachCoding(): JSX.Element {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<'authoring' | 'submissions'>('authoring');
+  return (
+    <DetailColumn>
+      <div className="seg flex-wrap self-start">
+        <button
+          type="button"
+          className={`seg-btn cx-press ${mode === 'authoring' ? 'seg-active' : ''}`}
+          onClick={() => setMode('authoring')}
+        >
+          <i className="ph ph-pencil-simple" aria-hidden /> {t('coding.tabAuthoring')}
+        </button>
+        <button
+          type="button"
+          className={`seg-btn cx-press ${mode === 'submissions' ? 'seg-active' : ''}`}
+          onClick={() => setMode('submissions')}
+        >
+          <i className="ph ph-tray-arrow-down" aria-hidden /> {t('coding.tabSubmissions')}
+        </button>
+      </div>
+      {mode === 'authoring' ? <CodingAuthoring /> : <TeachCodingSubmissions />}
+    </DetailColumn>
+  );
+}
+
+function CodingAuthoring(): JSX.Element {
   const { t } = useTranslation();
   const courses = useCourses();
   const [courseId, setCourseId] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState('');
+  const [difficulty, setDifficulty] = useState('');
+  // null = chưa đụng tới: mở sẵn chương đầu, các chương khác thu gọn để danh sách không dài cả trang.
+  const [openChapters, setOpenChapters] = useState<Set<string> | null>(null);
 
   const activeCourseId = courseId || courses.data?.items[0]?.id || '';
   const problems = useCodingProblems(activeCourseId || undefined);
+  const course = useCourse(activeCourseId || null);
+
+  const allProblems = useMemo(() => problems.data?.items ?? [], [problems.data]);
+  const sections = useMemo(() => course.data?.sections ?? [], [course.data]);
+  const visibleProblems = useMemo(
+    () => filterProblems(allProblems, sections, { query, difficulty }),
+    [allProblems, sections, query, difficulty],
+  );
+  const chapters = useMemo(() => groupProblems(visibleProblems, sections), [visibleProblems, sections]);
+
+  const isFiltering = query.trim() !== '' || difficulty !== '';
+  const effectiveOpen = openChapters ?? new Set(chapters.slice(0, 1).map((c) => c.key));
+  // Đang lọc thì mở hết: kết quả nằm trong chương thu gọn mà không thấy thì chẳng khác gì không tìm ra.
+  const isChapterOpen = (key: string) => isFiltering || effectiveOpen.has(key);
+  const allOpen = chapters.length > 0 && chapters.every((c) => effectiveOpen.has(c.key));
+
+  const toggleChapter = (key: string) => {
+    const next = new Set(effectiveOpen);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setOpenChapters(next);
+  };
 
   return (
     <DetailColumn>
@@ -63,6 +110,9 @@ export function TeachCoding(): JSX.Element {
             onChange={(e) => {
               setCourseId(e.target.value);
               setSelectedId(null);
+              setQuery('');
+              setDifficulty('');
+              setOpenChapters(null);
             }}
           >
             {courses.data?.items.map((c) => (
@@ -86,9 +136,13 @@ export function TeachCoding(): JSX.Element {
                 <CreateProblemForm
                   courseId={activeCourseId}
                   onCancel={() => setCreating(false)}
-                  onCreated={(id) => {
+                  onCreated={(id, lessonId) => {
                     setSelectedId(id);
                     setCreating(false);
+                    // Bài vừa tạo phải nhìn thấy được, kể cả khi đang lọc hoặc chương của nó đang thu gọn.
+                    setQuery('');
+                    setDifficulty('');
+                    setOpenChapters(new Set([...effectiveOpen, chapterKeyOfLesson(lessonId, sections)]));
                   }}
                 />
               ) : (
@@ -103,18 +157,61 @@ export function TeachCoding(): JSX.Element {
             {activeCourseId && problems.data?.items.length === 0 && (
               <EmptyHint icon="ph-code">{t('coding.empty')}</EmptyHint>
             )}
-            {problems.data?.items.map((p) => (
-              <SidebarCard
-                key={p.id}
-                icon="ph-terminal-window"
-                color={diffColor(p.difficulty)}
-                title={p.title}
-                meta={`${p.language} · ${t('coding.scoreValue', { score: p.maxScore })}`}
-                selected={selectedId === p.id}
-                onClick={() => setSelectedId(p.id)}
-                tag={<DifficultyTag difficulty={p.difficulty} />}
+            {allProblems.length > 0 && (
+              <ProblemToolbar
+                query={query}
+                onQuery={setQuery}
+                difficulty={difficulty}
+                onDifficulty={setDifficulty}
+                allOpen={allOpen}
+                onToggleAll={() => setOpenChapters(allOpen ? new Set() : new Set(chapters.map((c) => c.key)))}
+                expandDisabled={isFiltering}
               />
-            ))}
+            )}
+            {isFiltering && (
+              <p className="text-muted m-0" style={{ fontSize: 12 }} aria-live="polite">
+                {t('coding.filterCount', { shown: visibleProblems.length, total: allProblems.length })}
+              </p>
+            )}
+            {isFiltering && visibleProblems.length === 0 && (
+              <EmptyHint icon="ph-magnifying-glass">{t('coding.noMatch')}</EmptyHint>
+            )}
+            {/* Cuộn riêng: cột chi tiết nằm ở đầu trang, cuộn cả trang để chọn bài cuối danh sách là mất dấu nó. */}
+            {chapters.length > 0 && (
+              <div
+                className="flex flex-col"
+                style={{
+                  gap: 'var(--space-4)',
+                  maxHeight: '70vh',
+                  overflowY: 'auto',
+                  padding: 2,
+                  paddingRight: 8,
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'var(--color-divider) transparent',
+                }}
+              >
+                {chapters.map((chapter) => (
+                  <ChapterBlock
+                    key={chapter.key}
+                    chapter={chapter}
+                    open={isChapterOpen(chapter.key)}
+                    onToggle={isFiltering ? undefined : () => toggleChapter(chapter.key)}
+                    renderProblem={(p) => (
+                      <SidebarCard
+                        key={p.id}
+                        icon="ph-terminal-window"
+                        color={diffColor(p.difficulty)}
+                        title={p.title}
+                        meta={`${p.language} · ${t('coding.scoreValue', { score: p.maxScore })}`}
+                        selected={selectedId === p.id}
+                        onClick={() => setSelectedId(p.id)}
+                        tag={<DifficultyTag difficulty={p.difficulty} />}
+                      />
+                    )}
+                  />
+                ))}
+              </div>
+            )}
           </Sidebar>
         }
       >
@@ -128,23 +225,60 @@ export function TeachCoding(): JSX.Element {
   );
 }
 
-function DifficultyTag({ difficulty }: { difficulty: string }): JSX.Element {
+/** Ô tìm + lọc độ khó + mở/thu gọn tất cả, ngay trên danh sách. */
+function ProblemToolbar({
+  query,
+  onQuery,
+  difficulty,
+  onDifficulty,
+  allOpen,
+  onToggleAll,
+  expandDisabled,
+}: {
+  query: string;
+  onQuery: (value: string) => void;
+  difficulty: string;
+  onDifficulty: (value: string) => void;
+  allOpen: boolean;
+  onToggleAll: () => void;
+  expandDisabled: boolean;
+}): JSX.Element {
   const { t } = useTranslation();
-  const color = diffColor(difficulty);
   return (
-    <span
-      className="shrink-0"
-      style={{
-        borderRadius: 999,
-        padding: '3px 10px',
-        fontSize: 11,
-        color,
-        background: `color-mix(in srgb, ${color} 16%, transparent)`,
-        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${color} 45%, transparent)`,
-      }}
-    >
-      {t(`coding.diff_${difficulty}`, { defaultValue: difficulty })}
-    </span>
+    <div className="flex flex-col" style={{ gap: 'var(--space-2)' }}>
+      <div className="relative">
+        <i className="ph ph-magnifying-glass text-muted absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
+        <input
+          className="input pl-9"
+          type="search"
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          placeholder={t('coding.searchPlaceholder')}
+          aria-label={t('coding.searchPlaceholder')}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <select
+          className="input min-w-0 flex-1"
+          value={difficulty}
+          onChange={(e) => onDifficulty(e.target.value)}
+          aria-label={t('coding.difficulty')}
+        >
+          <option value="">{t('coding.allDifficulties')}</option>
+          {(['easy', 'medium', 'hard'] as CodingDifficultyValue[]).map((d) => (
+            <option key={d} value={d}>
+              {t(`coding.diff_${d}`)}
+            </option>
+          ))}
+        </select>
+        <IconButton
+          icon={allOpen ? 'ph-arrows-in-line-vertical' : 'ph-arrows-out-line-vertical'}
+          title={allOpen ? t('coding.collapseAll') : t('coding.expandAll')}
+          onClick={onToggleAll}
+          disabled={expandDisabled}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -154,7 +288,7 @@ function CreateProblemForm({
   onCancel,
 }: {
   courseId: string;
-  onCreated: (id: string) => void;
+  onCreated: (id: string, lessonId: string | null) => void;
   onCancel: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
@@ -188,7 +322,7 @@ function CreateProblemForm({
           setTitle('');
           setStatementMd('');
           setLessonId('');
-          onCreated(p.id);
+          onCreated(p.id, p.lessonId ?? null);
         },
       },
     );
@@ -611,35 +745,6 @@ function TestCaseCard({
         <IoPanel label={t('coding.stdin')} value={testCase.stdin} />
         <IoPanel label={t('coding.expectedStdout')} value={testCase.expectedStdout} color="var(--cx-teal)" />
       </div>
-    </div>
-  );
-}
-
-function IoPanel({ label, value, color }: { label: string; value: string; color?: string }): JSX.Element {
-  return (
-    <div
-      style={{
-        borderRadius: 14,
-        background: 'var(--color-neutral-900)',
-        boxShadow: 'inset 0 0 0 1px var(--color-divider)',
-        padding: 'var(--space-4)',
-      }}
-    >
-      <p className="text-muted m-0" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-        {label}
-      </p>
-      <pre
-        className="m-0 overflow-x-auto"
-        style={{
-          marginTop: 6,
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-          fontSize: 12,
-          whiteSpace: 'pre-wrap',
-          color: color ?? 'var(--color-text)',
-        }}
-      >
-        {value || '—'}
-      </pre>
     </div>
   );
 }

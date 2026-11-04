@@ -33,11 +33,28 @@ export interface CodingProblemSummary {
   createdAt: string;
 }
 
+/**
+ * Tình hình làm bài của CHÍNH học viên trong một lớp. `bestScore` khớp cách sổ điểm tính (lấy lần cao
+ * nhất), `passed` là đã từng đạt: nộp lại mà sai không làm mất hai giá trị này.
+ */
+export interface MyCodingStatusDto {
+  attempts: number;
+  passed: boolean;
+  bestScore: number | null;
+  latestStatus: string | null;
+}
+
+/** Danh sách bài cho học viên trong lớp; `myStatus` null = chưa nộp lần nào. */
+export interface CodingProblemForClass extends CodingProblemSummary {
+  myStatus: MyCodingStatusDto | null;
+}
+
 /** Student-facing problem detail: sample tests only, no hidden test metadata or solution code. */
 export interface CodingProblemStudentDetail extends CodingProblemSummary {
   statementMd: string;
   starterCode?: string | null;
   sampleTests: SampleTestCaseDto[];
+  myProgress: MyCodingProgressDto;
 }
 
 /** Teacher/admin authoring detail: may include hidden tests and solution code. Never return this to students. */
@@ -112,4 +129,72 @@ export interface CodingSubmissionDto {
   memoryKb?: number | null;
   submittedAt: string;
   results?: TestCaseResultDto[];
+}
+
+/** Bài nộp của chính học viên, kèm code để vào lại làm tiếp. Chỉ trả cho chủ bài nộp. */
+export interface MyCodingSubmissionDto extends CodingSubmissionDto {
+  sourceCode: string;
+}
+
+export interface MyCodingProgressDto extends MyCodingStatusDto {
+  latest: MyCodingSubmissionDto | null;
+}
+
+// --- Giáo viên xem bài nộp theo lớp. Chỉ trả cho người phụ trách đúng lớp đó (kiểm trong service). ---
+
+/** Một bài của lớp kèm số học viên đã nộp/đạt. `isOpen` false = bài học chưa mở gate cho lớp. */
+export interface ClassCodingProblemDto extends CodingProblemSummary {
+  isOpen: boolean;
+  submittedCount: number;
+  passedCount: number;
+}
+
+export interface ClassCodingOverviewDto {
+  classId: string;
+  /** Học viên đang học trong lớp, là mẫu số của `submittedCount`/`passedCount`. */
+  studentCount: number;
+  problems: ClassCodingProblemDto[];
+}
+
+/** Một lần nộp trong danh sách, không kèm code. */
+export interface CodingAttemptSummaryDto {
+  id: string;
+  status: string;
+  score: number | null;
+  submittedAt: string;
+}
+
+/**
+ * Tình hình một học viên với một bài; `attempts` = 0 là chưa nộp. `isActiveMember` false = đã rời lớp
+ * nhưng còn bài nộp cũ.
+ */
+export interface ClassCodingStudentRowDto extends MyCodingStatusDto {
+  userId: string;
+  fullName: string;
+  email: string;
+  isActiveMember: boolean;
+  /** Mới nhất trước. */
+  submissions: CodingAttemptSummaryDto[];
+}
+
+export interface ClassCodingProblemSubmissionsDto {
+  classId: string;
+  problem: CodingProblemSummary;
+  students: ClassCodingStudentRowDto[];
+}
+
+/** Kết quả một test cho giáo viên: có đầu vào/kết quả mong đợi của cả test ẩn. KHÔNG trả cho học viên. */
+export interface ReviewTestCaseResultDto extends TestCaseResultDto {
+  kind: TestCaseKindValue;
+  stdin: string;
+  expectedStdout: string;
+}
+
+/** Một lần nộp cho giáo viên: có code và test ẩn. KHÔNG trả cho học viên, kể cả học viên cùng lớp. */
+export interface CodingSubmissionReviewDto extends CodingSubmissionDto {
+  sourceCode: string;
+  studentName: string;
+  problemTitle: string;
+  maxScore: number;
+  results: ReviewTestCaseResultDto[];
 }

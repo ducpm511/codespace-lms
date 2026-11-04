@@ -6,6 +6,7 @@ import type {
   UpdateCodingProblemRequest,
   UpsertTestCaseRequest,
 } from '@lms/contracts';
+import { invalidateLearningProgress } from '../classes/hooks';
 import * as api from './api';
 
 const TERMINAL_STATUSES = new Set(['passed', 'failed', 'error']);
@@ -102,12 +103,58 @@ export function useCodingAttempt(problemId: string | null, classId: string | nul
     queryKey: codingAttemptKey(problemId ?? '_none', classId ?? '_none'),
     queryFn: () => api.getCodingAttempt(problemId as string, classId as string),
     enabled: !!problemId && !!classId,
+    // Luôn đọc lại khi mở bài: code và kết quả có thể vừa được nộp từ máy khác.
+    staleTime: 0,
   });
+}
+
+/** Chấm xong là trạng thái bài, tiến độ bài học, XP và bảng xếp hạng đều đổi; không làm mới thì vào lại vẫn thấy cũ. */
+export function useRefreshAfterGraded(problemId: string, classId: string) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: codingAttemptKey(problemId, classId) });
+    void qc.invalidateQueries({ queryKey: codingForClassKey(classId) });
+    void qc.invalidateQueries({ queryKey: ['studentOwnGradebook', classId] });
+    invalidateLearningProgress(qc, classId);
+  };
 }
 
 export function useSubmitCoding(problemId: string) {
   return useMutation({
     mutationFn: (body: SubmitCodingRequest) => api.submitCoding(problemId, body),
+  });
+}
+
+// --- Giáo viên xem bài nộp theo lớp ---
+
+export function useClassCodingOverview(classId: string | null) {
+  return useQuery({
+    queryKey: ['classCoding', classId ?? '_none'],
+    queryFn: () => api.getClassCodingOverview(classId as string),
+    enabled: !!classId,
+    // 403 (không phụ trách lớp) là kết quả, không phải lỗi mạng: thử lại chỉ làm giáo viên chờ lâu hơn.
+    retry: false,
+  });
+}
+
+export function useClassProblemSubmissions(classId: string | null, problemId: string | null) {
+  return useQuery({
+    queryKey: ['classCoding', classId ?? '_none', problemId ?? '_none'],
+    queryFn: () => api.getClassProblemSubmissions(classId as string, problemId as string),
+    enabled: !!classId && !!problemId,
+    // Mở lại phải thấy bài vừa nộp, học viên có thể đang làm ngay trong giờ.
+    staleTime: 0,
+    retry: false,
+  });
+}
+
+export function useCodingSubmissionReview(submissionId: string | null) {
+  return useQuery({
+    queryKey: ['codingSubmissionReview', submissionId ?? '_none'],
+    queryFn: () => api.getCodingSubmissionReview(submissionId as string),
+    enabled: !!submissionId,
+    retry: false,
+    refetchInterval: (query) => (query.state.data && !isTerminal(query.state.data.status) ? 1500 : false),
   });
 }
 

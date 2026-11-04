@@ -23,10 +23,8 @@ export class TeachService {
    * thuộc số lớp: đúng thứ VPS 2 GB cần.
    *
    * Phạm vi: ĐÚNG BẰNG tập lớp mà `GET /classes` trả về (mọi lớp, gác bằng quyền `class.read`),
-   * vì sidebar tab Lớp học lấy từ đó. Thu hẹp riêng endpoint này xuống "lớp tôi dạy" sẽ khiến
-   * hero báo 0 trong khi sidebar liệt kê 10 lớp — hai con số của cùng một màn hình phải khớp nhau.
-   * Việc thu hẹp phạm vi khu Giảng dạy là thay đổi cho CẢ `GET /classes` lẫn sidebar và hero
-   * cùng lúc — đã ghi thành task riêng trong ACTIVE_TASKS.
+   * vì sidebar tab Lớp học lấy từ đó. Người dùng chốt 04/11: GV được xem mọi lớp, chỉ ghi ở lớp
+   * mình phụ trách (ACTIVE_TASKS C4). Nếu sau này thu hẹp thì đổi cả `GET /classes` lẫn hero.
    *
    * Tham số `userId` giữ lại để bước thu hẹp đó không phải đổi chữ ký ở controller.
    */
