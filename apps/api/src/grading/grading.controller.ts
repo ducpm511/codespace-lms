@@ -3,6 +3,7 @@ import { PERMISSIONS, type ClassGradebookDto, type StudentOwnGradebookDto } from
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthPrincipal } from '../auth/auth.types';
+import { ClassStaffGuard } from '../rbac/guards/class-staff.guard';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
 import { RequirePermission } from '../rbac/decorators/require-permission.decorator';
 import { GradingService } from './grading.service';
@@ -24,7 +25,7 @@ export class GradingController {
   /** Staff tổng hợp lại sổ điểm (GHI DB) — tách khỏi GET để read không side-effect (fix H3). */
   @Post(':classId/gradebook/recompute')
   @HttpCode(200)
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard, ClassStaffGuard)
   @RequirePermission(PERMISSIONS.GRADE_READ)
   recomputeClassGradebook(
     @Param('classId') classId: string,

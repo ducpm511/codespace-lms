@@ -14,6 +14,7 @@ import { useUserLookup } from '../../features/users/lookup';
 import {
   useAssignCourse,
   useClass,
+  useClassAccess,
   useClasses,
   useCreateClass,
   useEnrollMember,
@@ -175,6 +176,8 @@ function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
   const [editing, setEditing] = useState(false);
   const cls = useClass(classId);
   const report = useClassReport(classId);
+  const access = useClassAccess(classId);
+  const canManage = access.data?.canManage ?? false;
 
   if (cls.isLoading) return <p className="text-muted text-sm">{t('common.loading')}</p>;
   if (cls.isError || !cls.data) return <p className="text-sm" style={{ color: ERROR_COLOR }}>{t('common.error')}</p>;
@@ -203,9 +206,11 @@ function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
             <span className="tag tag-accent">
               {t(`classStatus.${c.status}`, { defaultValue: c.status })}
             </span>
-            <PillButton variant="secondary" icon="ph-sliders" onClick={() => setEditing(true)}>
-              {t('classes.settings')}
-            </PillButton>
+            {canManage && (
+              <PillButton variant="secondary" icon="ph-sliders" onClick={() => setEditing(true)}>
+                {t('classes.settings')}
+              </PillButton>
+            )}
           </span>
         }
       >
@@ -216,6 +221,12 @@ function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
               {t('classes.avgProgress', { rate })}
             </p>
           </div>
+        )}
+
+        {access.data && !canManage && (
+          <p className="text-muted m-0 text-xs">
+            <i className="ph ph-eye" aria-hidden /> {t('classes.readOnlyNotice')}
+          </p>
         )}
 
         <div className="seg flex-wrap">
@@ -232,18 +243,18 @@ function ClassDetailPanel({ classId }: { classId: string }): JSX.Element {
         <>
           <DetailSection icon="ph-books" color="var(--cx-blue)" title={t('classes.coursesAndMembers')}>
             <div className="grid gap-4 xl:grid-cols-2">
-              <CoursesPanel classId={classId} courses={c.courses} />
-              <MembersPanel classId={classId} members={c.members} />
+              <CoursesPanel classId={classId} courses={c.courses} canManage={canManage} />
+              <MembersPanel classId={classId} members={c.members} canManage={canManage} />
             </div>
           </DetailSection>
 
-          <GatesPanel classId={classId} assignedCourses={c.courses} />
+          <GatesPanel classId={classId} assignedCourses={c.courses} canManage={canManage} />
         </>
       )}
 
       {tab === 'report' && <ClassReportPanel classId={classId} />}
 
-      {editing && <ClassSettingsDialog cls={c} onClose={() => setEditing(false)} />}
+      {editing && canManage && <ClassSettingsDialog cls={c} onClose={() => setEditing(false)} />}
     </DetailColumn>
   );
 }
@@ -446,7 +457,15 @@ function ClassReportPanel({ classId }: { classId: string }): JSX.Element {
   );
 }
 
-function CoursesPanel({ classId, courses }: { classId: string; courses: ClassCourseDto[] }): JSX.Element {
+function CoursesPanel({
+  classId,
+  courses,
+  canManage,
+}: {
+  classId: string;
+  courses: ClassCourseDto[];
+  canManage: boolean;
+}): JSX.Element {
   const { t } = useTranslation();
   const confirm = useConfirm();
   const allCourses = useCourses();
@@ -474,48 +493,52 @@ function CoursesPanel({ classId, courses }: { classId: string; courses: ClassCou
           >
             <i className="ph-fill ph-book-bookmark shrink-0" style={{ color: 'var(--cx-blue)' }} aria-hidden />
             <span className="min-w-0 flex-1 truncate text-sm">{cc.title}</span>
-            <IconButton
-              icon="ph-x"
-              title={t('classes.unassignCourse')}
-              tone="danger"
-              disabled={unassign.isPending}
-              onClick={async () => {
-                // Gỡ khóa là ẩn luôn các bài của khóa đó khỏi lớp -> hỏi lại trước khi làm.
-                if (await confirm(t('classes.unassignConfirm', { title: cc.title }))) {
-                  unassign.mutate(cc.courseId);
-                }
-              }}
-            />
+            {canManage && (
+              <IconButton
+                icon="ph-x"
+                title={t('classes.unassignCourse')}
+                tone="danger"
+                disabled={unassign.isPending}
+                onClick={async () => {
+                  // Gỡ khóa là ẩn luôn các bài của khóa đó khỏi lớp -> hỏi lại trước khi làm.
+                  if (await confirm(t('classes.unassignConfirm', { title: cc.title }))) {
+                    unassign.mutate(cc.courseId);
+                  }
+                }}
+              />
+            )}
           </div>
         ))}
         {courses.length === 0 && <p className="text-muted m-0 text-xs">{t('classes.noCourses')}</p>}
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (courseId) assign.mutate({ courseId }, { onSuccess: () => setCourseId('') });
-        }}
-        className="flex flex-wrap items-center gap-2"
-        style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 'var(--space-4)' }}
-      >
-        <select
-          className="input min-w-[160px] flex-1"
-          value={courseId}
-          onChange={(e) => setCourseId(e.target.value)}
-          required
+      {canManage && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (courseId) assign.mutate({ courseId }, { onSuccess: () => setCourseId('') });
+          }}
+          className="flex flex-wrap items-center gap-2"
+          style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 'var(--space-4)' }}
         >
-          <option value="">{t('classes.selectCourse')}</option>
-          {allCourses.data?.items.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.title}
-            </option>
-          ))}
-        </select>
-        <PillButton type="submit" icon="ph-link" disabled={assign.isPending}>
-          {t('classes.assignCourse')}
-        </PillButton>
-      </form>
+          <select
+            className="input min-w-[160px] flex-1"
+            value={courseId}
+            onChange={(e) => setCourseId(e.target.value)}
+            required
+          >
+            <option value="">{t('classes.selectCourse')}</option>
+            {allCourses.data?.items.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+          <PillButton type="submit" icon="ph-link" disabled={assign.isPending}>
+            {t('classes.assignCourse')}
+          </PillButton>
+        </form>
+      )}
       {assign.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(assign.error)}</p>}
     </div>
   );
@@ -524,7 +547,15 @@ function CoursesPanel({ classId, courses }: { classId: string; courses: ClassCou
 /** Màu avatar chữ cái đầu — quay vòng theo bảng màu category để mỗi người một tông. */
 const AVATAR_COLORS = ['var(--cx-purple)', 'var(--cx-teal)', 'var(--cx-amber)', 'var(--cx-coral)', 'var(--cx-blue)'];
 
-function MembersPanel({ classId, members }: { classId: string; members: ClassMemberDto[] }): JSX.Element {
+function MembersPanel({
+  classId,
+  members,
+  canManage,
+}: {
+  classId: string;
+  members: ClassMemberDto[];
+  canManage: boolean;
+}): JSX.Element {
   const removeMember = useRemoveMember(classId);
   const { t } = useTranslation();
   const confirm = useConfirm();
@@ -568,16 +599,18 @@ function MembersPanel({ classId, members }: { classId: string; members: ClassMem
               </span>
               {/* Xoá theo `m.userId` chứ KHÔNG phải `m.id`: `m.id` là id của ClassMember, còn
                   route là `/members/:userId`. Nhầm chỗ này thì API trả 404 khó hiểu. */}
-              <IconButton
-                icon="ph-user-minus"
-                tone="danger"
-                title={t('classes.removeMember')}
-                disabled={removeMember.isPending}
-                onClick={async () => {
-                  if (!(await confirm(t('classes.confirmRemoveMember', { name })))) return;
-                  removeMember.mutate(m.userId);
-                }}
-              />
+              {canManage && (
+                <IconButton
+                  icon="ph-user-minus"
+                  tone="danger"
+                  title={t('classes.removeMember')}
+                  disabled={removeMember.isPending}
+                  onClick={async () => {
+                    if (!(await confirm(t('classes.confirmRemoveMember', { name })))) return;
+                    removeMember.mutate(m.userId);
+                  }}
+                />
+              )}
             </div>
           );
         })}
@@ -589,51 +622,53 @@ function MembersPanel({ classId, members }: { classId: string; members: ClassMem
         )}
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!found) return;
-          enroll.mutate({ userId: found.id, roleInClass: role }, { onSuccess: () => setEmail('') });
-        }}
-        className="flex flex-col gap-2"
-        style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 'var(--space-4)' }}
-      >
-        <input
-          className="input"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder={t('classes.memberEmail')}
-          required
-        />
+      {canManage && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!found) return;
+            enroll.mutate({ userId: found.id, roleInClass: role }, { onSuccess: () => setEmail('') });
+          }}
+          className="flex flex-col gap-2"
+          style={{ borderTop: '1px solid var(--color-divider)', paddingTop: 'var(--space-4)' }}
+        >
+          <input
+            className="input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t('classes.memberEmail')}
+            required
+          />
 
-        {/* Xác nhận đúng người trước khi thêm — tránh thêm nhầm do gõ sai email. */}
-        {lookup.isFetching && <p className="text-muted m-0 text-xs">{t('classes.lookingUp')}</p>}
-        {found && (
-          <p className="m-0 text-xs" style={{ color: alreadyMember ? undefined : 'var(--color-accent-300)' }}>
-            <i className={`ph ${alreadyMember ? 'ph-info' : 'ph-user-check'}`} aria-hidden />{' '}
-            {alreadyMember
-              ? t('classes.alreadyMember', { name: found.fullName || found.email })
-              : t('classes.foundUser', { name: found.fullName || found.email })}
-          </p>
-        )}
-        {lookup.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{t('classes.userNotFound')}</p>}
+          {/* Xác nhận đúng người trước khi thêm — tránh thêm nhầm do gõ sai email. */}
+          {lookup.isFetching && <p className="text-muted m-0 text-xs">{t('classes.lookingUp')}</p>}
+          {found && (
+            <p className="m-0 text-xs" style={{ color: alreadyMember ? undefined : 'var(--color-accent-300)' }}>
+              <i className={`ph ${alreadyMember ? 'ph-info' : 'ph-user-check'}`} aria-hidden />{' '}
+              {alreadyMember
+                ? t('classes.alreadyMember', { name: found.fullName || found.email })
+                : t('classes.foundUser', { name: found.fullName || found.email })}
+            </p>
+          )}
+          {lookup.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{t('classes.userNotFound')}</p>}
 
-        <div className="flex flex-wrap gap-2">
-          <select
-            className="input min-w-[120px] flex-1"
-            value={role}
-            onChange={(e) => setRole(e.target.value as ClassMemberRoleValue)}
-          >
-            <option value="student">{t('roleInClass.student')}</option>
-            <option value="ta">{t('roleInClass.ta')}</option>
-            <option value="instructor">{t('roleInClass.instructor')}</option>
-          </select>
-          <PillButton type="submit" icon="ph-user-plus" disabled={enroll.isPending || !found || alreadyMember}>
-            {t('classes.enroll')}
-          </PillButton>
-        </div>
-      </form>
+          <div className="flex flex-wrap gap-2">
+            <select
+              className="input min-w-[120px] flex-1"
+              value={role}
+              onChange={(e) => setRole(e.target.value as ClassMemberRoleValue)}
+            >
+              <option value="student">{t('roleInClass.student')}</option>
+              <option value="ta">{t('roleInClass.ta')}</option>
+              <option value="instructor">{t('roleInClass.instructor')}</option>
+            </select>
+            <PillButton type="submit" icon="ph-user-plus" disabled={enroll.isPending || !found || alreadyMember}>
+              {t('classes.enroll')}
+            </PillButton>
+          </div>
+        </form>
+      )}
       {enroll.isError && <p className="m-0 text-xs" style={{ color: ERROR_COLOR }}>{errMsg(enroll.error)}</p>}
     </div>
   );
@@ -642,9 +677,11 @@ function MembersPanel({ classId, members }: { classId: string; members: ClassMem
 function GatesPanel({
   classId,
   assignedCourses,
+  canManage,
 }: {
   classId: string;
   assignedCourses: ClassCourseDto[];
+  canManage: boolean;
 }): JSX.Element {
   const { t } = useTranslation();
   const [picked, setPicked] = useState<string | null>(null);
@@ -695,7 +732,7 @@ function GatesPanel({
                     <GateToggle
                       on={on}
                       label={on ? t('classes.gateOpen') : t('classes.gateClosed')}
-                      disabled={setGate.isPending}
+                      disabled={!canManage || setGate.isPending}
                       onChange={(v) => setGate.mutate({ lessonId: l.id, isActive: v })}
                     />
                   </div>
