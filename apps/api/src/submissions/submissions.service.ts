@@ -230,8 +230,7 @@ export class SubmissionsService {
       throw new NotFoundException('Bài nộp không tồn tại');
     }
 
-    const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
-    if (!this.rbac.hasPermission(eff, PERMISSIONS.GRADE_WRITE, sub.classId)) {
+    if (!(await this.rbac.isClassStaff(currentUser.userId, sub.classId, [PERMISSIONS.GRADE_WRITE]))) {
       throw new ForbiddenException('Không có quyền chấm bài cho lớp này');
     }
 

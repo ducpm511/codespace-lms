@@ -66,10 +66,8 @@ export class CertificatesService {
       throw new BadRequestException('Vui lòng chỉ định lớp học để cấp chứng chỉ');
     }
 
-    // 1) Scope permission check. admin/super_admin nhận quyền ở phạm vi GLOBAL nên `hasPermission`
-    // đã phủ; không kiểm role thô (AuthPrincipal chỉ có userId — xem ghi chú đầu file).
-    const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
-    if (!this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_ISSUE, dto.classId)) {
+    // 1) Phải phụ trách đúng lớp: role `instructor` gán global nên chỉ kiểm permission là GV nào cũng cấp được.
+    if (!(await this.rbac.isClassStaff(currentUser.userId, dto.classId, [PERMISSIONS.CERTIFICATE_ISSUE]))) {
       throw new ForbiddenException('Không có quyền cấp chứng chỉ cho lớp này');
     }
 
@@ -275,17 +273,14 @@ export class CertificatesService {
       throw new NotFoundException('Chứng chỉ không tồn tại');
     }
 
-    if (cert.revokedAt) {
-      throw new BadRequestException('Chứng chỉ này đã bị thu hồi trước đó');
+    // M1 fix: route không có `:classId` nên scope kiểm ở service theo `cert.classId`.
+    // Kiểm trước trạng thái thu hồi để người ngoài không dò được chứng chỉ đã bị thu hồi hay chưa.
+    if (!(await this.rbac.isClassStaff(currentUser.userId, cert.classId, [PERMISSIONS.CERTIFICATE_REVOKE]))) {
+      throw new ForbiddenException('Không có quyền thu hồi chứng chỉ này');
     }
 
-    // M1 fix: route không có `:classId` nên scope kiểm ở service theo `cert.classId`.
-    const eff = await this.rbac.getEffectivePermissions(currentUser.userId);
-    const canRevoke = cert.classId
-      ? this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_REVOKE, cert.classId)
-      : this.rbac.hasPermission(eff, PERMISSIONS.CERTIFICATE_REVOKE);
-    if (!canRevoke) {
-      throw new ForbiddenException('Không có quyền thu hồi chứng chỉ này');
+    if (cert.revokedAt) {
+      throw new BadRequestException('Chứng chỉ này đã bị thu hồi trước đó');
     }
 
     const [updated] = await this.prisma.$transaction([

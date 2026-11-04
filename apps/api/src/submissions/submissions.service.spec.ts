@@ -42,6 +42,7 @@ function makeRbac() {
   return {
     getEffectivePermissions: jest.fn(),
     hasPermission: jest.fn(),
+    isClassStaff: jest.fn(),
   };
 }
 
@@ -317,20 +318,32 @@ describe('SubmissionsService', () => {
 
     it('403 khi GV không có grade.write permission cho lớp', async () => {
       prisma.submission.findUnique.mockResolvedValue(sampleSubmission());
-      rbac.getEffectivePermissions.mockResolvedValue([]);
-      rbac.hasPermission.mockReturnValue(false);
+      rbac.isClassStaff.mockResolvedValue(false);
 
       await expect(
         service.grade('sub-1', { score: 90 }, { userId: 't1' }),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(rbac.isClassStaff).toHaveBeenCalledWith('t1', 'class-1', ['grade.write']);
+      expect(prisma.submission.update).not.toHaveBeenCalled();
+    });
+
+    it('GV lớp khác có grade.write global → 403 (RbacService thật)', async () => {
+      prisma.submission.findUnique.mockResolvedValue(sampleSubmission());
+      const svc = new SubmissionsService(
+        prisma as unknown as PrismaService,
+        realRbac({ role: 'instructor' }),
+        scratch as unknown as ScratchLmsService,
+      );
+
+      await expect(svc.grade('sub-1', { score: 90 }, { userId: 'gv-khac' })).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.submission.update).not.toHaveBeenCalled();
     });
 
     it('400 khi điểm chấm vượt quá điểm tối đa', async () => {
       prisma.submission.findUnique.mockResolvedValue(
         sampleSubmission({ assignment: { maxScore: '100' } }),
       );
-      rbac.getEffectivePermissions.mockResolvedValue(['grade.write']);
-      rbac.hasPermission.mockReturnValue(true);
+      rbac.isClassStaff.mockResolvedValue(true);
 
       await expect(
         service.grade('sub-1', { score: 105 }, { userId: 't1' }),
@@ -341,8 +354,7 @@ describe('SubmissionsService', () => {
       prisma.submission.findUnique.mockResolvedValue(
         sampleSubmission({ assignment: { maxScore: '100' } }),
       );
-      rbac.getEffectivePermissions.mockResolvedValue(['grade.write']);
-      rbac.hasPermission.mockReturnValue(true);
+      rbac.isClassStaff.mockResolvedValue(true);
       prisma.submission.update.mockResolvedValue(
         sampleSubmission({ status: 'graded', score: '95.5', gradedAt: now }),
       );

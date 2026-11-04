@@ -26,6 +26,7 @@ function makeRbac() {
   return {
     getEffectivePermissions: jest.fn().mockResolvedValue([]),
     hasPermission: jest.fn().mockReturnValue(true),
+    isClassStaff: jest.fn().mockResolvedValue(true),
   };
 }
 
@@ -64,6 +65,19 @@ describe('CertificatesService', () => {
       await expect(
         service.issue({ userId: 'ghost', courseId: 'cr1', classId: 'c1', templateId: 't1' }, dummyAdmin),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('GV lớp khác có certificate.issue global → 403 (RbacService thật)', async () => {
+      const svc = new CertificatesService(
+        prisma as unknown as PrismaService,
+        realRbac({ role: 'instructor' }),
+        grading as unknown as GradingService,
+      );
+
+      await expect(
+        svc.issue({ userId: 'u1', courseId: 'cr1', classId: 'c1', templateId: 't1' }, { userId: 'gv-khac' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
     it('409 khi học viên đã được cấp chứng chỉ cho khóa', async () => {
@@ -165,15 +179,28 @@ describe('CertificatesService', () => {
 
     it('403 khi không có quyền revoke (scope theo cert.classId)', async () => {
       prisma.certificate.findUnique.mockResolvedValue({ id: 'cert-100', classId: 'class-9', revokedAt: null });
-      rbac.hasPermission.mockReturnValue(false);
+      rbac.isClassStaff.mockResolvedValue(false);
 
       await expect(
         service.revoke('cert-100', { reason: 'Gian lận' }, { userId: 'nguoi-la' }),
       ).rejects.toBeInstanceOf(ForbiddenException);
 
       // Hồi quy: phải tra quyền bằng userId THẬT, không phải undefined
-      expect(rbac.getEffectivePermissions).toHaveBeenCalledWith('nguoi-la');
-      expect(rbac.hasPermission).toHaveBeenCalledWith(expect.anything(), 'certificate.revoke', 'class-9');
+      expect(rbac.isClassStaff).toHaveBeenCalledWith('nguoi-la', 'class-9', ['certificate.revoke']);
+      expect(prisma.certificate.update).not.toHaveBeenCalled();
+    });
+
+    it('GV lớp khác có certificate.revoke global → 403 (RbacService thật)', async () => {
+      prisma.certificate.findUnique.mockResolvedValue({ id: 'cert-100', classId: 'class-9', revokedAt: null });
+      const svc = new CertificatesService(
+        prisma as unknown as PrismaService,
+        realRbac({ role: 'instructor' }),
+        grading as unknown as GradingService,
+      );
+
+      await expect(svc.revoke('cert-100', { reason: 'Gian lận' }, { userId: 'gv-khac' })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
       expect(prisma.certificate.update).not.toHaveBeenCalled();
     });
   });
