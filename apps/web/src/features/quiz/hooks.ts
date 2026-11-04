@@ -6,6 +6,7 @@ import type {
   UpsertQuestionRequest,
 } from '@lms/contracts';
 import * as api from './api';
+import { invalidateLearningProgress } from '../classes/hooks';
 
 // --- Authoring ---
 
@@ -109,7 +110,9 @@ export function useQuizAttempt(quizId: string | null, classId: string | null) {
 
 /** Nộp + chấm server-side trong một lần; trả về QuizAttemptDto đã chấm. */
 export function useSubmitQuizAttempt(quizId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: SubmitQuizAttemptRequest) => api.submitQuizAttempt(quizId, body),
+    onSuccess: (_data, body) => invalidateLearningProgress(qc, body.classId),
   });
 }

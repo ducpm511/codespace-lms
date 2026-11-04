@@ -126,7 +126,8 @@ export class AutograderService {
         data: { status: summary.status, score: summary.score, runtimeMs: summary.runtimeMs },
       });
 
-      // Reflect coding result on lesson progress (never downgrade an already-completed lesson).
+      // A submission only starts the lesson, pass or fail: the lesson can hold other activities, so
+      // completing it (and its lesson_complete XP) stays with the student. Never downgrade a completed one.
       const lessonId = submission.problem.lessonId;
       if (lessonId && submission.classId) {
         const key = {
@@ -136,32 +137,18 @@ export class AutograderService {
             classId: submission.classId,
           },
         };
-        if (summary.status === 'passed') {
-          await tx.lessonProgress.upsert({
-            where: key,
-            create: {
+        const existing = await tx.lessonProgress.findUnique({ where: key, select: { status: true } });
+        if (!existing) {
+          await tx.lessonProgress.create({
+            data: {
               userId: submission.userId,
               lessonId,
               classId: submission.classId,
-              status: 'completed',
-              completedAt: new Date(),
+              status: 'in_progress',
             },
-            update: { status: 'completed', completedAt: new Date() },
           });
-        } else {
-          const existing = await tx.lessonProgress.findUnique({ where: key, select: { status: true } });
-          if (!existing) {
-            await tx.lessonProgress.create({
-              data: {
-                userId: submission.userId,
-                lessonId,
-                classId: submission.classId,
-                status: 'in_progress',
-              },
-            });
-          } else if (existing.status === 'not_started') {
-            await tx.lessonProgress.update({ where: key, data: { status: 'in_progress' } });
-          }
+        } else if (existing.status === 'not_started') {
+          await tx.lessonProgress.update({ where: key, data: { status: 'in_progress' } });
         }
       }
 

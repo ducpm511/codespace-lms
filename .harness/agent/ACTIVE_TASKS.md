@@ -149,14 +149,7 @@ và tên file PDF mojibake (vá lúc upload ở P8 + script dọn dữ liệu c�
 
 ### Phase P7: Lesson Activities — ✅ HOÀN THÀNH (2026-08-19)
 
-Bài học = **container activity có thứ tự** (markdown/pdf/video/quiz/coding/assignment). T7.0 contracts ·
-T7.1 migration `p7_lesson_activities` (+ backfill) · T7.2 module `files` (PDF: allowlist mime + magic bytes
-+ 20MB, storageKey server sinh, guard owner/`course.update`/member lớp có gate mở) · T7.3
-`lesson-activities.service` (CRUD + reorder 2 pha, IDOR course→section→lesson) · T7.4 `LessonActivityBuilder`
-· T7.5 render activity trong `LessonDetail` · bonus `GET /assignments/for-class/:classId`.
-INVARIANT verify (live): XSS markdown render thành TEXT; video ngoài allowlist → 400; upload PNG / PDF giả
-mime → 400; trước gate `my-lessons` rỗng + file 403; ngoài lớp 403; HV POST activity/files 403; quiz draft →
-refId null. Chi tiết đầy đủ: `CURRENT_STATE.md §P7`.
+Chi tiết: `CURRENT_STATE.md §P7`.
 
 ---
 
@@ -169,6 +162,10 @@ Chi tiết T6.1–T6.6 + D1–D5: [pre-p7-history.md](../../docs/archive/complet
 ## Bản vá đã hoàn thành
 
 Ba bản vá phiên P7 → [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md](../../docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md).
+
+- **C3** ✅ **Xong 04/11, chưa mở PR** (nhánh `claude/elastic-dijkstra-28d486`) — pass bài lập trình/trắc nghiệm chỉ đặt
+  `in_progress`, học viên tự bấm Hoàn thành nhận 50 XP; migration `backfill_lesson_complete_xp` bù XP cho dữ liệu cũ.
+  Chi tiết `CURRENT_STATE.md §C3`.
 
 ## Nợ kỹ thuật đã giải quyết (Phase P6 Tech Debt Cleaned)
 

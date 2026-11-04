@@ -529,7 +529,7 @@
     "statBadges": "Huy hiệu",
     "level": "Cấp độ",
     "celebrationTitle": "Tuyệt vời! 🎉",
-    "celebrationXp": "+40 XP · Bạn vừa hoàn thành một bài học!",
+    "celebrationXp": "+{{xp}} XP · Bạn vừa hoàn thành một bài học!",
     "dismiss": "Đóng",
     "continueKicker": "Học tiếp nào",
     "continueCta": "Tiếp tục",

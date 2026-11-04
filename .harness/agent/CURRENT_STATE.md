@@ -9,6 +9,19 @@ Updated: 2026-11-04
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
 
+### C3: pass bài không còn tự hoàn thành bài học (2026-11-04) — nhánh `claude/elastic-dijkstra-28d486`, chưa mở PR
+
+- **Người dùng chọn hướng (a):** nộp bài lập trình/trắc nghiệm, đạt hay không, chỉ đặt `in_progress` và không đụng bài đã
+  `completed`. Học viên tự bấm Hoàn thành mới có `completed` + 50 XP `lesson_complete`. Quiz cùng lỗi nên sửa cùng hướng.
+- **Đánh đổi đã biết:** ai pass mà quên bấm thì bài không tính vào mốc 80% của chứng chỉ và báo cáo lớp.
+- **Dữ liệu đổi:** migration `backfill_lesson_complete_xp` (không đổi schema) bù 50 XP cho bài đã `completed` mà thiếu
+  `lesson_complete`; giữ nguyên trạng thái, `createdAt` = lúc hoàn thành nên không lật bảng xếp hạng tuần này, chạy lại
+  không cộng thêm. Không đụng streak/huy hiệu/thông báo: `first_lesson` sẽ trao ở lần hoàn thành bài kế tiếp.
+- **Hai lỗi FE lộ ra khi thử:** nộp xong không làm mới danh sách bài/XP/bảng xếp hạng (nay `invalidateLearningProgress`);
+  lời chúc mừng ghi cứng +40 XP trong khi cộng 50 (nay lấy từ `XP_REWARDS`).
+- **Đã thử** bằng `p7member` qua API và giao diện, trên DB `lms_c3` tách riêng (bản sao DB dev, đã xóa sau khi thử) với
+  runner stub. **Chưa áp** migration lên DB dev `lms` và production.
+
 ### Vá IDOR bài làm theo lớp (2026-11-04) — nhánh `claude/affectionate-archimedes-33c346`, xếp chồng lên `claude/magical-bouman-307820`, chưa PR
 Không đổi schema.
 
@@ -161,69 +174,9 @@ vì đó là điều kiện của `assertCanAwardInClass`.
 
 `pnpm validate` 16/16 (api **320 test / 28 suite**), i18n parity **563/563**.
 
-### P10 · T10.5 Redesign khu Quản trị (2026-08-26)
+### P10 · T10.1, T10.3, T10.5 — đã tách ra
 
-- **Nhật ký viết thành câu, KHÔNG tra tên người bị tác động** (quyết định của người dùng, HANDOFF §T10.5).
-  Đánh đổi PII biến mất: `audit_logs` giữ nguyên hình dạng, không join thêm, không snapshot tên.
-  Tên người THỰC HIỆN vốn đã có sẵn (`AuditLogDto.actorName`, backend join từ P6) nên vẫn hiện.
-- **Không có nhóm `login`** — đã chốt không ghi audit đăng nhập. Có test khẳng định `auth.login`
-  (nếu ai đó thêm sau này) rơi vào nhóm mặc định chứ không được cấp màu riêng.
-- Thêm nhóm **`award`** cho `gamification.award` của T10.3 — thiết kế gốc chưa biết tới action này.
-- **Chi tiết dựng thành CHIP RỜI, không ghép chuỗi.** Ghép chuỗi kiểu "Tạo tài khoản {{role}} với
-  trạng thái {{status}}" thì bản dịch gãy ở ngôn ngữ có trật tự từ khác.
-- `metaJson` mở rộng **tại chỗ** thay cho modal JSON: xem chi tiết một dòng không nên che các dòng quanh nó.
-- **`GET /admin/overview`** (module `admin` mới, quyền `user.read` — `instructor` KHÔNG có quyền này):
-  GV+TA / học viên / lớp `active` / khóa `published`. Ba query cố định, loại tài khoản `suspended`
-  (GV bị khoá thì không còn dạy), người giữ cả instructor lẫn TA chỉ đếm một lần.
-- `adminUi.ts` để **thuần logic, không JSX** — trộn hằng số với component làm eslint
-  `react-refresh/only-export-components` kêu 9 cảnh báo; `MetaChip`/`StatTile` nằm trong `AdminHome.tsx`.
-- `pnpm validate` 16/16 (api **314 test / 28 suite**, web **15 test / 3 file**), i18n parity **562/562**.
-  **Chưa xem được trên giao diện thật** — worktree không có DB/Docker.
-
-### P10 · T10.3 Giáo viên trao thưởng thủ công (2026-08-26)
-
-- **Chỗ chặn thật KHÔNG phải permission mà là thành viên lớp.** `assertCanAwardInClass` đòi CẢ
-  `grade.write` LẪN đang là `instructor`/`ta` active của chính lớp đó. Chỉ kiểm `grade.write` là hở:
-  role `instructor` hiện gán ở phạm vi GLOBAL (nợ kỹ thuật đã biết) nên GV bất kỳ sẽ trao được cho
-  học viên lớp người khác — đúng thứ INVARIANT #3 cấm. Có test cho đúng ca này.
-- **Endpoint `POST /gamification/students/:studentId/awards`** — khác bản nháp `/users/:id/badges`:
-  một lượt trao lo cả huy hiệu lẫn XP nên đặt tên theo việc nó làm. Route không có `:classId` nên
-  `@RequirePermission` chỉ lọc thô; phạm vi lớp kiểm trong service theo `body.classId`.
-- **XP thưởng tay có trần `MANUAL_XP_MIN..MAX` = 5..200** (contracts, dùng chung FE/BE). Vì XP thưởng
-  tay được tính vào bảng xếp hạng tuần: không có trần thì một lượt thưởng lật ngược cả bảng.
-- **`sourceId` của `manual_award` là `randomUUID()` từng lượt**, không phải id bài — khoá
-  `(userId, source, sourceId)` vốn dùng để chống farm điểm sẽ chặn luôn việc khen lần thứ hai.
-- Huy hiệu vẫn `@@unique([userId, badgeId])`: mỗi huy hiệu giữ MỘT lần, trao lại trả **409**. Muốn
-  khen lại thì thưởng XP kèm lời nhắn (không giới hạn số lần).
-- Không trao tay được huy hiệu tự động (`isManual = false` → 400), và không tự thưởng cho mình (403).
-- **Audit `gamification.award` không chứa tên người lẫn nguyên văn lời nhắn** — chỉ
-  `{classId, badgeCode, xpAmount, hasNote}` (INVARIANT #5, có test khẳng định).
-- `BadgeDto.note` mới: lời khen của cô giáo hiện lại trên huy hiệu của học viên, không trôi mất
-  trong thông báo.
-- `pnpm validate` 16/16 (api **311 test / 27 suite**), i18n parity **541/541**.
-  **Chưa chạy migration `20260826120000_p10_manual_awards` trên DB thật.**
-
-### P10 · T10.1 Bảng xếp hạng lớp theo tuần (2026-08-26)
-
-- **`XpEvent.classId` nullable + FK `SetNull` + index `(classId, createdAt)`.** Chọn thêm cột thay vì suy
-  từ `sourceId` lúc đọc: suy lúc đọc phải join 3 bảng khác nhau cho 3 nguồn XP và vẫn sai khi học viên
-  học cùng bài ở nhiều lớp. Migration `20260826090000_p10_xp_class_scope` backfill từ chính sự kiện domain
-  (`lesson_progress` / `quiz_attempts` / `coding_submissions`), chọn bản ghi gần thời điểm cộng XP nhất;
-  suy không ra thì để NULL và bảng xếp hạng bỏ qua — **không đoán bừa**.
-- **Khoá `(userId, source, sourceId)` giữ nguyên**, nên học lại cùng bài ở lớp khác KHÔNG cộng XP lần hai
-  và `classId` giữ lớp đầu tiên. Cố ý: nới ra là mở đường farm điểm (HANDOFF_P10 §Cảnh báo).
-- **`GET /classes/:classId/leaderboard?week=current|previous`.** KHÔNG gắn `@RequirePermission` — `class.read`
-  là quyền của GV/admin, gắn vào thì chính học viên không xem được bảng của lớp mình. Quyền kiểm ở service
-  (`ensureCanViewClass`): thành viên `active`, HOẶC `class.read` **scope đúng lớp đó** (INVARIANT #3).
-- **Mốc tuần = thứ Hai 00:00 giờ VN = CN 17:00 UTC** (`weekWindowVn`, dùng chung `APP_TZ_OFFSET_MS` với streak).
-  Reset hằng tuần là chủ ý: bảng tích luỹ vĩnh viễn thì em vào sau không bao giờ đuổi kịp.
-- Chỉ xếp hạng `roleInClass = student` đang `active` (GV/TA đứng ngoài). Học viên 0 điểm vẫn có mặt để tự
-  thấy hạng của mình. Đồng điểm → đồng hạng (1, 1, 3). Chỉ số hiển thị là **số bài hoàn thành**, không phải
-  điểm/tốc độ. FE `pages/learn/ClassLeaderboard.tsx` mặc định chỉ hiện tốp 10 + dòng của chính mình.
-- `useUpdateProgress` giờ invalidate cả `gamification/me` và leaderboard — trước đó hero XP đứng yên tới 60 s
-  sau khi hoàn thành bài.
-- `pnpm validate` 16/16 (api **299 test / 27 suite**), i18n parity **533/533**.
-  **Chưa chạy migration trên DB thật** (worktree không có Postgres/Docker) và chưa thử qua giao diện.
+Quyết định và số đo: [p10-t10-1-3-5-notes.md](../../docs/archive/completed_tasks/p10-t10-1-3-5-notes.md).
 
 ### P9 Production readiness (2026-08-21) — branch `claude/p9-single-vps-deployment-882cf5`, chưa merge main
 
