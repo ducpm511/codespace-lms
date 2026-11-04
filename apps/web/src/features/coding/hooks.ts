@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CodingSubmissionDto,
@@ -7,9 +6,8 @@ import type {
   UpdateCodingProblemRequest,
   UpsertTestCaseRequest,
 } from '@lms/contracts';
-import { myLessonsKey } from '../classes/hooks';
-import * as api from './api';
 import { invalidateLearningProgress } from '../classes/hooks';
+import * as api from './api';
 
 const TERMINAL_STATUSES = new Set(['passed', 'failed', 'error']);
 const isTerminal = (status?: string): boolean => !!status && TERMINAL_STATUSES.has(status);
@@ -116,10 +114,8 @@ export function useRefreshAfterGraded(problemId: string, classId: string) {
   return () => {
     void qc.invalidateQueries({ queryKey: codingAttemptKey(problemId, classId) });
     void qc.invalidateQueries({ queryKey: codingForClassKey(classId) });
-    void qc.invalidateQueries({ queryKey: myLessonsKey(classId) });
-    void qc.invalidateQueries({ queryKey: ['gamification', 'me'] });
-    void qc.invalidateQueries({ queryKey: ['classes', classId, 'leaderboard'] });
     void qc.invalidateQueries({ queryKey: ['studentOwnGradebook', classId] });
+    invalidateLearningProgress(qc, classId);
   };
 }
 
@@ -167,19 +163,10 @@ export function useCodingSubmissionReview(submissionId: string | null) {
  * ngay; bull driver bắt đầu ở queued/running nên cần polling ~1.5s.
  */
 export function useCodingSubmission(submissionId: string | null) {
-  const qc = useQueryClient();
-  const query = useQuery<CodingSubmissionDto>({
+  return useQuery<CodingSubmissionDto>({
     queryKey: codingSubmissionKey(submissionId ?? '_none'),
     queryFn: () => api.getCodingSubmission(submissionId as string),
     enabled: !!submissionId,
     refetchInterval: (query) => (isTerminal(query.state.data?.status) ? false : 1500),
   });
-
-  // Tiến độ và XP chỉ đổi khi chấm xong, không phải lúc gửi bài.
-  const gradedClassId = isTerminal(query.data?.status) ? query.data?.classId : null;
-  useEffect(() => {
-    if (gradedClassId) invalidateLearningProgress(qc, gradedClassId);
-  }, [qc, gradedClassId, submissionId]);
-
-  return query;
 }
