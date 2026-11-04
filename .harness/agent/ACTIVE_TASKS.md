@@ -93,7 +93,7 @@ P10 đã phát hành (2026-08-26). O1 (Piston) và O3 (đo RAM) đã xong từ P
 | C1 | ✅ **Xong 04/11** (chưa PR): tab Bài lập trình → "Bài nộp của học viên". `CURRENT_STATE.md §GV xem bài nộp` | — |
 | C2 | Học viên không thấy điểm lập trình trong sổ điểm của mình cho tới khi staff mở sổ | `my-gradebook` chỉ đọc, `recompute` chỉ do staff gọi |
 | C3 | Pass một bài lập trình tự đánh dấu cả bài học "hoàn thành" và không cộng XP `lesson_complete` | Nút Hoàn thành bị khóa nên mất 50 XP; bài học còn hoạt động khác vẫn thành hoàn thành |
-| C4 | Route cấp lớp chưa chặn GV lớp khác: chi tiết lớp, báo cáo, sổ điểm, DS chứng chỉ, `teach/overview`. **Cần người chốt:** GV có được thấy lớp người khác không? `CURRENT_STATE.md §Vá IDOR` | GV bất kỳ đọc được điểm cả lớp |
+| C4 | ✅ **Xong 04/11** (chưa PR). Người dùng chốt: GV xem được mọi lớp, chỉ ghi ở lớp phụ trách. `CURRENT_STATE.md §Phạm vi GV` | — |
 
 ### Việc cần người quyết (không agent nào làm thay được)
 

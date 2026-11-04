@@ -9,6 +9,19 @@ Updated: 2026-11-04
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
 
+### Phạm vi GV theo lớp (C4, 2026-11-04) — nhánh `claude/hungry-mendel-e230df`, xếp chồng lên nhánh vá IDOR bên dưới, chưa PR
+Không đổi schema. **Người dùng chốt: GV được xem mọi lớp, chỉ ghi ở lớp mình phụ trách.**
+
+- **`rbac/guards/class-staff.guard.ts`** đặt sau PermissionsGuard, dùng lại quyền của `@RequirePermission`: `PATCH classes/:id`, gán/gỡ khóa,
+  thêm/gỡ thành viên, `PUT gates`, `POST gradebook/recompute`. GV lớp khác 403; lớp không tồn tại GV 403, admin 404.
+- **Đọc vẫn mở cho mọi GV:** `GET /classes`, `teach/overview`, chi tiết lớp, báo cáo, gate, sổ điểm, danh sách chứng chỉ, leaderboard.
+  Bài làm từng em (quiz, bài nộp, code, PDF chứng chỉ) vẫn chỉ người phụ trách, theo bản vá bên dưới.
+- **Bẫy:** tab Sổ điểm mở sổ bằng `POST recompute`. `GET /classes/:id/my-access` (mới) cho FE biết để dùng GET và ẩn nút ghi; GV lớp khác thấy
+  điểm tới lần tổng hợp gần nhất.
+- **Vá `files/:id`:** `course.update` global không còn đọc được PDF chứng chỉ, file đó theo luật của `certificates/:id/pdf`.
+- **Đã kiểm:** `pnpm validate` 18/18 task (api 588 test / 39 suite). API thật trên DB bản sao `lms_c4` (đã xóa, DB dev không đổi), 6 vai, 16 route đều
+  đúng. Xem bằng mắt: GV lớp khác chỉ đọc, không 403 trên console; GV tạo lớp đủ nút ghi.
+
 ### Vá IDOR bài làm theo lớp (2026-11-04) — nhánh `claude/affectionate-archimedes-33c346`, xếp chồng lên `claude/magical-bouman-307820`, chưa PR
 Không đổi schema.
 
@@ -24,9 +37,7 @@ Không đổi schema.
 - **Đã kiểm:** `pnpm validate` 18/18 task (api 557 test / 38 suite). API thật trên DB bản sao `lms_idor` (đã xóa, DB dev không đổi), 10 vai:
   trước khi vá, HV ngoài lớp, bạn cùng lớp và GV lớp khác đều đọc được quiz (200); sau khi vá đều 403, chủ bài/GV tạo lớp/TA/admin 200,
   id không tồn tại 404. Riêng `scratch/.../assets` chỉ kiểm bằng unit test: DB dev không có asset nên API thật chỉ thử `project.json`.
-- **CÒN HỞ, chờ người quyết (ACTIVE_TASKS C4):** GV lớp khác vẫn 200 ở `classes/:id`, `classes/:id/report`, `classes/:id/gradebook`,
-  `certificates/class/:id`. Chưa thử trên API thật: `gradebook/recompute`, `teach/overview` (đọc mọi lớp), `files/:id`
-  (`course.update` global đọc được cả file PDF chứng chỉ nếu biết id).
+- Phần cấp lớp còn lại: xem mục C4 ở trên.
 
 ### GV xem bài nộp (C1, 2026-11-04) — nhánh `claude/magical-bouman-307820`, xếp chồng lên `claude/focused-kapitsa-de036f`, chưa PR
 
