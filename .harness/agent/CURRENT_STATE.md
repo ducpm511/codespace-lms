@@ -9,6 +9,12 @@ Updated: 2026-11-04
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
 
+### Bản ghép chờ PR (2026-11-04) — nhánh `claude/focused-kapitsa-de036f`, chưa push/PR/deploy
+
+Đã ghép việc bài lập trình + C1 + vá IDOR + C3, chưa gồm C4. `pnpm validate` đạt 18/18 task (api 565 test), i18n 829/829; 24 ca đầu cuối
+trên API thật (DB tạm, đã xóa) và xem bằng mắt HV + GV đều đạt, với runner stub. Migration `backfill_lesson_complete_xp` đã thử trên một ca
+tự tạo: cộng 50 XP theo ngày cũ, chạy lại không cộng thêm. DB dev `lms` chưa áp 2 migration mới nhất (`close_orphan_lesson_gates`, backfill).
+
 ### C3: pass bài không còn tự hoàn thành bài học (2026-11-04) — nhánh `claude/elastic-dijkstra-28d486`, chưa mở PR
 
 - **Người dùng chọn hướng (a):** nộp bài lập trình/trắc nghiệm, đạt hay không, chỉ đặt `in_progress` và không đụng bài đã
