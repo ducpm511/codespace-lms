@@ -20,6 +20,8 @@ import type {
   ScratchGalleryScope,
   ScratchLikeResponse,
   ScratchAssetUploadResponse,
+  ScratchBackpackItemDto,
+  ScratchBackpackItemTypeValue,
   ScratchProjectDetailDto,
   ScratchProjectSummaryDto,
   ScratchProjectVersionDto,
@@ -184,3 +186,29 @@ export const removeBannedWord = (word: string): Promise<ScratchBannedWordDto[]> 
   apiFetch(`${mod}/banned-words/${encodeURIComponent(word)}`, { method: 'DELETE' });
 export const resolveReport = (id: string, action: 'dismiss' | 'remove') =>
   apiFetch<void>(`${mod}/reports/${id}/resolve`, { method: 'POST', body: JSON.stringify({ action }) });
+
+// --- Ba lô của trình soạn (chỉ của chính mình) ---
+
+export const listBackpack = (offset: number, limit: number): Promise<ScratchBackpackItemDto[]> =>
+  apiFetch(`/scratch/backpack?offset=${offset}&limit=${limit}`);
+
+/** Nội dung một mục; `null` = mục đã bị xóa (vd ở tab khác). */
+export const getBackpackBody = (id: string): Promise<ArrayBuffer | null> =>
+  apiFetchArrayBuffer(`/scratch/backpack/${encodeURIComponent(id)}/body`);
+
+export function addBackpackItem(
+  type: ScratchBackpackItemTypeValue,
+  name: string,
+  body: ArrayBuffer,
+  thumbnail: ArrayBuffer,
+): Promise<ScratchBackpackItemDto> {
+  const form = new FormData();
+  form.append('type', type);
+  form.append('name', name);
+  form.append('body', new Blob([body]), 'body');
+  form.append('thumbnail', new Blob([thumbnail], { type: 'image/jpeg' }), 'thumbnail.jpg');
+  return apiUpload('/scratch/backpack', form);
+}
+
+export const deleteBackpackItem = (id: string): Promise<void> =>
+  apiFetch(`/scratch/backpack/${encodeURIComponent(id)}`, { method: 'DELETE' });

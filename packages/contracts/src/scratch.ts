@@ -376,3 +376,49 @@ export interface ScratchBannedWordDto {
 export interface AddScratchBannedWordRequest {
   word: string;
 }
+
+// --- Ba lô (backpack) của trình soạn ---
+// Kho riêng của từng người, chỉ chính chủ đọc / thêm / xóa. Trình soạn không gọi API: bridge chuyển lệnh qua
+// postMessage cho trang LMS, trang LMS gọi các route `/scratch/backpack` dưới đây.
+
+export type ScratchBackpackItemTypeValue = 'costume' | 'sound' | 'script' | 'sprite';
+
+export const SCRATCH_BACKPACK_ITEM_TYPES: readonly ScratchBackpackItemTypeValue[] = [
+  'costume',
+  'sound',
+  'script',
+  'sprite',
+];
+
+/** Số mục tối đa mỗi người. Đủ cho một năm học mà không thành kho chứa file. */
+export const SCRATCH_BACKPACK_MAX_ITEMS = 100;
+/** Kích thước tối đa phần nội dung của một mục (nhân vật kèm ghi âm vẫn lọt). */
+export const SCRATCH_BACKPACK_ITEM_MAX_BYTES = 10 * 1024 * 1024;
+/** Tổng dung lượng ba lô mỗi người — riêng với SCRATCH_USER_QUOTA_BYTES của asset dự án. */
+export const SCRATCH_BACKPACK_QUOTA_BYTES = 50 * 1024 * 1024;
+/** Ảnh thu nhỏ JPEG do trình soạn tạo (thường vài KB). */
+export const SCRATCH_BACKPACK_THUMBNAIL_MAX_BYTES = 64 * 1024;
+/** Trang danh sách: trình soạn xin 20 mục / lần; server nhận tối đa ngần này. */
+export const SCRATCH_BACKPACK_PAGE_MAX = 40;
+
+export interface ScratchBackpackItemDto {
+  id: string;
+  type: ScratchBackpackItemTypeValue;
+  name: string;
+  mime: string;
+  /** "<md5>.<đuôi>" — chỉ costume / sound (trình soạn nạp theo tên này); script / sprite là null. */
+  md5ext: string | null;
+  sizeBytes: number;
+  /** Ảnh thu nhỏ JPEG, base64 (không có tiền tố data:). */
+  thumbnail: string;
+  createdAt: string;
+}
+
+/**
+ * Thêm mục: multipart với trường `type`, `name` (văn bản) và file `body` (nội dung) + `thumbnail` (JPEG).
+ * Mime / đuôi do server suy từ `type` + magic bytes, không nhận từ client.
+ */
+export interface CreateScratchBackpackItemRequest {
+  type: ScratchBackpackItemTypeValue;
+  name: string;
+}

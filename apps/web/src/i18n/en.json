@@ -752,6 +752,7 @@
     "unsaved": "Unsaved changes",
     "saveFailed": "Not saved: {{message}}",
     "openFailed": "Couldn't open the project: {{message}}",
+    "backpackFailed": "Backpack: {{message}}",
     "save": "Save",
     "openFile": "Open .sb3",
     "saveFile": "Download .sb3",

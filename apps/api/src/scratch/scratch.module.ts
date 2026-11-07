@@ -22,6 +22,8 @@ import { ScratchLmsService } from './scratch-lms.service';
 import { ScratchCommentModerationController, ScratchCommentsController } from './scratch-comments.controller';
 import { ScratchCommentsService } from './scratch-comments.service';
 import { ScratchCommentModerationService } from './scratch-comment-moderation.service';
+import { ScratchBackpackController } from './scratch-backpack.controller';
+import { ScratchBackpackService } from './scratch-backpack.service';
 
 /** BlockSpace (P11) — dự án Scratch, phiên bản, asset, chia sẻ, công khai. docs/adr/003-scratch-studio.md. */
 @Module({
@@ -36,6 +38,7 @@ import { ScratchCommentModerationService } from './scratch-comment-moderation.se
     ScratchLmsController,
     ScratchCommentsController,
     ScratchCommentModerationController,
+    ScratchBackpackController,
   ],
   providers: [
     ScratchAccessService,
@@ -50,6 +53,7 @@ import { ScratchCommentModerationService } from './scratch-comment-moderation.se
     ScratchLmsService,
     ScratchCommentsService,
     ScratchCommentModerationService,
+    ScratchBackpackService,
   ],
   exports: [ScratchAccessService, ScratchLmsService],
 })

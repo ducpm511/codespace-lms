@@ -2,6 +2,53 @@
 
 Thiết kế + quyết định: `docs/adr/003-scratch-studio.md`. Task board: `ACTIVE_TASKS.md §P11`.
 
+## Ba lô (backpack) trong trình soạn ✅ (2026-11-07) — nhánh `claude/gallant-shannon-ea4da2`, chưa push/PR/deploy
+
+Học viên cất nhân vật / trang phục / âm thanh / đoạn khối lệnh rồi kéo ra ở dự án khác. **Không cần bản vá editor,
+không cần release `blockspace-editor-*` mới** — chỉ đổi `bridge.js`. Migration `20261107090000_p11_scratch_backpack`
+(bảng `scratch_backpack_items`, enum `ScratchBackpackItemType`; viết tay, khớp `migrate diff --from-schema-datamodel`).
+
+- **Cách nối (đọc từ source map scratch-gui 15.2.0):** GUI chỉ hiện ba lô khi `backpackVisible && config.storage.backpackStorage`,
+  chỉ mở được khi có prop `backpackHost`. Bridge thay `backpackStorage` của LegacyStorage (bản gốc gọi máy backpack
+  scratch.mit.edu bằng token Scratch) bằng bản chuyển `list/save/delete` qua postMessage cho trang cha; `setBackpackHost`
+  thành hàm rỗng (bản gốc đăng ký web store ảnh/âm thanh tới máy backpack), `backpackHost: 'lms'` chỉ là cờ. Không dùng
+  `?token=&username=` của GUI. Player (`?mode=player`) không bật ba lô.
+- **Hai bẫy của GUI đã chặn ở bridge:** (1) trước khi cất costume/âm thanh "bẩn" (vừa vẽ/ghi âm), GUI gọi
+  `scratchStorage.store` = POST lên asset server Scratch → bridge thay `store` bằng bản chỉ giữ trong bộ nhớ (LMS tự lưu asset
+  khi lưu dự án; `canSave: false` nên không đường nào khác dùng `store`). (2) kéo trang phục từ ba lô ra, GUI gọi
+  `vm.addCostume(md5ext, {name})` không có `md5` → project.json ghi `md5ext: null` → API từ chối LƯU CẢ DỰ ÁN ("asset có
+  md5ext không hợp lệ") — phát hiện khi thử bằng mắt; bridge bọc `vm.addCostume` điền `md5`. Scratch gốc không lộ lỗi này
+  vì server của họ không kiểm.
+- **Nội dung khi kéo ra:** trang cha tải kèm nội dung mỗi mục lúc liệt kê (trình soạn không gọi API được). Costume/sound nạp
+  sẵn bytes vào bộ nhớ scratch-storage theo `md5ext` (server tính từ nội dung); sprite/script dùng `blob:` URL. Đánh đổi:
+  mở ba lô tải nội dung cả trang (20 mục) một lần.
+- **API** `/scratch/backpack` (`scratch-backpack.service.ts`): `GET ?offset&limit` (≤40, mới trước), `POST` multipart
+  (`type`, `name`, file `body` + `thumbnail`), `GET :id/body` (CSP sandbox như asset), `DELETE :id`. **Không có route theo
+  userId**; mọi truy vấn lọc theo người đăng nhập, mục người khác ⇒ 404; id phải là UUID. Mime/đuôi do server suy từ magic
+  bytes (costume svg/png, sound wav/mp3, sprite zip, script = mảng JSON); thumbnail JPEG ≤64 KB.
+- **Giới hạn** (`@lms/contracts`): 100 mục, 10 MB/mục, 50 MB/người (riêng với hạn mức 200 MB asset dự án). Kiểm trong
+  transaction có `pg_advisory_xact_lock` theo user nên thêm song song không lọt quá. Lỗi (vd ba lô đầy) hiện ở thanh trên
+  trang soạn ("Ba lô: …") vì GUI chỉ báo lỗi chung.
+- **Asset khi dự án gốc bị xóa:** mục ba lô là BẢN SAO riêng ở storage private (`scratch-backpack/<uuid>`), không tham chiếu
+  `scratch_assets` / `scratch_project_assets` → xóa dự án (mềm) hay sau này có dọn rác asset cũng không ảnh hưởng. Hiện chưa có
+  job nào xóa `scratch_assets`. Xóa mục ⇒ xóa dòng rồi file (lỗi xóa file chỉ log). Xóa user ⇒ cascade dòng, file mồ côi
+  (như các file khác của hệ thống). Không ghi audit (kho cá nhân, như tải asset).
+
+**Đã kiểm:** unit API 16 (`scratch-backpack.spec.ts`: IDOR list/body/delete, route không có userId, hạn mức số mục + dung lượng
++ dọn file khi bị chặn, kiểm nội dung theo loại, DTO allowlist), web 5 (`backpack.test.ts`); `pnpm validate` 18/18 task (api 612 / 40 suite, web 48). API thật trên DB bản sao `lms_bp`
+(đã xóa, DB dev không đổi), 18 ca: 401 khi chưa đăng nhập, sai định dạng / type lạ / trường lạ 400, phân trang, người khác
+list không thấy + đọc/xóa 404, 105 lần thêm song song ⇒ đúng 100 mục; xóa dự án gốc ⇒ 4 mục vẫn tải được.
+**Bằng mắt** (`p7member`, ảnh ở thư mục ghi chú chung `backpack-screenshots/`): dự án A cất nhân vật Rex, trang phục "Rex 2",
+âm thanh "bíp" (asset chưa lưu → đi qua nhánh `store`), khối lệnh; tải lại trang mở dự án B → kéo ra đủ 4 loại (Rex2 kèm kịch
+bản, khối thả vào vùng code, trang phục + âm thanh lên Rex), Lưu thành công; `p7outsider` mở ba lô ⇒ "Ba lô trống".
+**0 request tới `scratch.mit.edu`** (network của tab + resource timing của iframe).
+
+**Chưa kiểm / còn lại:**
+- Thả KHỐI LỆNH vào ba lô chưa thử bằng kéo thật: chuột giả của công cụ không qua được nhận diện kéo của Blockly; đã gọi đúng
+  chuỗi `BLOCK_DRAG_UPDATE` → pointerenter → `BLOCK_DRAG_END` của component Backpack với khối thật. Nên thử tay một lần.
+- Chưa thử trên production / Cloudinary; migration chưa áp lên DB dev `lms`.
+- Mục ba lô không có thao tác đổi tên (GUI gốc cũng không có).
+
 ## T11.8 Bình luận ✅ (2026-10-15)
 
 Quyết định người dùng chốt: `docs/adr/003-scratch-studio.md §Quyết định bình luận`. Migration

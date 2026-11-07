@@ -35,7 +35,8 @@ export function checkAsset(md5ext: string, buffer: Buffer | undefined): CheckedA
 const startsWith = (buf: Buffer, bytes: number[], offset = 0) => bytes.every((b, i) => buf[offset + i] === b);
 const ascii = (s: string) => [...s].map((c) => c.charCodeAt(0));
 
-function matchesFormat(dataFormat: string, buf: Buffer): boolean {
+/** Magic bytes khớp định dạng (dùng chung với ba lô). */
+export function matchesFormat(dataFormat: string, buf: Buffer): boolean {
   switch (dataFormat) {
     case 'png':
       return startsWith(buf, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
