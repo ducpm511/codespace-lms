@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { handleBackpackRequest, isBackpackRequest } from './backpack';
 
 /** URL trình soạn BlockSpace (apps/studio, phục vụ bởi vite-plugin-static-copy). */
 export const BLOCKSPACE_EDITOR_URL = '/studio/editor/index.html';
@@ -35,6 +36,8 @@ export interface BlockSpaceState {
   readyMs: number | null;
   /** Tăng mỗi lần trình soạn nạp xong một dự án (open / load / new). */
   loadCount: number;
+  /** Lý do lần cất / xóa mục ba lô gần nhất thất bại (vd ba lô đầy); null = không có. */
+  backpackError: string | null;
 }
 
 /**
@@ -60,6 +63,7 @@ export function useBlockSpace() {
     error: null,
     readyMs: null,
     loadCount: 0,
+    backpackError: null,
   });
 
   const send = useCallback((msg: object, transfer: Transferable[] = []) => {
@@ -141,6 +145,20 @@ export function useBlockSpace() {
     const onMessage = (ev: MessageEvent<EditorMessage>) => {
       if (ev.origin !== window.location.origin || ev.source !== iframeRef.current?.contentWindow) return;
       const msg = ev.data;
+      const bp = ev.data as unknown as { type?: unknown } | null;
+      if (isBackpackRequest(bp)) {
+        const source = ev.source as Window;
+        void handleBackpackRequest(bp).then(({ message, transfer }) => {
+          // Lỗi cất / xóa (vd ba lô đầy) — trình soạn chỉ hiện "lỗi" chung, nên báo lý do ở thanh trên.
+          if (!message.ok && bp.type !== 'blockspace:backpack-list') {
+            setState((s) => ({ ...s, backpackError: message.message ?? 'error' }));
+          } else if (message.ok && bp.type === 'blockspace:backpack-save') {
+            setState((s) => (s.backpackError ? { ...s, backpackError: null } : s));
+          }
+          source.postMessage(message, window.location.origin, transfer);
+        });
+        return;
+      }
       switch (msg?.type) {
         case 'blockspace:ready':
           setState((s) => ({ ...s, ready: true, readyMs: Math.round(performance.now() - mountedAt.current) }));

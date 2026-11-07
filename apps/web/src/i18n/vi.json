@@ -752,6 +752,7 @@
     "unsaved": "Có thay đổi chưa lưu",
     "saveFailed": "Chưa lưu được: {{message}}",
     "openFailed": "Không mở được dự án: {{message}}",
+    "backpackFailed": "Ba lô: {{message}}",
     "save": "Lưu",
     "openFile": "Mở file .sb3",
     "saveFile": "Tải .sb3 về máy",

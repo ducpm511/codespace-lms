@@ -269,6 +269,11 @@ export function StudioEditorPage(): JSX.Element {
           {openError ? t('studio.openFailed', { message: openError }) : state.error}
         </p>
       )}
+      {state.backpackError && !state.error && !openError && (
+        <p className="m-0 px-3 py-1 text-sm" role="alert" style={{ color: '#f4a3a3' }}>
+          {t('studio.backpackFailed', { message: state.backpackError })}
+        </p>
+      )}
       <div className="relative min-h-0 flex-1">
         <iframe
           ref={iframeRef}

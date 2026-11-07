@@ -2,12 +2,18 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-11-04
+Updated: 2026-11-07
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+### Ba lô BlockSpace (2026-11-07) — nhánh `claude/gallant-shannon-ea4da2`, chưa push/PR/deploy
+
+Ba lô trong trình soạn hiện và dùng được: cất nhân vật / trang phục / âm thanh / khối lệnh, kéo ra ở dự án khác. Chỉ đổi
+`bridge.js` (không cần release editor mới); API `/scratch/backpack` chỉ của chính mình, 100 mục · 10 MB/mục · 50 MB/người.
+**Migration mới `20261107090000_p11_scratch_backpack`** (bảng `scratch_backpack_items`) — chưa áp lên DB dev `lms` và production.
+`pnpm validate` đạt 18/18 task (api 612 test / 40 suite, web 48). Không gọi `scratch.mit.edu`. Chi tiết + bẫy: `HANDOFF_P11.md §Ba lô`.
 
 ### Bản ghép chờ PR (2026-11-04) — nhánh `claude/focused-kapitsa-de036f`, chưa push/PR/deploy
 

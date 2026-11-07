@@ -324,6 +324,7 @@ GET|POST /scratch/projects/:id/comments · PUT …/comments/open {open} (chủ) 
 DELETE /scratch/comments/:id (tác giả / GV) · POST /scratch/comments/:id/{hide,unhide} (chủ / GV) · POST …/report
 POST   /scratch/moderation/comment-reports/:id/resolve {dismiss|hide|delete} · GET|POST|DELETE …/banned-words (admin)
 WS     /api/scratch/ws — làm chung: auth trong message đầu, join (chủ/đồng tác giả), op, resync, snapshot (collab.gateway.ts)
+GET    /scratch/backpack?offset=&limit= (≤40) · POST /scratch/backpack (multipart `type`,`name`,`body`,`thumbnail`) · GET /scratch/backpack/:id/body · DELETE /scratch/backpack/:id — CHỈ của chính mình (không có route theo userId), ≤100 mục, ≤10MB/mục, ≤50MB/người
 ```
 
 ## 9. Frontend (apps/web)

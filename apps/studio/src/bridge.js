@@ -368,12 +368,129 @@
       startCollab();
     } else if (data.type === 'blockspace:collab-apply') {
       applyRemote(data.op);
+    } else if (data.type === 'blockspace:backpack-result' && typeof data.requestId === 'string') {
+      var done = backpackPending[data.requestId];
+      if (done) done(data);
     } else if (data.type === 'blockspace:save') {
       save(data.requestId).catch(function (err) {
         post({ type: 'blockspace:error', requestId: data.requestId, message: String((err && err.message) || err) });
       });
     }
   });
+
+  // --- Ba lô (backpack) ------------------------------------------------------------------------------------
+  // scratch-gui gọi `config.storage.backpackStorage.{list,save,delete}`; bản gốc (LegacyBackpackStorage) nói
+  // chuyện thẳng với máy backpack của scratch.mit.edu bằng token Scratch. Ở đây thay bằng một backpackStorage
+  // chuyển lệnh qua postMessage cho trang cha — trang cha gọi API LMS `/scratch/backpack` (trình soạn vẫn không
+  // có token). Mục trả về:
+  //   - costume / sound: `body` = md5ext; bytes nạp sẵn vào bộ nhớ scratch-storage (vm.addCostume / addSound
+  //     nạp theo md5ext, KHÔNG gọi máy ngoài);
+  //   - sprite / script: `bodyUrl` = blob: URL của nội dung (GUI tự fetch).
+  var BACKPACK_TIMEOUT_MS = 30000;
+  var backpackPending = {};
+  var backpackBlobUrls = {};
+  var backpackSeq = 0;
+
+  function backpackRequest(type, extra, transfer) {
+    return new Promise(function (resolve, reject) {
+      var requestId = 'bp-' + ++backpackSeq + '-' + Date.now();
+      var timer = setTimeout(function () {
+        delete backpackPending[requestId];
+        reject(new Error('backpack timeout'));
+      }, BACKPACK_TIMEOUT_MS);
+      backpackPending[requestId] = function (result) {
+        clearTimeout(timer);
+        delete backpackPending[requestId];
+        if (result && result.ok) resolve(result);
+        else reject(new Error((result && result.message) || 'backpack error'));
+      };
+      post(Object.assign({ type: type, requestId: requestId }, extra), transfer);
+    });
+  }
+
+  function base64ToBuffer(b64) {
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  /** Mục LMS (+ nội dung) → BackpackItem của scratch-gui. */
+  function toBackpackItem(item, data) {
+    var out = {
+      id: item.id,
+      type: item.type,
+      name: item.name,
+      thumbnail: '',
+      thumbnailUrl: 'data:image/jpeg;base64,' + item.thumbnail,
+      body: '',
+      bodyUrl: '',
+    };
+    if ((item.type === 'costume' || item.type === 'sound') && item.md5ext) {
+      var parts = String(item.md5ext).split('.');
+      var assetType = ASSET_TYPES[parts[1]];
+      if (assetType && data instanceof ArrayBuffer) {
+        var storage = vm.runtime.storage;
+        storage.builtinHelper._store(storage.AssetType[assetType], parts[1], new Uint8Array(data), parts[0]);
+      }
+      out.body = item.md5ext;
+    } else if (data instanceof ArrayBuffer) {
+      if (backpackBlobUrls[item.id]) URL.revokeObjectURL(backpackBlobUrls[item.id]);
+      backpackBlobUrls[item.id] = URL.createObjectURL(new Blob([data], { type: item.mime }));
+      out.body = item.id;
+      out.bodyUrl = backpackBlobUrls[item.id];
+    }
+    return out;
+  }
+
+  var lmsBackpackStorage = {
+    setSession: function () {},
+    list: function (req) {
+      return backpackRequest('blockspace:backpack-list', { offset: req.offset, limit: req.limit }).then(
+        function (res) {
+          return (res.items || []).map(function (entry) {
+            return toBackpackItem(entry.item, entry.data);
+          });
+        },
+      );
+    },
+    save: function (item, data) {
+      return Promise.all([data.dataAsBase64(), data.thumbnailAsBase64()]).then(function (parts) {
+        var body = base64ToBuffer(parts[0]);
+        var thumbnail = base64ToBuffer(parts[1]);
+        // Giữ một bản để dựng mục ngay (bản gửi đi bị chuyển quyền bộ nhớ).
+        var keep = body.slice(0);
+        return backpackRequest(
+          'blockspace:backpack-save',
+          { item: { type: item.type, name: String(item.name || '').slice(0, 100) || item.type }, body: body, thumbnail: thumbnail },
+          [body, thumbnail],
+        ).then(function (res) {
+          return toBackpackItem(res.item, keep);
+        });
+      });
+    },
+    delete: function (id) {
+      return backpackRequest('blockspace:backpack-delete', { id: id }).then(function () {
+        if (backpackBlobUrls[id]) {
+          URL.revokeObjectURL(backpackBlobUrls[id]);
+          delete backpackBlobUrls[id];
+        }
+      });
+    },
+  };
+
+  function setupBackpack(guiStorage) {
+    // Bản gốc đăng ký web store ảnh/âm thanh tới máy backpack — không có máy đó, bỏ.
+    guiStorage.setBackpackHost = function () {};
+    guiStorage.backpackStorage = lmsBackpackStorage;
+    // Trước khi cất costume/sound, GUI "ép lưu asset lên asset server" (scratchStorage.store → POST tới máy
+    // asset của Scratch). LMS tự lưu asset khi lưu dự án (blockspace:export) nên chỉ giữ trong bộ nhớ.
+    var scratchStorage = guiStorage.scratchStorage;
+    scratchStorage.store = function (assetType, dataFormat, data, assetId) {
+      if (assetId && data) scratchStorage.builtinHelper._store(assetType, dataFormat, data, assetId);
+      return Promise.resolve({ id: assetId });
+    };
+  }
 
   function openTab(url) {
     window.open(url, '_blank', 'noopener');
@@ -383,6 +500,7 @@
   GUI.setAppElement(appEl);
   // isPlayerOnly là state Redux của trình soạn (không phải prop) → đặt lúc tạo EditorState.
   var state = new GUI.EditorState({ locale: 'vi', isPlayerOnly: PLAYER });
+  if (!PLAYER) setupBackpack(state.store.getState().scratchGui.config.storage);
   var root = GUI.createStandaloneRoot(state, appEl);
 
   var baseProps = {
@@ -412,11 +530,21 @@
     // false: trong scratch-gui, canCreateNew = "được tạo dự án TRÊN SERVER Scratch" — bật thì dự án
     // chưa có id bị tự lưu lên scratch.mit.edu và báo "Không thể tạo dự án". LMS lo lưu/tạo mới.
     canCreateNew: false,
-    backpackVisible: false,
+    // Ba lô qua trang cha (xem setupBackpack). GUI chỉ cho mở khi có `backpackHost` — giá trị chỉ là cờ,
+    // setBackpackHost đã bị thay bằng hàm rỗng nên không có máy nào được gọi.
+    backpackVisible: !PLAYER,
+    backpackHost: PLAYER ? null : 'lms',
     showComingSoon: false,
     onClickLogo: function () {},
     onVmInit: function (instance) {
       vm = instance;
+      // Kéo trang phục từ ba lô ra, GUI gọi `vm.addCostume(md5ext, {name})` không kèm `md5` → project.json ghi
+      // `md5ext: null` và API LMS từ chối lưu cả dự án. Điền `md5` từ md5ext khi thiếu (đường khác đã có sẵn).
+      var addCostume = vm.addCostume.bind(vm);
+      vm.addCostume = function (md5ext, costumeObject) {
+        if (costumeObject && !costumeObject.md5 && typeof md5ext === 'string') costumeObject.md5 = md5ext;
+        return addCostume.apply(null, arguments);
+      };
       vm.on('PROJECT_CHANGED', function () {
         // Kể cả thay đổi do op từ xa: khi làm chung chỉ người lưu chính tự lưu, máy đó phải biết có thay đổi.
         if (!suppressChange) post({ type: 'blockspace:changed', remote: applyingRemote });

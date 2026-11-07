@@ -89,6 +89,7 @@ model User {
   scratchCommentReports       ScratchCommentReport[]  @relation("ScratchCommentReporter")
   scratchCommentReportsSolved ScratchCommentReport[]  @relation("ScratchCommentReportResolvedBy")
   scratchBannedWords          ScratchBannedWord[]     @relation("ScratchBannedWordCreatedBy")
+  scratchBackpackItems        ScratchBackpackItem[]   @relation("ScratchBackpackItems")
 
   @@map("users")
 }
@@ -1324,4 +1325,36 @@ model ScratchBannedWord {
   createdBy User? @relation("ScratchBannedWordCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@map("scratch_banned_words")
+}
+
+// --- Ba lô (backpack) của trình soạn BlockSpace ---
+// Kho riêng của MỘT người: cất nhân vật / trang phục / âm thanh / đoạn khối lệnh để dùng lại ở dự án khác.
+// Không ai khác đọc được (không có route theo userId). Nội dung là BẢN SAO riêng ở storage private
+// (`storageKey`), KHÔNG tham chiếu `scratch_assets` — dự án gốc bị xóa (hay asset được dọn) mục vẫn dùng được.
+
+enum ScratchBackpackItemType {
+  costume
+  sound
+  script // đoạn khối lệnh (JSON)
+  sprite // nhân vật (.sprite3 zip)
+}
+
+model ScratchBackpackItem {
+  id         String                  @id @default(uuid())
+  userId     String
+  type       ScratchBackpackItemType
+  name       String // ≤ SCRATCH_TITLE_MAX_LENGTH
+  mime       String // server chọn theo type + nội dung, không lấy từ client
+  // "<md5>.<đuôi>" của nội dung — chỉ costume / sound (trình soạn nạp theo tên này); script / sprite NULL.
+  md5ext     String?
+  sizeBytes  Int
+  provider   String                  @default("local") // local | cloudinary — như File
+  storageKey String
+  thumbnail  Bytes // JPEG nhỏ do trình soạn tạo, ≤ SCRATCH_BACKPACK_THUMBNAIL_MAX_BYTES
+  createdAt  DateTime                @default(now())
+
+  user User @relation("ScratchBackpackItems", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("scratch_backpack_items")
 }

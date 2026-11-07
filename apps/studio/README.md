@@ -63,6 +63,17 @@ nói chuyện với trang cha:
 | editor → cha | `blockspace:saved` | `requestId`, `sb3: ArrayBuffer`, `title` |
 | cha → editor | `blockspace:export` | `requestId` |
 | editor → cha | `blockspace:exported` | `requestId`, `projectJson`, `assets: {md5ext, data}[]` (mọi asset đang dùng), `title` |
+| editor → cha | `blockspace:backpack-list` | `requestId`, `offset`, `limit` — mở / cuộn ba lô |
+| editor → cha | `blockspace:backpack-save` | `requestId`, `item: {type, name}`, `body: ArrayBuffer`, `thumbnail: ArrayBuffer` (JPEG) |
+| editor → cha | `blockspace:backpack-delete` | `requestId`, `id` |
+| cha → editor | `blockspace:backpack-result` | `requestId`, `ok`, `message?`, `item?` (sau save), `items?: {item, data}[]` (sau list, kèm nội dung) |
+
+**Ba lô:** bridge thay `config.storage.backpackStorage` của scratch-gui (bản gốc gọi máy backpack của
+scratch.mit.edu) bằng bản chuyển lệnh cho trang cha; trang cha gọi `/scratch/backpack` (chỉ của chính người
+đăng nhập). `setBackpackHost` bị thay bằng hàm rỗng (không đăng ký web store nào), `backpackHost: 'lms'` chỉ là cờ
+để GUI cho mở ba lô. `scratchStorage.store` (GUI gọi để "ép lưu asset lên asset server" trước khi cất costume /
+âm thanh) chỉ giữ asset trong bộ nhớ — LMS lưu asset khi lưu dự án. Mục costume / âm thanh nạp sẵn bytes vào
+bộ nhớ scratch-storage theo `md5ext`; nhân vật / khối lệnh dùng `blob:` URL. Không cần bản vá editor.
 
 `index.html?mode=player` = chỉ sân khấu + cờ xanh (trang xem dự án), cỡ cố định 482×406.
 
