@@ -184,6 +184,8 @@ Chưa chạy đủ danh sách này thì **chưa được coi là deploy xong**.
 - [ ] Nộp một bài lập trình → nhận điểm THẬT (không phải kết quả stub).
 - [ ] Cấp một chứng chỉ → tải PDF về được.
 - [ ] Tab Trắc nghiệm và tab Sổ điểm & chứng chỉ mở được, không lỗi console.
+- [ ] BlockSpace: mở ba lô trong trình soạn, kéo một nhân vật vào; mở dự án khác kéo ra, **Lưu** được;
+      DevTools tab Network không có request nào tới `scratch.mit.edu` lúc cất / kéo ra.
 - [ ] Sai mật khẩu 6 lần liên tiếp → lần thứ 6 trả 429; tài khoản khác trên cùng đường mạng
       vẫn đăng nhập bình thường.
 
