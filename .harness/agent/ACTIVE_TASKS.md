@@ -3,7 +3,7 @@
 <!-- SIZE LIMIT: 200 lines. Do not exceed. -->
 <!-- Completed task history -> docs/archive/completed_tasks/ -->
 
-Updated: 2026-11-04
+Updated: 2026-11-08
 
 ## Quy ước đặt tên
 
@@ -164,6 +164,8 @@ Chi tiết T6.1–T6.6 + D1–D5: [pre-p7-history.md](../../docs/archive/complet
 
 Ba bản vá phiên P7 → [docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md](../../docs/archive/completed_tasks/2026-08-19-p5-p6-p1-fixes.md).
 
+- **UX trang Học tập** ✅ **Xong 08/11, chưa push/PR** (nhánh `claude/learn-page-ux`) — bài tập lọc "Cần làm" + gom chương,
+  kết quả thu gọn theo loại, mục lục bên (thanh chip trên điện thoại). Chi tiết `CURRENT_STATE.md §Trang Học tập`.
 - **C3** ✅ **Xong 04/11, chưa mở PR** (nhánh `claude/elastic-dijkstra-28d486`) — pass bài lập trình/trắc nghiệm chỉ đặt
   `in_progress`, học viên tự bấm Hoàn thành nhận 50 XP; migration `backfill_lesson_complete_xp` bù XP cho dữ liệu cũ.
   Chi tiết `CURRENT_STATE.md §C3`.

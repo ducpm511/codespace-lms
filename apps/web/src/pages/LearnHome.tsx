@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { XP_REWARDS } from '@lms/contracts';
 import type {
   CodingProblemForClass,
-  MyCodingStatusDto,
   MyLessonDto,
   QuizSummary,
   StudentLessonActivityDto,
@@ -23,6 +22,20 @@ import { ScratchActivityBlock } from '../features/studio/ScratchActivityBlock';
 import { LearnQuizWorkspace } from './learn/LearnQuiz';
 import { CodingStatusTag, LearnCodingWorkspace } from './learn/LearnCoding';
 import { StudentGradebookSection } from './learn/StudentGradebookSection';
+import { useStudentOwnGradebook } from '../features/gradebook/hooks';
+import { IconTile } from './learn/IconTile';
+import { LearnSectionNav, type LearnNavItem } from './learn/LearnSectionNav';
+import {
+  EXERCISE_KIND_META,
+  GENERAL_GROUP,
+  filterExercises,
+  groupExercisesByChapter,
+  isExerciseDone,
+  quizScoresFrom,
+  type Exercise,
+  type ExerciseKindFilter,
+  type ExerciseStatusFilter,
+} from './learn/learnGroups';
 
 /* ── Lesson type → icon + category color ─────────────────────────────────── */
 const LESSON_META: Record<string, { icon: string; color: string }> = {
@@ -35,30 +48,16 @@ const LESSON_META: Record<string, { icon: string; color: string }> = {
 };
 const lessonMeta = (type: string) => LESSON_META[type] ?? { icon: 'ph-book-bookmark', color: 'var(--cx-purple)' };
 
-/* ── Merged exercise model (quiz + coding) ───────────────────────────────── */
-type Exercise =
-  | { kind: 'quiz'; id: string; title: string; lessonId?: string | null; questionCount: number; maxScore: number }
-  | { kind: 'coding'; id: string; title: string; lessonId?: string | null; difficulty: string; maxScore: number; myStatus: MyCodingStatusDto | null };
-
 type LearnView = 'list' | 'lesson' | 'quiz' | 'coding';
 
-/** Ô icon bo tròn với nền tint category. */
-function IconTile({ icon, color, size = 46 }: { icon: string; color: string; size?: number }): JSX.Element {
-  return (
-    <span
-      className="flex shrink-0 items-center justify-center rounded-2xl"
-      style={{
-        width: size,
-        height: size,
-        background: `color-mix(in srgb, ${color} 22%, transparent)`,
-        color,
-        fontSize: size * 0.5,
-      }}
-    >
-      <i className={`ph-fill ${icon}`} aria-hidden />
-    </span>
-  );
-}
+/** Id các section neo của trang (mục lục bên). */
+const SECTION = {
+  overview: 'learn-overview',
+  lessons: 'learn-lessons',
+  exercises: 'learn-exercises',
+  leaderboard: 'learn-leaderboard',
+  results: 'learn-results',
+} as const;
 
 export function LearnHome(): JSX.Element {
   const { t } = useTranslation();
@@ -76,6 +75,9 @@ export function LearnHome(): JSX.Element {
   const quizzes = useQuizzesForClass(classId);
   const coding = useCodingProblemsForClass(classId);
   const update = useUpdateProgress(classId ?? '');
+  // Cùng cache với mục "Kết quả học tập": điểm quiz ở đây cho biết quiz nào em đã làm.
+  const gradebook = useStudentOwnGradebook(classId);
+  const quizScores = useMemo(() => quizScoresFrom(gradebook.data), [gradebook.data]);
 
   useEffect(() => {
     if (!classId && myClasses.data && myClasses.data.length > 0) {
@@ -121,6 +123,25 @@ export function LearnHome(): JSX.Element {
     );
   };
 
+  const lessonList = lessons.data ?? [];
+  const lessonsDone = lessonList.filter((l) => l.progressStatus === 'completed').length;
+  const exercisesTodo = exercises.filter((e) => !isExerciseDone(e, quizScores)).length;
+  const navItems: LearnNavItem[] = [
+    { id: SECTION.overview, label: t('learn.navOverview'), icon: 'ph-house-simple', color: 'var(--cx-purple)' },
+    {
+      id: SECTION.lessons, label: t('learn.lessonsHeading'), icon: 'ph-book-open', color: 'var(--cx-blue)',
+      badge: lessonList.length > 0 ? `${lessonsDone}/${lessonList.length}` : undefined,
+    },
+    ...(exercises.length > 0
+      ? [{
+          id: SECTION.exercises, label: t('learn.exercisesHeading'), icon: 'ph-target', color: 'var(--cx-amber)',
+          badge: exercisesTodo > 0 ? String(exercisesTodo) : undefined,
+        }]
+      : []),
+    { id: SECTION.leaderboard, label: t('learn.navLeaderboard'), icon: 'ph-ranking', color: 'var(--cx-teal)' },
+    { id: SECTION.results, label: t('learn.navResults'), icon: 'ph-trophy', color: 'var(--cx-coral)' },
+  ];
+
   // ── Detail views (openId pattern, không route mới) ──
   if (view === 'quiz' && openQuizId && classId) {
     return <section><LearnQuizWorkspace quizId={openQuizId} classId={classId} onBack={backToList} /></section>;
@@ -136,6 +157,7 @@ export function LearnHome(): JSX.Element {
           lesson={lesson}
           classId={classId}
           exercises={exercises.filter((e) => e.lessonId === openLessonId)}
+          quizScores={quizScores}
           onBack={backToList}
           onComplete={() => onComplete(openLessonId)}
           completing={update.isPending}
@@ -146,8 +168,8 @@ export function LearnHome(): JSX.Element {
     }
   }
 
-  return (
-    <section className="space-y-8">
+  const overview = (
+    <>
       {greetName && <GreetingHero name={greetName} />}
 
       {myClasses.data && myClasses.data.length > 1 && (
@@ -172,15 +194,39 @@ export function LearnHome(): JSX.Element {
 
       {showCelebration && <CelebrationBanner onDismiss={() => setShowCelebration(false)} />}
 
-      {classId && (
-        <>
-          <ContinueCard lessons={lessons.data ?? []} onOpen={openLesson} />
-          <LessonsByChapter lessons={lessons.data ?? []} loading={lessons.isLoading} onOpen={openLesson} />
-          <ExercisesHub exercises={exercises} lessonById={lessonById} onOpenQuiz={openQuiz} onOpenCoding={openCoding} />
+      {classId && <ContinueCard lessons={lessonList} onOpen={openLesson} />}
+    </>
+  );
+
+  if (!classId) return <section className="space-y-8">{overview}</section>;
+
+  return (
+    <section className="lg:grid lg:grid-cols-[188px_minmax(0,1fr)] lg:items-start lg:gap-8">
+      <LearnSectionNav items={navItems} />
+      <div className="mt-6 min-w-0 space-y-10 lg:mt-0">
+        <div id={SECTION.overview} className="learn-anchor space-y-8">{overview}</div>
+        <div id={SECTION.lessons} className="learn-anchor">
+          <LessonsByChapter lessons={lessonList} loading={lessons.isLoading} onOpen={openLesson} />
+        </div>
+        {exercises.length > 0 && (
+          <div id={SECTION.exercises} className="learn-anchor">
+            <ExercisesHub
+              exercises={exercises}
+              lessons={lessonList}
+              lessonById={lessonById}
+              quizScores={quizScores}
+              onOpenQuiz={openQuiz}
+              onOpenCoding={openCoding}
+            />
+          </div>
+        )}
+        <div id={SECTION.leaderboard} className="learn-anchor">
           <ClassLeaderboard classId={classId} />
+        </div>
+        <div id={SECTION.results} className="learn-anchor">
           <StudentGradebookSection classId={classId} />
-        </>
-      )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -446,21 +492,53 @@ function LessonCard({ lesson, onOpen }: { lesson: MyLessonDto; onOpen: () => voi
   );
 }
 
-/* ═══════════════ Exercises hub (quiz + coding, filter) ═════════════════════ */
+/* ═══════════════ Exercises hub (quiz + coding) ═════════════════════════════
+   Mặc định chỉ hiện bài CẦN LÀM, gom theo chương và chỉ mở sẵn chương đầu: em thấy ngay bài kế tiếp
+   mà không phải cuộn qua cả khóa. Đổi bộ lọc trạng thái/loại để xem bài đã xong hoặc tất cả. */
+const EXERCISE_LIMIT = 5;
+
 function ExercisesHub({
-  exercises, lessonById, onOpenQuiz, onOpenCoding,
+  exercises, lessons, lessonById, quizScores, onOpenQuiz, onOpenCoding,
 }: {
   exercises: Exercise[];
+  lessons: MyLessonDto[];
   lessonById: Map<string, MyLessonDto>;
+  quizScores: Map<string, number>;
   onOpenQuiz: (id: string) => void;
   onOpenCoding: (id: string) => void;
-}): JSX.Element | null {
+}): JSX.Element {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<'all' | 'quiz' | 'coding'>('all');
-  if (exercises.length === 0) return null;
-  const filtered = exercises.filter((e) => filter === 'all' || e.kind === filter);
+  const [kind, setKind] = useState<ExerciseKindFilter>('all');
+  const [status, setStatus] = useState<ExerciseStatusFilter>('todo');
+  // Chương đầu mở sẵn, còn lại đóng; `toggled` ghi chương em đã bấm đổi so với mặc định đó.
+  const [toggled, setToggled] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const filters: Array<{ key: 'all' | 'quiz' | 'coding'; label: string }> = [
+  const todoTotal = exercises.filter((e) => !isExerciseDone(e, quizScores)).length;
+  const ofKind = useMemo(() => filterExercises(exercises, kind, 'all', quizScores), [exercises, kind, quizScores]);
+  const doneCount = ofKind.filter((e) => isExerciseDone(e, quizScores)).length;
+  const counts: Record<ExerciseStatusFilter, number> = { todo: ofKind.length - doneCount, done: doneCount, all: ofKind.length };
+  const groups = useMemo(
+    () => groupExercisesByChapter(filterExercises(exercises, kind, status, quizScores), lessons),
+    [exercises, kind, status, quizScores, lessons],
+  );
+
+  const resetGroups = () => { setToggled(new Set()); setExpanded(new Set()); };
+  const pickStatus = (s: ExerciseStatusFilter) => { setStatus(s); resetGroups(); };
+  const pickKind = (k: ExerciseKindFilter) => { setKind(k); resetGroups(); };
+  const flip = (set: Set<string>, setter: (s: Set<string>) => void, key: string) => {
+    const next = new Set(set);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setter(next);
+  };
+
+  const statusFilters: Array<{ key: ExerciseStatusFilter; label: string }> = [
+    { key: 'todo', label: t('learn.exFilterTodo', { count: counts.todo }) },
+    { key: 'done', label: t('learn.exFilterDone', { count: counts.done }) },
+    { key: 'all', label: t('learn.exFilterAllCount', { count: counts.all }) },
+  ];
+  const kindFilters: Array<{ key: ExerciseKindFilter; label: string }> = [
     { key: 'all', label: t('learn.filterAll') },
     { key: 'quiz', label: t('learn.filterQuiz') },
     { key: 'coding', label: t('learn.filterCoding') },
@@ -468,18 +546,38 @@ function ExercisesHub({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <IconTile icon="ph-target" color="var(--cx-amber)" size={40} />
+      <div className="flex items-center gap-3">
+        <IconTile icon="ph-target" color="var(--cx-amber)" size={40} />
+        <div className="min-w-0">
           <h2 className="cx-display text-xl">{t('learn.exercisesHeading')}</h2>
+          <p className="text-muted text-xs">
+            {t('learn.exSummary', { todo: todoTotal, total: exercises.length })}
+          </p>
         </div>
-        <div className="seg shrink-0">
-          {filters.map((f) => (
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="seg" role="group" aria-label={t('learn.exFilterStatusLabel')}>
+          {statusFilters.map((f) => (
             <button
               key={f.key}
-              onClick={() => setFilter(f.key)}
-              className="seg-opt"
-              style={filter === f.key ? { color: 'var(--color-accent)', boxShadow: 'inset 0 0 0 1px var(--color-accent)' } : undefined}
+              type="button"
+              className={`seg-btn cx-press ${status === f.key ? 'seg-active' : ''}`}
+              aria-pressed={status === f.key}
+              onClick={() => pickStatus(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="seg" role="group" aria-label={t('learn.exFilterKindLabel')}>
+          {kindFilters.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              className={`seg-btn cx-press ${kind === f.key ? 'seg-active' : ''}`}
+              aria-pressed={kind === f.key}
+              onClick={() => pickKind(f.key)}
             >
               {f.label}
             </button>
@@ -487,69 +585,130 @@ function ExercisesHub({
         </div>
       </div>
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}>
-        {filtered.map((e) => (
-          <ExerciseCard
-            key={`${e.kind}-${e.id}`}
-            exercise={e}
-            lesson={e.lessonId ? lessonById.get(e.lessonId) : undefined}
-            onOpen={() => (e.kind === 'quiz' ? onOpenQuiz(e.id) : onOpenCoding(e.id))}
-          />
-        ))}
-      </div>
+      {groups.length === 0 && (
+        <div className="text-muted rounded-2xl border border-dashed px-4 py-8 text-center text-sm" style={{ borderColor: 'var(--color-divider)' }}>
+          <img src="/brand/mascot-hearts.png" alt="" className="mx-auto mb-3 h-16 w-16 opacity-90" />
+          <p>{status === 'todo' ? t('learn.exAllDone') : t('learn.exNoMatch')}</p>
+          {status !== 'all' && (
+            <button type="button" className="btn btn-ghost cx-press mt-2" onClick={() => pickStatus('all')}>
+              {t('learn.exShowAll')}
+            </button>
+          )}
+        </div>
+      )}
+
+      {groups.map((g, index) => {
+        const isOpen = (index === 0) !== toggled.has(g.key);
+        const isExpanded = expanded.has(g.key);
+        const shown = isExpanded ? g.items : g.items.slice(0, EXERCISE_LIMIT);
+        const overflow = g.items.length - EXERCISE_LIMIT;
+        const title = g.key === GENERAL_GROUP ? t('learn.exGeneral') : g.key;
+        const panelId = `ex-group-${index}`;
+        return (
+          <div key={g.key} className="space-y-3">
+            <button
+              type="button"
+              className="cx-press flex w-full items-center gap-3 text-left"
+              onClick={() => flip(toggled, setToggled, g.key)}
+              aria-expanded={isOpen}
+              aria-controls={panelId}
+            >
+              <i className={`ph ${isOpen ? 'ph-caret-down' : 'ph-caret-right'} text-base`} style={{ color: 'var(--color-accent)' }} aria-hidden />
+              <span className="min-w-0 text-[13px] font-semibold uppercase tracking-[0.06em]">{title}</span>
+              <span className="tag tag-neutral shrink-0">{t('learn.exGroupCount', { count: g.items.length })}</span>
+              <span className="hr m-0 flex-1" />
+            </button>
+
+            {isOpen && (
+              <div id={panelId} className="space-y-2">
+                <ul className="space-y-2">
+                  {shown.map((e) => (
+                    <ExerciseRow
+                      key={`${e.kind}-${e.id}`}
+                      exercise={e}
+                      lesson={e.lessonId ? lessonById.get(e.lessonId) : undefined}
+                      quizScore={e.kind === 'quiz' ? quizScores.get(e.id) : undefined}
+                      onOpen={() => (e.kind === 'quiz' ? onOpenQuiz(e.id) : onOpenCoding(e.id))}
+                    />
+                  ))}
+                </ul>
+                {overflow > 0 && (
+                  <button type="button" className="btn btn-ghost cx-press" onClick={() => flip(expanded, setExpanded, g.key)}>
+                    {isExpanded ? t('learn.showLess') : t('learn.showMore', { count: overflow })}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function ExerciseCard({
-  exercise, lesson, onOpen,
-}: { exercise: Exercise; lesson?: MyLessonDto; onOpen: () => void }): JSX.Element {
+/** Một dòng bài tập gọn: dùng ở danh sách bài tập của trang và trong chi tiết bài học. */
+function ExerciseRow({
+  exercise, lesson, quizScore, onOpen,
+}: { exercise: Exercise; lesson?: MyLessonDto; quizScore?: number; onOpen: () => void }): JSX.Element {
   const { t } = useTranslation();
-  const isQuiz = exercise.kind === 'quiz';
-  const color = isQuiz ? 'var(--cx-coral)' : 'var(--cx-teal)';
-  const icon = isQuiz ? 'ph-check-square-offset' : 'ph-code';
-  const kindLabel = isQuiz ? t('learn.exKindQuiz') : t('learn.exKindCoding');
-  const lessonLabel = lesson
-    ? t('learn.exLessonLabel', { chapter: lesson.sectionTitle, lesson: lesson.title })
-    : t('learn.exGeneral');
-  const detailMeta = isQuiz
+  const meta = EXERCISE_KIND_META[exercise.kind];
+  const kindLabel = exercise.kind === 'quiz' ? t('learn.exKindQuiz') : t('learn.exKindCoding');
+  const detailMeta = exercise.kind === 'quiz'
     ? t('learn.exMetaQuiz', { count: exercise.questionCount, score: exercise.maxScore })
     : t('learn.exMetaCoding', { difficulty: t(`coding.diff_${exercise.difficulty}`, { defaultValue: exercise.difficulty }), score: exercise.maxScore });
 
+  const done = exercise.kind === 'quiz' ? quizScore !== undefined : Boolean(exercise.myStatus?.passed);
+  const started = exercise.kind === 'coding' && Boolean(exercise.myStatus);
+  const actionKey = done ? 'learn.lessonReview' : started ? 'learn.exContinue' : 'learn.doExercise';
+
   return (
-    <div
-      className="card cx-lift flex-row items-start"
-      style={{ borderRadius: 18, borderTop: `3px solid color-mix(in srgb, ${color} 30%, transparent)`, boxShadow: 'var(--shadow-sm)', padding: 'var(--space-6)', gap: 'var(--space-4)' }}
+    <li
+      className="card cx-lift flex-row items-center"
+      style={{
+        borderRadius: 16,
+        borderLeft: `3px solid color-mix(in srgb, ${meta.color} 45%, transparent)`,
+        padding: 'var(--space-4) var(--space-6)',
+        gap: 'var(--space-4)',
+      }}
     >
-      <span
-        className="flex shrink-0 items-center justify-center rounded-2xl"
-        style={{ width: 44, height: 44, background: `color-mix(in srgb, ${color} 22%, transparent)`, color, fontSize: 22 }}
-      >
-        <i className={`ph-fill ${icon}`} aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div className="flex flex-wrap items-center gap-2">
+      <IconTile icon={meta.icon} color={meta.color} size={36} />
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex flex-wrap items-center gap-2">
           <span className="tag tag-outline">{kindLabel}</span>
           {exercise.kind === 'coding' && <CodingStatusTag status={exercise.myStatus} />}
+          {exercise.kind === 'quiz' && quizScore !== undefined && (
+            <span className="tag tag-accent gap-1">
+              <i className="ph ph-check-circle" aria-hidden />
+              {t('learn.exQuizScored', { score: quizScore, max: exercise.maxScore })}
+            </span>
+          )}
+          {!done && !started && <span className="tag tag-neutral">{t('learn.exNotStarted')}</span>}
         </div>
-        <p className="card-title cx-display" style={{ width: '100%' }}>{exercise.title}</p>
-        <p className="card-meta"><i className="ph ph-book-bookmark" aria-hidden /> {lessonLabel}</p>
-        <p className="card-meta"><i className="ph ph-list-checks" aria-hidden /> {detailMeta}</p>
+        <p className="card-title truncate" style={{ fontSize: 15, width: '100%' }}>{exercise.title}</p>
+        <p className="card-meta truncate" style={{ width: '100%' }}>
+          {lesson ? `${lesson.title} · ` : ''}{detailMeta}
+        </p>
       </div>
-      <button className="btn btn-icon btn-secondary !rounded-full cx-press shrink-0" onClick={onOpen} aria-label={t('learn.open')}>
-        <i className="ph ph-arrow-right" aria-hidden />
+      <button
+        type="button"
+        className={`btn ${done ? 'btn-secondary' : 'btn-primary'} !rounded-full cx-press shrink-0`}
+        onClick={onOpen}
+        aria-label={`${t(actionKey)}: ${exercise.title}`}
+      >
+        <span className="hidden sm:inline">{t(actionKey)}</span> <i className="ph ph-arrow-right" aria-hidden />
       </button>
-    </div>
+    </li>
   );
 }
 
 /* ═══════════════ Lesson detail view ════════════════════════════════════════ */
 function LessonDetail({
-  lesson, classId, exercises, onBack, onComplete, completing, onOpenQuiz, onOpenCoding,
+  lesson, classId, exercises, quizScores, onBack, onComplete, completing, onOpenQuiz, onOpenCoding,
 }: {
   lesson: MyLessonDto;
   classId: string;
   exercises: Exercise[];
+  quizScores: Map<string, number>;
   onBack: () => void;
   onComplete: () => void;
   completing: boolean;
@@ -608,28 +767,14 @@ function LessonDetail({
             <p className="cx-display" style={{ fontSize: 16 }}>{t('learn.lessonExercises')}</p>
           </div>
           <ul className="space-y-2">
-            {exercises.map((e) => {
-              const isQuiz = e.kind === 'quiz';
-              return (
-                <li key={`${e.kind}-${e.id}`} className="card cx-lift flex-row flex-wrap items-center justify-between gap-3" style={{ borderRadius: 16 }}>
-                  <div className="min-w-0">
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="tag tag-outline">{isQuiz ? t('learn.exKindQuiz') : t('learn.exKindCoding')}</span>
-                      {e.kind === 'coding' && <CodingStatusTag status={e.myStatus} />}
-                    </div>
-                    <p className="card-title truncate" style={{ fontSize: 15 }}>{e.title}</p>
-                    <p className="card-meta">
-                      {isQuiz
-                        ? t('learn.exMetaQuiz', { count: e.questionCount, score: e.maxScore })
-                        : t('learn.exMetaCoding', { difficulty: t(`coding.diff_${e.difficulty}`, { defaultValue: e.difficulty }), score: e.maxScore })}
-                    </p>
-                  </div>
-                  <button className="btn btn-secondary !rounded-full cx-press shrink-0" onClick={() => (isQuiz ? onOpenQuiz(e.id) : onOpenCoding(e.id))}>
-                    {t(e.kind === 'coding' && e.myStatus ? 'learn.lessonReview' : 'learn.doExercise')} <i className="ph ph-arrow-right" aria-hidden />
-                  </button>
-                </li>
-              );
-            })}
+            {exercises.map((e) => (
+              <ExerciseRow
+                key={`${e.kind}-${e.id}`}
+                exercise={e}
+                quizScore={e.kind === 'quiz' ? quizScores.get(e.id) : undefined}
+                onOpen={() => (e.kind === 'quiz' ? onOpenQuiz(e.id) : onOpenCoding(e.id))}
+              />
+            ))}
           </ul>
         </div>
       )}
