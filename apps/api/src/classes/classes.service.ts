@@ -22,6 +22,7 @@ import type {
 } from '@lms/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 import { RbacService } from '../rbac/rbac.service';
+import { GradingService } from '../grading/grading.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { LessonActivitiesService } from '../courses/lesson-activities.service';
 import type { CreateClassDto } from './dto/create-class.dto';
@@ -51,6 +52,7 @@ export class ClassesService {
     private readonly lessonActivities: LessonActivitiesService,
     private readonly gamificationService?: GamificationService,
     private readonly rbac?: RbacService,
+    private readonly grading?: GradingService,
   ) {}
 
   // --- Class CRUD ---
@@ -429,22 +431,14 @@ export class ClassesService {
       totalPossible > 0 ? Math.round((progressList.length / totalPossible) * 100) : 0;
 
     // 4. Sổ điểm & phân phối điểm
-    const gradeEntries = await this.prisma.gradeEntry.findMany({
-      where: {
-        userId: { in: studentIds },
-        gradeItem: { classId },
-      },
-      select: { score: true, gradeItem: { select: { maxScore: true } } },
-    });
+    // Tính thẳng từ bài nộp (cùng luật với sổ điểm): đọc GradeEntry thì Điểm TB đứng yên tới khi có người mở sổ.
+    const percents = this.grading ? await this.grading.computeLiveScorePercents(classId, studentIds) : [];
 
     let sumScore = 0;
     let scoreCount = 0;
     const dist: Record<string, number> = { '0-49': 0, '50-69': 0, '70-84': 0, '85-100': 0 };
 
-    for (const ge of gradeEntries) {
-      const s = Number(ge.score);
-      const max = Number(ge.gradeItem.maxScore) || 100;
-      const pct = (s / max) * 100;
+    for (const pct of percents) {
       sumScore += pct;
       scoreCount++;
 

@@ -59,7 +59,8 @@ export class GradingService {
 
   /**
    * Đọc sổ điểm lớp — READ-ONLY, KHÔNG ghi DB (fix review H3: GET không side-effect).
-   * Dữ liệu do `recomputeClassGradebook` tổng hợp trước đó (khi staff mở sổ điểm / cấp chứng chỉ).
+   * Tính thẳng từ bài nộp như sổ của học viên. Trước đây đọc GradeEntry, bảng chỉ cập nhật khi người phụ
+   * trách lớp mở sổ (`recompute`), nên GV vừa chấm hay GV lớp khác (chỉ được GET) thấy điểm cũ.
    */
   async getClassGradebook(classId: string, currentUser?: AuthPrincipal): Promise<ClassGradebookDto> {
     await this.assertCanReadGradebook(classId, currentUser);
@@ -67,6 +68,7 @@ export class GradingService {
     const cls = await this.prisma.class.findUnique({
       where: { id: classId },
       include: {
+        ...withGradeSources,
         members: {
           where: { status: 'active' },
           include: { user: { select: { id: true, fullName: true, email: true } } },
@@ -77,12 +79,36 @@ export class GradingService {
       throw new NotFoundException('Lớp học không tồn tại');
     }
 
-    const gradeItems = await this.prisma.gradeItem.findMany({ where: { classId } });
-    return this.buildGradebook(
-      classId,
-      cls.members,
-      gradeItems.map((gi) => ({ ...gi, sourceType: gi.sourceType as 'assignment' | 'quiz' | 'coding' })),
-    );
+    const { items, gradesByUser } = await this.computeLiveGrades(cls, cls.members.map((m) => m.userId));
+    const rows: StudentGradebookRow[] = cls.members.map((m) => {
+      const grades = gradesByUser.get(m.userId) ?? {};
+      return {
+        userId: m.userId,
+        userFullName: m.user.fullName,
+        userEmail: m.user.email,
+        grades,
+        ...this.calculateSummary(items, grades),
+      };
+    });
+    return { classId, items: items.map(toGradeItemDto), rows };
+  }
+
+  /**
+   * Điểm từng bài (lấy % trên điểm tối đa) của các học viên, tính trực tiếp từ bài nộp. Cho báo cáo lớp,
+   * để "Điểm TB" không đứng yên tới khi có người mở sổ. Chỉ đọc; nơi gọi đã kiểm quyền.
+   */
+  async computeLiveScorePercents(classId: string, userIds: string[]): Promise<number[]> {
+    const cls = await this.prisma.class.findUnique({ where: { id: classId }, include: withGradeSources });
+    if (!cls || userIds.length === 0) return [];
+    const { items, gradesByUser } = await this.computeLiveGrades(cls, userIds);
+    const percents: number[] = [];
+    for (const grades of gradesByUser.values()) {
+      for (const item of items) {
+        const score = grades[item.id];
+        if (score !== null && score !== undefined) percents.push((score / (Number(item.maxScore) || 100)) * 100);
+      }
+    }
+    return percents;
   }
 
   /**
@@ -131,15 +157,28 @@ export class GradingService {
 
     // Tính trực tiếp từ bài nộp của CHÍNH học viên, không đọc GradeEntry: bảng đó chỉ cập nhật khi staff mở
     // sổ, nên em làm xong vẫn thấy "Chưa có điểm". Vẫn chỉ đọc: học viên không kích hoạt ghi cho cả lớp.
+    const { items, gradesByUser } = await this.computeLiveGrades(cls, [currentUser.userId]);
+    const grades = gradesByUser.get(currentUser.userId) ?? {};
+
+    return { classId, items: items.map(toGradeItemDto), grades, ...this.calculateSummary(items, grades) };
+  }
+
+  /**
+   * Cột điểm của lớp + điểm cao nhất của từng người, tính thẳng từ bài nộp. Chỉ đọc. Cột đã có trong sổ
+   * giữ id và trọng số GV đặt; cột chưa từng tổng hợp dùng id tạm `<sourceType>:<sourceId>`.
+   */
+  private async computeLiveGrades(
+    cls: ClassWithCourses,
+    userIds: string[],
+  ): Promise<{ items: SyncedGradeItem[]; gradesByUser: Map<string, Record<string, number | null>> }> {
     const sources = collectGradeSources(cls);
-    const saved = await this.prisma.gradeItem.findMany({ where: { classId } });
+    const saved = await this.prisma.gradeItem.findMany({ where: { classId: cls.id } });
     const savedByKey = new Map(saved.map((gi) => [sourceKey(gi), gi]));
     const items: SyncedGradeItem[] = sources.map((src) => {
       const gi = savedByKey.get(sourceKey(src));
       return {
-        // Cột chưa từng được tổng hợp chưa có dòng GradeItem: id tạm chỉ dùng làm khóa trong DTO này.
         id: gi?.id ?? sourceKey(src),
-        classId,
+        classId: cls.id,
         sourceType: src.sourceType,
         sourceId: src.sourceId,
         title: src.title,
@@ -148,14 +187,15 @@ export class GradingService {
       };
     });
 
-    const best = await this.loadBestScores(classId, sources, [currentUser.userId]);
-    const grades: Record<string, number | null> = {};
+    const best = await this.loadBestScores(cls.id, sources, userIds);
+    const gradesByUser = new Map<string, Record<string, number | null>>(userIds.map((u) => [u, {}]));
     for (const item of items) {
-      const score = best.get(sourceKey(item))?.get(currentUser.userId);
-      if (score) grades[item.id] = Number(score);
+      for (const [userId, score] of best.get(sourceKey(item)) ?? []) {
+        const grades = gradesByUser.get(userId);
+        if (grades) grades[item.id] = Number(score);
+      }
     }
-
-    return { classId, items: items.map(toGradeItemDto), grades, ...this.calculateSummary(items, grades) };
+    return { items, gradesByUser };
   }
 
   /** Kiểm quyền đọc sổ điểm lớp: admin/super_admin, grade.read scope lớp, hoặc instructor/ta của lớp. */
