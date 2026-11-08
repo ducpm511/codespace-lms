@@ -8,6 +8,20 @@ Updated: 2026-11-08
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
+### Trang Học tập gọn lại + mục lục bên (2026-11-08) — nhánh `claude/learn-page-ux`, chưa push/PR/deploy
+
+Chỉ FE, không đổi API/schema. `/learn` với lớp nhiều bài: desktop cao 9052 → 4105px, điện thoại 23837 → 6507px (DB bản sao 57 bài tập).
+- **Bài tập:** mặc định lọc "Cần làm", gom theo chương (thứ tự khóa học), chỉ mở sẵn chương đầu, mỗi chương 5 dòng gọn + "Xem thêm".
+  Lọc trạng thái (Cần làm/Đã xong/Tất cả, kèm số) + loại. "Đã xong" = lập trình đã đạt, hoặc quiz đã có điểm trong `my-gradebook`
+  (QuizSummary không có trạng thái của em, nên mượn sổ điểm thay vì thêm API). Logic thuần ở `pages/learn/learnGroups.ts` (+ test).
+- **Kết quả & chứng chỉ:** viết lại bằng token Nocturne + i18n (bản cũ dùng slate-* và chuỗi tiếng Việt cứng). 4 ô tóm tắt, rồi
+  điểm từng bài gom theo loại, thu gọn sẵn, mở ra là bảng đủ điểm (8 dòng + "Xem thêm").
+- **Mục lục** `pages/learn/LearnSectionNav.tsx`: ≥ lg cột trái dính; nhỏ hơn là thanh chip ngang dính dưới header, cuộn ngang trong thanh.
+  Section đang xem đo theo vị trí khi cuộn (không dùng IntersectionObserver vì section dài hơn màn hình). CSS ở `nocturne.css §learn-nav`.
+- **Vá kèm:** nộp quiz không làm mới `studentOwnGradebook` (nay trong `invalidateLearningProgress`); `var(--space-5)` không có trong
+  token sheet nên padding/gap bằng 0 ở AdminHome + LessonActivityBuilder → đổi sang `--space-6`.
+- Ảnh trước/sau: thư mục ghi chú phiên `learn-ux-screenshots/`. DB tạm `lms_learnux` đã xóa.
+
 ### Sổ điểm GV luôn mới (2026-11-08) — nhánh `claude/fix-grading-feedback`, chưa push/PR/deploy
 
 Người dùng báo sau PR #8: GV chấm không thấy điểm cập nhật; HV nộp bài lập trình không tăng điểm. Tái hiện trên DB bản sao (đã xóa):

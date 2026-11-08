@@ -602,3 +602,57 @@ body {
   border: 1px solid var(--color-divider);
   text-align: left;
 }
+
+/* — Mục lục trang Học tập (LearnSectionNav) —
+   Điện thoại/tablet: thanh chip ngang dính dưới header, cuộn ngang BÊN TRONG thanh.
+   Desktop (≥ 1024px, khớp `lg:` của Tailwind): cột dọc dính bên trái. */
+.learn-nav {
+  background: color-mix(in srgb, var(--color-bg) 86%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-divider);
+}
+.learn-nav-strip { scrollbar-width: none; }
+.learn-nav-strip::-webkit-scrollbar { display: none; }
+.learn-nav-item {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background .16s ease, color .16s ease, border-color .16s ease;
+}
+.learn-nav-item:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface)); }
+.learn-nav-item:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.learn-nav-item-active,
+.learn-nav-item-active:hover {
+  color: var(--color-accent-100);
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+}
+.learn-nav-badge { padding: 0 6px; font-size: 11px; line-height: 18px; }
+/* Section neo: chừa chỗ cho header (56px) + thanh chip trên điện thoại khi cuộn tới. */
+.learn-anchor { scroll-margin-top: 120px; }
+@media (min-width: 1024px) {
+  .learn-nav { background: none; backdrop-filter: none; border-bottom: 0; }
+  .learn-nav-item {
+    display: flex;
+    width: 100%;
+    border-color: transparent;
+    background: transparent;
+    border-radius: var(--radius-md);
+  }
+  .learn-nav-item-active,
+  .learn-nav-item-active:hover {
+    border-color: transparent;
+    box-shadow: inset 3px 0 0 var(--color-accent);
+  }
+  .learn-nav-badge { margin-left: auto; }
+  .learn-anchor { scroll-margin-top: 80px; }
+}

@@ -136,6 +136,8 @@ export function invalidateLearningProgress(qc: QueryClient, classId: string): vo
   void qc.invalidateQueries({ queryKey: myLessonsKey(classId) });
   void qc.invalidateQueries({ queryKey: ['gamification', 'me'] });
   void qc.invalidateQueries({ queryKey: ['classes', classId, 'leaderboard'] });
+  // Sổ điểm của học viên: nộp quiz xong phải thấy điểm (và trang /learn biết quiz đó đã làm).
+  void qc.invalidateQueries({ queryKey: ['studentOwnGradebook', classId] });
 }
 
 export function useUpdateProgress(classId: string) {
