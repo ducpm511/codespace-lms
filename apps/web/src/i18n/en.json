@@ -663,7 +663,7 @@
     "subtitle": "Assignment / quiz / coding scores in one place, plus certificate management.",
     "pickClass": "Class",
     "pickClassHint": "Pick a class to see its gradebook.",
-    "readOnlyNotice": "You don't teach this class, so it's view-only. Scores are as of the last time its teacher opened the gradebook.",
+    "readOnlyNotice": "You don't teach this class, so it's view-only. Scores are computed from submissions, so they are always current.",
     "loading": "Computing the gradebook...",
     "tableHeading": "Gradebook — {{name}}",
     "rowCount": "{{count}} students",

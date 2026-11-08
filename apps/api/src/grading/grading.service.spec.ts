@@ -64,6 +64,46 @@ describe('GradingService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
+    it('regression: GV vừa chấm, sổ đọc (GET) thấy điểm ngay, không cần ai mở sổ và không ghi DB', async () => {
+      prisma.class.findUnique.mockResolvedValue({
+        id: 'c1',
+        courses: [
+          {
+            course: {
+              assignments: [{ id: 'a1', title: 'BT1', maxScore: '10' }],
+              quizzes: [],
+              codingProblems: [{ id: 'cp1', title: 'Code1', maxScore: '100' }],
+            },
+          },
+        ],
+        members: [
+          { userId: 'u1', user: { fullName: 'User 1', email: 'u1@test.com' } },
+          { userId: 'u2', user: { fullName: 'User 2', email: 'u2@test.com' } },
+        ],
+      });
+      // Cột bài tập đã có từ lần tổng hợp trước (trọng số GV đặt), cột lập trình chưa từng tổng hợp.
+      prisma.gradeItem.findMany.mockResolvedValue([
+        { id: 'gi1', classId: 'c1', sourceType: 'assignment', sourceId: 'a1', title: 'BT1', weight: '2', maxScore: '10' },
+      ]);
+      prisma.gradeEntry.findMany.mockResolvedValue([]); // sổ lưu chưa có điểm nào
+      prisma.submission.findMany.mockResolvedValue([{ assignmentId: 'a1', userId: 'u1', score: '8' }]);
+      prisma.quizAttempt.findMany.mockResolvedValue([]);
+      prisma.codingSubmission.findMany.mockResolvedValue([{ problemId: 'cp1', userId: 'u2', score: '100' }]);
+
+      const res = await service.getClassGradebook('c1', dummyUser);
+
+      const u1 = res.rows.find((r) => r.userId === 'u1');
+      const u2 = res.rows.find((r) => r.userId === 'u2');
+      const coding = res.items.find((i) => i.sourceType === 'coding');
+      expect(res.items.find((i) => i.sourceType === 'assignment')).toMatchObject({ id: 'gi1', weight: 2 });
+      expect(u1?.grades.gi1).toBe(8);
+      expect(u2?.grades[coding?.id as string]).toBe(100);
+      // u1: (80% × 2 + 0) / 3
+      expect(u1?.totalWeightedScore).toBe(53.33);
+      expect(prisma.gradeItem.upsert).not.toHaveBeenCalled();
+      expect(prisma.gradeEntry.upsert).not.toHaveBeenCalled();
+    });
+
     it('recompute tổng hợp sổ điểm từ assignment, quiz, coding', async () => {
       prisma.class.findUnique.mockResolvedValue({
         id: 'c1',

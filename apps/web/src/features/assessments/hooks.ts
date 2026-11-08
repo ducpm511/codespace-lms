@@ -5,6 +5,7 @@ import type {
   SaveSubmissionRequest,
   UpdateAssignmentRequest,
 } from '@lms/contracts';
+import { classReportKey, teachOverviewKey } from '../reports/useClassReport';
 import * as api from './api';
 
 export const assignmentsKey = (courseId?: string) => ['assignments', courseId ?? '_all'] as const;
@@ -110,6 +111,10 @@ export function useGradeSubmission(classId: string, assignmentId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: submissionsKey(classId, assignmentId) });
       void qc.invalidateQueries({ queryKey: ['submissions'] });
+      // Điểm vừa chấm phải hiện ngay ở sổ điểm, báo cáo lớp và chip "Chờ chấm", không đợi cache hết hạn.
+      void qc.invalidateQueries({ queryKey: ['classGradebook', classId] });
+      void qc.invalidateQueries({ queryKey: classReportKey(classId) });
+      void qc.invalidateQueries({ queryKey: teachOverviewKey });
     },
   });
 }

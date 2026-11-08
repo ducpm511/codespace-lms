@@ -663,7 +663,7 @@
     "subtitle": "Tổng hợp điểm bài tập / trắc nghiệm / lập trình và quản lý chứng chỉ học viên.",
     "pickClass": "Chọn lớp",
     "pickClassHint": "Chọn một lớp để xem sổ điểm.",
-    "readOnlyNotice": "Bạn không phụ trách lớp này nên chỉ xem được, điểm tính tới lần giáo viên của lớp mở sổ gần nhất.",
+    "readOnlyNotice": "Bạn không phụ trách lớp này nên chỉ xem được. Điểm tính trực tiếp từ bài nộp nên luôn mới nhất.",
     "loading": "Đang tính toán sổ điểm...",
     "tableHeading": "Bảng điểm lớp {{name}}",
     "rowCount": "{{count}} học viên",

@@ -2,13 +2,21 @@
 
 <!-- SIZE LIMIT: 500 lines. Do not exceed. Refactor into specialized docs if approaching limit. -->
 
-Updated: 2026-11-07
+Updated: 2026-11-08
 
 ## Project Stage
 
 **P0–P9 ✅ ALL PHASES DONE.** Hệ thống đã đóng gói được để chạy thật trên 1 VPS;
 chưa deploy lên máy thật (chưa mua VPS, chưa có tài khoản Cloudinary).
-### Ba lô BlockSpace (2026-11-07) — nhánh `claude/gallant-shannon-ea4da2`, chưa push/PR/deploy
+### Sổ điểm GV luôn mới (2026-11-08) — nhánh `claude/fix-grading-feedback`, chưa push/PR/deploy
+
+Người dùng báo sau PR #8: GV chấm không thấy điểm cập nhật; HV nộp bài lập trình không tăng điểm. Tái hiện trên DB bản sao (đã xóa):
+bài nộp, điểm HV và XP `coding_pass` (+100, một lần/bài) đều đúng; cái đứng yên là **`GET /classes/:id/gradebook` và "Điểm TB" của báo cáo lớp**,
+vì cả hai đọc `GradeEntry` mà chỉ `recompute` (người phụ trách lớp mở sổ) mới ghi. Nay cả hai tính thẳng từ bài nộp
+(`GradingService.computeLiveGrades`, dùng chung với sổ HV), vẫn chỉ đọc; `recompute` giữ để lưu cho chứng chỉ. FE: chấm xong làm mới sổ điểm,
+báo cáo, `teach/overview`; sổ điểm `staleTime: 0`. GV không phụ trách lớp chấm vẫn 403 (đúng C4) — FE đã hiện lỗi đỏ dưới nút Lưu.
+
+### Ba lô BlockSpace (2026-11-07) — nhánh `claude/gallant-shannon-ea4da2`, chưa push/PR/deploy
 
 Ba lô trong trình soạn hiện và dùng được: cất nhân vật / trang phục / âm thanh / khối lệnh, kéo ra ở dự án khác. Chỉ đổi
 `bridge.js` (không cần release editor mới); API `/scratch/backpack` chỉ của chính mình, 100 mục · 10 MB/mục · 50 MB/người.
