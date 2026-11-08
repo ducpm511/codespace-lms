@@ -390,7 +390,7 @@ function AuditRow({
         borderRadius: 16,
         background: 'var(--color-surface)',
         boxShadow: 'inset 0 0 0 1px var(--color-divider)',
-        padding: 'var(--space-4) var(--space-5)',
+        padding: 'var(--space-4) var(--space-6)',
       }}
     >
       <div className="flex items-start gap-3">
@@ -501,7 +501,7 @@ function StatTile({
       className="cx-lift flex items-center gap-3"
       style={{
         borderRadius: 18,
-        padding: 'var(--space-5)',
+        padding: 'var(--space-6)',
         background: 'var(--color-surface)',
         boxShadow: 'inset 0 0 0 1px var(--color-divider)',
       }}

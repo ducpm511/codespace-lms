@@ -115,7 +115,7 @@ export function LessonActivityBuilder({
       >
         {detail.data && activities.length === 0 && <EmptyHint icon="ph-stack">{t('activity.empty')}</EmptyHint>}
 
-        <ul className="flex list-none flex-col p-0" style={{ gap: 'var(--space-5)' }}>
+        <ul className="flex list-none flex-col p-0" style={{ gap: 'var(--space-6)' }}>
           {activities.map((a, i) => (
             <li key={a.id}>
               {editingId === a.id ? (
@@ -179,7 +179,7 @@ function ActivityRow({
       style={{
         borderRadius: 18,
         padding: 'var(--space-6)',
-        gap: 'var(--space-5)',
+        gap: 'var(--space-6)',
         borderLeft: `3px solid ${meta.color}`,
       }}
     >
